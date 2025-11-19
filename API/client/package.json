@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "@types/date-fns": "^2.5.3"
+  }
+}
