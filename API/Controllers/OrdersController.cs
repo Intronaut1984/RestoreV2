@@ -7,11 +7,14 @@ using API.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Stripe;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace API.Controllers;
 
 [Authorize]
-public class OrdersController(StoreContext context) : BaseApiController
+public class OrdersController(StoreContext context, IConfiguration config, ILogger<OrdersController> logger) : BaseApiController
 {
     [HttpGet]
     public async Task<ActionResult<List<OrderDto>>> GetOrders()
@@ -73,6 +76,37 @@ public class OrdersController(StoreContext context) : BaseApiController
         else 
         {
             order.OrderItems = items;
+        }
+
+        // verify payment intent status with Stripe so the order reflects payment status
+        try
+        {
+            if (!string.IsNullOrEmpty(basket.PaymentIntentId))
+            {
+                StripeConfiguration.ApiKey = config["StripeSettings:SecretKey"];
+                var paymentService = new PaymentIntentService();
+                var intent = await paymentService.GetAsync(basket.PaymentIntentId!);
+
+                if (intent != null)
+                {
+                    if (intent.Status == "succeeded")
+                    {
+                        if (order.GetTotal() == intent.Amount)
+                            order.OrderStatus = OrderStatus.PaymentReceived;
+                        else
+                            order.OrderStatus = OrderStatus.PaymentMismatch;
+                    }
+                    else if (intent.Status == "requires_payment_method" || intent.Status == "requires_confirmation" || intent.Status == "requires_action")
+                    {
+                        order.OrderStatus = OrderStatus.Pending;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to verify PaymentIntent for order creation");
+            // keep default Pending if verification fails
         }
 
         var result = await context.SaveChangesAsync() > 0;

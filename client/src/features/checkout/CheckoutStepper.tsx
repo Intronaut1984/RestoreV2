@@ -60,8 +60,8 @@ export default function CheckoutStepper() {
             if (!confirmationToken || !basket?.clientSecret) 
                 throw new Error('Unable to process payment');
 
+            // create order model now but create the order only after payment succeeds
             const orderModel = await createOrderModel();
-            const orderResult = await createOrder(orderModel);
 
             const paymentResult = await stripe?.confirmPayment({
                 clientSecret: basket.clientSecret,
@@ -72,6 +72,7 @@ export default function CheckoutStepper() {
             });
 
             if (paymentResult?.paymentIntent?.status === 'succeeded') {
+                const orderResult = await createOrder(orderModel);
                 navigate('/checkout/success', {state: orderResult});
                 clearBasket();
             } else if (paymentResult?.error) {
