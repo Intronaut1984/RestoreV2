@@ -4,6 +4,7 @@ using API.DTOs;
 using API.Entities;
 using API.Entities.OrderAggregate;
 using API.Extensions;
+using API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ using Microsoft.Extensions.Logging;
 namespace API.Controllers;
 
 [Authorize]
-public class OrdersController(StoreContext context, IConfiguration config, ILogger<OrdersController> logger) : BaseApiController
+public class OrdersController(StoreContext context, IConfiguration config, ILogger<OrdersController> logger, Services.DiscountService discountService) : BaseApiController
 {
     [HttpGet]
     public async Task<ActionResult<List<OrderDto>>> GetOrders()
@@ -53,6 +54,12 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
 
         var subtotal = items.Sum(x => x.Price * x.Quantity);
         var deliveryFee = CalculateDeliveryFee(subtotal);
+        long discount = 0;
+
+        if (basket.Coupon != null)
+        {
+            discount = await discountService.CalculateDiscountFromAmount(basket.Coupon, subtotal);
+        }
 
         var order = await context.Orders
             .Include(x => x.OrderItems)
@@ -67,6 +74,7 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
                 ShippingAddress = orderDto.ShippingAddress,
                 DeliveryFee = deliveryFee,
                 Subtotal = subtotal,
+                Discount = discount,
                 PaymentSummary = orderDto.PaymentSummary,
                 PaymentIntentId = basket.PaymentIntentId
             };
@@ -77,7 +85,7 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
         {
             order.OrderItems = items;
         }
-
+        
         // verify payment intent status with Stripe so the order reflects payment status
         try
         {
