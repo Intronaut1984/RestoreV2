@@ -1,4 +1,7 @@
+// {
+//     "appService.defaultWebAppToDeploy": "/subscriptions/fffc1b13-d75c-4b98-9b75-b6cd4e6ca6b9/resourceGroups/restore-rg-v2/providers/Microsoft.Web/sites/restore-course-alumn",
+//     "appService.deploySubpath": "API\\bin\\Publish"
+// }
 {
-    "appService.defaultWebAppToDeploy": "/subscriptions/fffc1b13-d75c-4b98-9b75-b6cd4e6ca6b9/resourceGroups/restore-rg-v2/providers/Microsoft.Web/sites/restore-course-alumn",
-    "appService.deploySubpath": "API\\bin\\Publish"
+    "sqltools.connections": []
 }
