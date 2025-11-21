@@ -1,6 +1,10 @@
 {
   "dependencies": {
     "@stripe/react-stripe-js": "^5.0.0",
-    "@stripe/stripe-js": "^8.0.0"
+    "@stripe/stripe-js": "^8.0.0",
+    "react-dropzone": "^14.3.8"
+  },
+  "devDependencies": {
+    "@types/react-dropzone": "^4.2.2"
   }
 }
