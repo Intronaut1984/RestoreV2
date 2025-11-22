@@ -1,4 +1,4 @@
-import { Grid2, Typography } from "@mui/material";
+import { Grid, Typography } from "@mui/material";
 import OrderSummary from "../../app/shared/components/OrderSummary";
 import CheckoutStepper from "./CheckoutStepper";
 import { loadStripe, StripeElementsOptions } from "@stripe/stripe-js";
@@ -33,8 +33,8 @@ export default function CheckoutPage() {
   }, [basket?.clientSecret, darkMode])
 
   return (
-    <Grid2 container spacing={2}>
-      <Grid2 size={8}>
+    <Grid container spacing={2}>
+      <Grid item xs={12} md={8}>
         {!stripePromise || !options || isLoading ? (
           <Typography variant="h6">Loading checkout...</Typography>
         ) : (
@@ -44,10 +44,10 @@ export default function CheckoutPage() {
         )}
 
 
-      </Grid2>
-      <Grid2 size={4}>
+      </Grid>
+      <Grid item xs={12} md={4}>
         <OrderSummary />
-      </Grid2>
-    </Grid2>
+      </Grid>
+    </Grid>
   )
 }

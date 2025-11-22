@@ -6,16 +6,22 @@ import ReplayIcon from '@mui/icons-material/Replay';
 
 export default function HomePage() {
   return (
-    <Box maxWidth='xl' mx='auto' px={4} position='relative'>
+    <Box sx={{ width: '100%', position: 'relative' }}>
       <Box
         position='relative'
         sx={{
-          borderRadius: 4,
+          borderRadius: 0,
           overflow: 'hidden',
-          minHeight: { xs: '60vh', md: '72vh' },
-          backgroundImage: `url('/images/hero1.jpg')`,
+          minHeight: { xs: '56vh', md: '72vh' },
+          backgroundImage: `url('/images/BookStore.jpg')`,
           backgroundSize: 'cover',
-          backgroundPosition: 'center'
+          backgroundPosition: 'center',
+          width: '100vw',
+          left: '50%',
+          right: '50%',
+          marginLeft: '-50vw',
+          marginRight: '-50vw',
+          mt: -8
         }}
       >
         {/* dark overlay */}
@@ -23,17 +29,19 @@ export default function HomePage() {
 
         <Box
           sx={{
-            position: 'relative',
+            position: 'absolute',
+            top: '50%',
+            left: 0,
+            right: 0,
+            transform: 'translateY(-50%)',
             zIndex: 2,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            height: '100%',
             color: 'white',
             textAlign: 'center',
-            px: { xs: 3, md: 6 },
-            py: { xs: 6, md: 0 }
+            px: { xs: 3, md: 6 }
           }}
         >
           <Typography
@@ -45,15 +53,14 @@ export default function HomePage() {
               letterSpacing: '-0.02em'
             }}
           >
-            Welcome to Restore
+            My Store
           </Typography>
 
           <Typography sx={{ mt: 2, maxWidth: 900, color: 'rgba(255,255,255,0.9)' }}>
-            Discover curated products, fast shipping and friendly returns — everything you need to
-            shop confidently and find what you love.
+            A Man with Reason is the Strongest
           </Typography>
 
-          <Box sx={{ mt: 4, display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <Box sx={{ mt: { xs: 3, md: 3 }, display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
             <Button
               variant="contained"
               size="large"
@@ -63,8 +70,8 @@ export default function HomePage() {
                 backgroundImage: 'linear-gradient(90deg, #2563eb 0%, #06b6d4 100%)',
                 color: 'white',
                 fontWeight: 700,
-                px: 5,
-                py: 1.5,
+                px: { xs: 4, md: 5 },
+                py: { xs: 1, md: 1.5 },
                 borderRadius: 3
               }}
             >
@@ -75,12 +82,12 @@ export default function HomePage() {
               variant="outlined"
               size="large"
               component={Link}
-              to="/catalog"
+              to="/login"
               sx={{
                 color: 'white',
                 borderColor: 'rgba(255,255,255,0.25)',
-                px: 4,
-                py: 1.5,
+                px: { xs: 3, md: 4 },
+                py: { xs: 1, md: 1.5 },
                 borderRadius: 3
               }}
             >
