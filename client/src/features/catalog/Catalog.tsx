@@ -1,4 +1,4 @@
-import { Grid2, Typography } from "@mui/material";
+import { Grid, Typography } from "@mui/material";
 import ProductList from "./ProductList";
 import { useFetchFiltersQuery, useFetchProductsQuery } from "./catalogApi";
 import Filters from "./Filters";
@@ -15,11 +15,11 @@ export default function Catalog() {
   if (isLoading || !data || filtersLoading || !filtersData) return <div>Loading...</div>
 
   return (
-    <Grid2 container spacing={4}>
-      <Grid2 size={3}>
+    <Grid container spacing={4}>
+      <Grid item xs={12} md={3} sx={{ display: { xs: 'none', md: 'block' } }}>
         <Filters filtersData={filtersData} />
-      </Grid2>
-      <Grid2 size={9}>
+      </Grid>
+      <Grid item xs={12} md={9}>
         {data.items && data.items.length > 0 ? (
           <>
             <ProductList products={data.items} />
@@ -34,7 +34,7 @@ export default function Catalog() {
         ) : (
           <Typography variant="h5">There are no results for this filter</Typography>
         )}
-      </Grid2>
-    </Grid2>
+      </Grid>
+    </Grid>
   )
 }

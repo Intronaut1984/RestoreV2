@@ -1,4 +1,4 @@
-import { Box, Grid2, IconButton, Paper, Typography } from "@mui/material"
+import { Box, IconButton, Paper, Typography } from "@mui/material"
 import { Item } from "../../app/models/basket"
 import { Add, Close, Remove } from "@mui/icons-material"
 import { useAddBasketItemMutation, useRemoveBasketItemMutation } from "./basketApi"
@@ -14,61 +14,65 @@ export default function BasketItem({ item }: Props) {
 
     return (
         <Paper sx={{
-            height: 140,
             borderRadius: 3,
             display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
             justifyContent: 'space-between',
             alignItems: 'center',
-            mb: 2
+            p: 1.5,
+            mb: 2,
+            boxSizing: 'border-box'
         }}>
-            <Box display='flex' alignItems='center'>
+            <Box sx={{display: 'flex', alignItems: 'center', width: '100%'}}>
                 <Box
                     component='img'
                     src={item.pictureUrl}
                     alt={item.name}
                     sx={{
-                        width: 100,
-                        height: 100,
+                        width: { xs: 72, sm: 100 },
+                        height: { xs: 72, sm: 100 },
                         objectFit: 'cover',
-                        borderRadius: '4px',
-                        mr: 8,
-                        ml: 4
+                        borderRadius: 1,
+                        mr: { xs: 2, sm: 4 },
+                        ml: { xs: 0, sm: 2 },
+                        flex: '0 0 auto'
                     }}
                 />
 
-                <Box display='flex' flexDirection='column' gap={1}>
-                    <Typography variant="h6">{item.name}</Typography>
+                <Box sx={{display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0}}>
+                    <Typography variant="h6" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</Typography>
 
-                    <Box display='flex' alignItems='center' gap={3}>
-                        <Typography sx={{fontSize: '1.1rem'}}>
+                    <Box sx={{display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap'}}>
+                        <Typography sx={{fontSize: { xs: '0.95rem', sm: '1.1rem' }}}>
                             {currencyFormat(item.price)} x {item.quantity}
                         </Typography>
-                        <Typography sx={{fontSize: '1.1rem'}} color='primary'>
+                        <Typography sx={{fontSize: { xs: '0.95rem', sm: '1.1rem' }}} color='primary'>
                             {currencyFormat(item.price * item.quantity)}
                         </Typography>
                     </Box>
 
-                    <Grid2 container spacing={1} alignItems='center'>
+                    <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
                         <IconButton 
                             onClick={() => removeBasketItem({productId: item.productId, quantity: 1})}
                             color="error" 
                             size="small" 
-                            sx={{border: 1, borderRadius: 1, minWidth: 0}}
+                            sx={{border: 1, borderRadius: 1, minWidth: 0, p: 0.5}}
                         >
-                            <Remove />
+                            <Remove fontSize="small" />
                         </IconButton>
-                        <Typography variant="h6">{item.quantity}</Typography>
+                        <Typography variant="h6" sx={{ mx: 0.5 }}>{item.quantity}</Typography>
                         <IconButton 
                             onClick={() => addBasketItem({product: item, quantity: 1})}
                             color="success" 
                             size="small" 
-                            sx={{border: 1, borderRadius: 1, minWidth: 0}}
+                            sx={{border: 1, borderRadius: 1, minWidth: 0, p: 0.5}}
                         >
-                            <Add />
+                            <Add fontSize="small" />
                         </IconButton>
-                    </Grid2>
+                    </Box>
                 </Box>
             </Box>
+
             <IconButton
                 onClick={() => removeBasketItem({productId: item.productId, quantity: item.quantity})}
                 color='error'
@@ -77,12 +81,12 @@ export default function BasketItem({ item }: Props) {
                     border: 1, 
                     borderRadius: 1, 
                     minWidth: 0, 
-                    alignSelf: 'start',
-                    mr: 1,
-                    mt: 1
+                    alignSelf: { xs: 'flex-end', sm: 'start' },
+                    mt: { xs: 1, sm: 0 },
+                    ml: { xs: 0, sm: 1 }
                 }}
             >
-                <Close />
+                <Close fontSize="small" />
             </IconButton>
         </Paper>
     )

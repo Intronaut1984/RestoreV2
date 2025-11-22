@@ -1,4 +1,4 @@
-import { Box, Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import { Box, Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, Grid } from "@mui/material";
 import { useAppDispatch, useAppSelector } from "../../app/store/store"
 import { useFetchProductsQuery } from "../catalog/catalogApi";
 import { currencyFormat } from "../../lib/util";
@@ -38,15 +38,16 @@ export default function InventoryPage() {
         refetch={refetch}
         setSelectedProduct={setSelectedProduct}
     />
-
     return (
         <>
-            <Box display='flex' justifyContent='space-between'>
+            <Box display='flex' justifyContent='space-between' alignItems='center'>
                 <Typography sx={{p: 2}} variant='h4'>Inventory</Typography>
                 <Button onClick={() => setEditMode(true)} sx={{m: 2}} size='large' variant='contained'>Create</Button>
             </Box>
-            <TableContainer component={Paper}>
-                <Table sx={{minWidth: 650}}>
+
+            {/* Desktop/tablet: show table */}
+            <TableContainer component={Paper} sx={{ display: { xs: 'none', md: 'block' } }}>
+                <Table sx={{minWidth: 650, tableLayout: 'fixed'}}>
                     <TableHead>
                         <TableRow>
                             <TableCell>#</TableCell>
@@ -69,14 +70,16 @@ export default function InventoryPage() {
                                 <TableCell component='th' scope="row">
                                     {product.id}
                                 </TableCell>
-                                <TableCell align="left">
-                                    <Box display='flex' alignItems='center'>
+                                <TableCell align="left" sx={{width: 300, maxWidth: 300}}>
+                                    <Box sx={{display: 'flex', alignItems: 'center'}}>
                                         <img 
                                             src={product.pictureUrl} 
                                             alt={product.name} 
-                                            style={{height: 50, marginRight: 20}}
+                                            style={{height: 50, marginRight: 20, flex: '0 0 auto'}}
                                         />
-                                        <span>{product.name}</span>
+                                        <Box sx={{flex: 1, minWidth: 0, overflow: 'hidden'}}>
+                                            <Typography sx={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{product.name}</Typography>
+                                        </Box>
                                     </Box>
                                 </TableCell>
                                 <TableCell align="right">{currencyFormat(product.price)}</TableCell>
@@ -100,6 +103,48 @@ export default function InventoryPage() {
                     )}
                 </Box>
             </TableContainer>
+
+            {/* Mobile: show cards */}
+            <Box sx={{ display: { xs: 'block', md: 'none' }, mt: 2 }}>
+                <Grid container spacing={2}>
+                    {data && data.items.map(product => (
+                        <Grid item xs={6} sm={4} key={product.id}>
+                            <Paper sx={{p: 1}}>
+                                <Box display='flex' flexDirection='column' alignItems='center'>
+                                    <img src={product.pictureUrl} alt={product.name} style={{width: '100%', height: 100, objectFit: 'cover', borderRadius: 8}} />
+                                    <Typography
+                                        variant='subtitle2'
+                                        sx={{
+                                            mt: 1,
+                                            textAlign: 'center',
+                                            width: '100%',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        {product.name}
+                                    </Typography>
+                                    <Typography variant='subtitle2' sx={{color: 'secondary.main'}}>{currencyFormat(product.price)}</Typography>
+                                    <Box sx={{display: 'flex', gap:1, mt:1}}>
+                                        <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />}>Edit</Button>
+                                        <Button size='small' color='error' onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />}>Del</Button>
+                                    </Box>
+                                </Box>
+                            </Paper>
+                        </Grid>
+                    ))}
+                </Grid>
+
+                <Box sx={{p: 2}}>
+                    {data?.pagination && data.items.length > 0 && (
+                        <AppPagination 
+                            metadata={data.pagination}
+                            onPageChange={(page: number) => dispatch(setPageNumber(page))}
+                        />
+                    )}
+                </Box>
+            </Box>
         </>
     )
 }

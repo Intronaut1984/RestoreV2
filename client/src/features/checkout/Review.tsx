@@ -54,26 +54,25 @@ export default function Review({confirmationToken}: Props) {
                     <Table>
                         <TableBody>
                             {basket?.items.map((item) => (
-                                <TableRow key={item.productId} 
-                                    sx={{borderBottom: '1px solid rgba(224, 224, 224, 1)'}}> 
-                                    <TableCell sx={{py: 4}}>
-                                        <Box display='flex' gap={3} alignItems='center'>
-                                            <img src={item.pictureUrl} 
-                                                alt={item.name} 
-                                                style={{width: 40, height: 40}} 
-                                            />
-                                            <Typography>
-                                                {item.name}
-                                            </Typography>
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell align="center" sx={{p: 4}}>
-                                        x {item.quantity}
-                                    </TableCell>
-                                    <TableCell align="right" sx={{p: 4}}>
-                                        {currencyFormat(item.price)}
-                                    </TableCell>
-                                </TableRow>
+                                        <TableRow key={item.productId} sx={{borderBottom: '1px solid rgba(224, 224, 224, 1)'}}> 
+                                                <TableCell sx={{py: 2}}>
+                                                    <Box display='flex' gap={2} alignItems='center'>
+                                                        <img src={item.pictureUrl} 
+                                                            alt={item.name} 
+                                                            style={{width: 40, height: 40, objectFit: 'cover', borderRadius: 4}} 
+                                                        />
+                                                        <Typography sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            {item.name}
+                                                        </Typography>
+                                                    </Box>
+                                                </TableCell>
+                                                <TableCell align="center" sx={{p: 2, width: 80}}>
+                                                    x {item.quantity}
+                                                </TableCell>
+                                                <TableCell align="right" sx={{p: 2, width: 120}}>
+                                                    {currencyFormat(item.price)}
+                                                </TableCell>
+                                            </TableRow>
                             ))}
                         </TableBody>
                     </Table>

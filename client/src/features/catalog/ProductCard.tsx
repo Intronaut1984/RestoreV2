@@ -14,7 +14,8 @@ export default function ProductCard({ product }: Props) {
         <Card
             elevation={3}
             sx={{
-                width: 280,
+                width: '100%',
+                maxWidth: 260,
                 borderRadius: 2,
                 display: 'flex',
                 flexDirection: 'column',
@@ -22,9 +23,10 @@ export default function ProductCard({ product }: Props) {
             }}
         >
             <CardMedia
-                sx={{ height: 240, backgroundSize: 'cover' }}
+                component="img"
                 image={product.pictureUrl}
-                title={product.name}
+                alt={product.name}
+                sx={{ width: '100%', height: 'auto', objectFit: 'cover', minHeight: 140 }}
             />
             <CardContent>
                 <Typography
