@@ -65,7 +65,7 @@ export default function NavBar() {
                     <IconButton color="inherit" onClick={openFilters} sx={{ display: { xs: 'inline-flex', md: 'none' } }}>
                         <FilterListIcon />
                     </IconButton>
-                    <Typography component={NavLink} sx={navStyles} to='/' variant="h6">100 Letras</Typography>
+                    <Typography component={NavLink} sx={navStyles} to='/' variant="h6">My Store</Typography>
                     <IconButton onClick={() => dispatch(setDarkMode())}>
                         {darkMode ? <DarkMode /> : <LightMode sx={{ color: 'yellow' }} />}
                     </IconButton>
