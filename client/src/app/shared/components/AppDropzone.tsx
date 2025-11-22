@@ -23,30 +23,36 @@ export default function AppDropzone<T extends FieldValues>(props: Props<T>) {
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({onDrop});
 
-    const dzStyles = {
+    const baseSx = {
         display: 'flex',
-        border: 'dashed 2px #767676',
-        borderColor: '#767676',
-        borderRadius: '5px',
-        paddingTop: '30px',
+        flexDirection: 'column',
         alignItems: 'center',
-        height: 200,
-        width: 500
-    }
+        justifyContent: 'center',
+        border: 'dashed 2px',
+        borderColor: '#767676',
+        borderRadius: 1,
+        pt: 3,
+        px: 2,
+        height: { xs: 140, sm: 180, md: 200 },
+        width: '100%',
+        maxWidth: 500,
+        boxSizing: 'border-box',
+        textAlign: 'center'
+    } as const;
 
-    const dzActive = {
+    const activeSx = {
         borderColor: 'green'
-    }
+    } as const;
 
     return (
        <div {...getRootProps()}>
         <FormControl 
-            style={isDragActive ? {...dzStyles, ...dzActive} : dzStyles}
+            sx={isDragActive ? {...baseSx, ...activeSx} : baseSx}
             error={!!fieldState.error}
         >
             <input {...getInputProps()} />
-            <UploadFile sx={{fontSize: '100px'}} />
-            <Typography variant="h4">Drop image here</Typography>
+            <UploadFile sx={{fontSize: { xs: 48, sm: 80, md: 100 }, color: 'action.active'}} />
+            <Typography variant="h6" sx={{mt: 1}}>Drop image here</Typography>
             <FormHelperText>{fieldState.error?.message}</FormHelperText>
         </FormControl>
        </div>

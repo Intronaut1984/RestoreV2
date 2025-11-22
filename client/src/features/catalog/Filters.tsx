@@ -1,5 +1,5 @@
 import { Box, Button, Paper } from "@mui/material";
-import Search from "./Search";
+// Search moved to NavBar for global access
 import RadioButtonGroup from "../../app/shared/components/RadioButtonGroup";
 import { useAppDispatch, useAppSelector } from "../../app/store/store";
 import { resetParams, setBrands, setOrderBy, setTypes } from "./catalogSlice";
@@ -20,11 +20,8 @@ export default function Filters({filtersData: data}: Props) {
     const { orderBy, types, brands } = useAppSelector(state => state.catalog);
     const dispatch = useAppDispatch();
 
-    return (
-        <Box display='flex' flexDirection='column' gap={3}>
-            <Paper>
-                <Search />
-            </Paper>
+    const filtersContent = (
+        <Box display='flex' flexDirection='column' gap={3} sx={{ width: { xs: '100%', sm: 'auto' } }}>
             <Paper sx={{ p: 3 }}>
                 <RadioButtonGroup
                     selectedValue={orderBy}
@@ -49,4 +46,6 @@ export default function Filters({filtersData: data}: Props) {
             <Button onClick={() => dispatch(resetParams())}>Reset filters</Button>
         </Box>
     )
+
+    return filtersContent
 }

@@ -19,44 +19,44 @@ export default function OrderSummary() {
     } 
 
     return (
-        <Box display="flex" flexDirection="column" alignItems="center" maxWidth="lg" mx="auto">
-            <Paper sx={{ mb: 2, p: 3, width: '100%', borderRadius: 3 }}>
+        <Box sx={{ width: '100%' }}>
+            <Paper sx={{ mb: 2, p: { xs: 2, sm: 3 }, width: '100%', borderRadius: 3, boxSizing: 'border-box' }}>
 
                 <Typography variant="h6" component="p" fontWeight="bold">
                     Order summary
                 </Typography>
-                <Typography variant="body2" sx={{fontStyle: 'italic'}}>
-                    Orders over $100 qualify for free delivery!
-                </Typography>
                 <Box mt={2}>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                        <Typography color="textSecondary">Subtotal</Typography>
-                        <Typography>
+                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', mb: 1, gap: 1, alignItems: { xs: 'flex-start', sm: 'center' } }}>
+                        <Typography color="textSecondary" sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Subtotal</Typography>
+                        <Typography sx={{ flex: '0 0 auto', ml: { xs: 0, sm: 1 }, mt: { xs: 0.5, sm: 0 } }}>
                             {currencyFormat(subtotal)}
                         </Typography>
                     </Box>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                        <Typography color="textSecondary">Discount</Typography>
-                        <Typography color="success">
+                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', mb: 1, gap: 1, alignItems: { xs: 'flex-start', sm: 'center' } }}>
+                        <Typography color="textSecondary" sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Discount</Typography>
+                        <Typography color="success" sx={{ flex: '0 0 auto', ml: { xs: 0, sm: 1 }, mt: { xs: 0.5, sm: 0 } }}>
                             -{currencyFormat(discount)}
                         </Typography>
                     </Box>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                        <Typography color="textSecondary">Delivery fee</Typography>
-                        <Typography>
+                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', mb: 1, gap: 1, alignItems: { xs: 'flex-start', sm: 'center' } }}>
+                        <Typography color="textSecondary" sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Delivery fee</Typography>
+                        <Typography sx={{ flex: '0 0 auto', ml: { xs: 0, sm: 1 }, mt: { xs: 0.5, sm: 0 } }}>
                             {currencyFormat(deliveryFee)}
                         </Typography>
                     </Box>
                     <Divider sx={{ my: 2 }} />
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                        <Typography color="textSecondary">Total</Typography>
-                        <Typography>
+                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', mb: 1, gap: 1, alignItems: { xs: 'flex-start', sm: 'center' } }}>
+                        <Typography color="textSecondary" sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Total</Typography>
+                        <Typography sx={{ flex: '0 0 auto', ml: { xs: 0, sm: 1 }, mt: { xs: 0.5, sm: 0 }, fontWeight: 'bold' }}>
                             {currencyFormat(total)}
                         </Typography>
                     </Box>
+                    <Typography variant="caption" sx={{fontStyle: 'italic', fontSize: { xs: '0.65rem', sm: '0.8rem' }, mt: 1}}>
+                    *Entrega Gratuita em compras mais de €100
+                    </Typography>
                 </Box>
 
-                <Box mt={2}>
+                <Box mt={2} sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'column' }, gap: 1 }}>
                     {!location.pathname.includes('checkout') &&
                     <Button
                         component={Link}
@@ -64,7 +64,6 @@ export default function OrderSummary() {
                         variant="contained"
                         color="primary"
                         fullWidth
-                        sx={{ mb: 1 }}
                     >
                         Checkout
                     </Button>}
@@ -80,7 +79,7 @@ export default function OrderSummary() {
 
             {/* Coupon Code Section */}
             {location.pathname.includes('checkout') &&
-            <Paper sx={{ width: '100%', borderRadius: 3, p: 3 }}>
+            <Paper sx={{ width: '100%', borderRadius: 3, p: { xs: 2, sm: 3 }, mt: 2, boxSizing: 'border-box' }}>
 
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Typography variant="subtitle1" component="label">
@@ -88,14 +87,13 @@ export default function OrderSummary() {
                     </Typography>
 
                     {basket?.coupon &&
-                    <Box display='flex' justifyContent='space-between' alignItems='center'>
-                        <Typography fontWeight='bold' variant='body2'>{basket.coupon.name} applied</Typography>
-                        <LoadingButton loading={isLoading} onClick={() => removeCoupon()}>
+                    <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap'}}>
+                        <Typography fontWeight='bold' variant='body2' sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{basket.coupon.name} applied</Typography>
+                        <LoadingButton loading={isLoading} onClick={() => removeCoupon()} size="small" sx={{ ml: 'auto' }}>
                             <Delete color="error" />
                         </LoadingButton>
                     </Box>}
 
-                    
                     <TextField
                         label="Voucher code"
                         variant="outlined"

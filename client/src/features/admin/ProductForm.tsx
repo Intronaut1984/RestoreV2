@@ -1,7 +1,7 @@
 import { FieldValues, useForm } from "react-hook-form";
 import { createProductSchema, CreateProductSchema } from "../../lib/schemas/createProductSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Box, Button, Grid2, Paper, Typography } from "@mui/material";
+import { Box, Button, Grid, Paper, Typography } from "@mui/material";
 import AppTextInput from "../../app/shared/components/AppTextInput";
 import { useFetchFiltersQuery } from "../catalog/catalogApi";
 import AppSelectInput from "../../app/shared/components/AppSelectInput";
@@ -94,18 +94,18 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
     };
 
     return (
-        <Box component={Paper} sx={{ p: 4, maxWidth: "lg", mx: "auto" }}>
+        <Box component={Paper} sx={{ p: 4, maxWidth: 900, width: '100%', mx: "auto" }}>
             <Typography variant="h4" sx={{ mb: 4 }}>
                 Product details
             </Typography>
 
             <form onSubmit={handleSubmit(onSubmit)}>
-                <Grid2 container spacing={3}>
-                    <Grid2 size={12}>
+                <Grid container spacing={3}>
+                    <Grid item xs={12}>
                         <AppTextInput control={control} name="name" label="Product name" />
-                    </Grid2>
+                    </Grid>
 
-                    <Grid2 size={6}>
+                    <Grid item xs={12} md={6}>
                         {data?.brands && (
                             <AppSelectInput
                                 items={data.brands}
@@ -114,9 +114,9 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                                 label="Brand"
                             />
                         )}
-                    </Grid2>
+                    </Grid>
 
-                    <Grid2 size={6}>
+                    <Grid item xs={12} md={6}>
                         {data?.types && (
                             <AppSelectInput
                                 items={data.types}
@@ -125,27 +125,27 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                                 label="Type"
                             />
                         )}
-                    </Grid2>
+                    </Grid>
 
-                    <Grid2 size={6}>
+                    <Grid item xs={12} md={6}>
                         <AppTextInput
                             type="number"
                             control={control}
                             name="price"
                             label="Price in cents"
                         />
-                    </Grid2>
+                    </Grid>
 
-                    <Grid2 size={6}>
+                    <Grid item xs={12} md={6}>
                         <AppTextInput
                             type="number"
                             control={control}
                             name="quantityInStock"
                             label="Quantity in stock"
                         />
-                    </Grid2>
+                    </Grid>
 
-                    <Grid2 size={12}>
+                    <Grid item xs={12}>
                         <AppTextInput
                             control={control}
                             multiline
@@ -153,29 +153,33 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             name="description"
                             label="Description"
                         />
-                    </Grid2>
+                    </Grid>
 
-                    <Grid2 size={12} display="flex" justifyContent="space-between" alignItems="center">
-                        <AppDropzone name="file" control={control} />
+                    <Grid item xs={12} sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ flex: 1, width: '100%' }}>
+                            <AppDropzone name="file" control={control} />
+                        </Box>
 
-                        {watchFile && (watchFile as PreviewFile).preview ? (
-                            <img
-                                src={(watchFile as PreviewFile).preview}
-                                alt="preview"
-                                style={{ maxHeight: 200 }}
-                            />
-                        ) : product?.pictureUrl ? (
-                            <img
-                                src={product.pictureUrl}
-                                alt="product"
-                                style={{ maxHeight: 200 }}
-                            />
-                        ) : null}
-                    </Grid2>
-                </Grid2>
+                        <Box sx={{ mt: { xs: 1, sm: 0 } }}>
+                            {watchFile && (watchFile as PreviewFile).preview ? (
+                                <img
+                                    src={(watchFile as PreviewFile).preview}
+                                    alt="preview"
+                                    style={{ maxHeight: 200, maxWidth: '100%', width: 'auto', display: 'block' }}
+                                />
+                            ) : product?.pictureUrl ? (
+                                <img
+                                    src={product.pictureUrl}
+                                    alt="product"
+                                    style={{ maxHeight: 200, maxWidth: '100%', width: 'auto', display: 'block' }}
+                                />
+                            ) : null}
+                        </Box>
+                    </Grid>
+                </Grid>
 
-                <Box display="flex" justifyContent="space-between" sx={{ mt: 3 }}>
-                    <Button onClick={() => setEditMode(false)} variant="contained" color="inherit">
+                <Box sx={{ mt: 3, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', gap: 2 }}>
+                    <Button onClick={() => setEditMode(false)} variant="contained" color="inherit" sx={{ width: { xs: '100%', sm: 'auto' } }}>
                         Cancel
                     </Button>
 
@@ -184,6 +188,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                         variant="contained"
                         color="success"
                         type="submit"
+                        sx={{ width: { xs: '100%', sm: 'auto' } }}
                     >
                         Submit
                     </LoadingButton>

@@ -1,4 +1,4 @@
-import { Box, Button, Checkbox, FormControlLabel, Paper, Step, StepLabel, Stepper, Typography } from "@mui/material";
+import { Box, Button, Checkbox, FormControlLabel, Paper, Step, StepLabel, Stepper, Typography, useTheme, useMediaQuery } from "@mui/material";
 import { AddressElement, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { useState } from "react"
 import Review from "./Review";
@@ -14,6 +14,8 @@ import { useCreateOrderMutation } from "../orders/orderApi";
 const steps = ['Address', 'Payment', 'Review'];
 
 export default function CheckoutStepper() {
+    const theme = useTheme();
+    const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
     const [activeStep, setActiveStep] = useState(0);
     const [createOrder] = useCreateOrderMutation();
     const {basket} = useBasket();
@@ -124,12 +126,14 @@ export default function CheckoutStepper() {
     if (isLoading) return <Typography variant="h6">Loading checkout...</Typography>
 
     return (
-        <Paper sx={{p: 3, borderRadius: 3}}>
-            <Stepper activeStep={activeStep}>
+        <Paper sx={{p: { xs: 2, sm: 3 }, borderRadius: 3, boxSizing: 'border-box' }}>
+            <Stepper activeStep={activeStep} orientation={isSmall ? 'vertical' : 'horizontal'} sx={{ overflowX: 'auto' }}>
                 {steps.map((label, index) => {
                     return (
                         <Step key={index}>
-                            <StepLabel>{label}</StepLabel>
+                            <StepLabel>
+                                <Typography variant={isSmall ? 'body2' : 'body1'}>{label}</Typography>
+                            </StepLabel>
                         </Step>
                     )
                 })}
@@ -164,8 +168,8 @@ export default function CheckoutStepper() {
                 </Box>
             </Box>
 
-            <Box display='flex' paddingTop={2} justifyContent='space-between'>
-                <Button onClick={handleBack}>Back</Button>
+            <Box sx={{ display: 'flex', pt: 2, justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+                <Button onClick={handleBack} sx={{ width: { xs: '100%', sm: 'auto' } }}>Back</Button>
                 <LoadingButton 
                     onClick={handleNext}
                     disabled={
@@ -174,6 +178,7 @@ export default function CheckoutStepper() {
                         submitting
                     }
                     loading={submitting}
+                    sx={{ width: { xs: '100%', sm: 'auto' } }}
                 >
                     {activeStep === steps.length - 1 ? `Pay ${currencyFormat(total)}` : 'Next'}
                 </LoadingButton>

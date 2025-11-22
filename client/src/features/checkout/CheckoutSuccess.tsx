@@ -59,11 +59,11 @@ export default function CheckoutSuccess() {
           </Box>
         </Paper>
 
-        <Box display='flex' justifyContent='flex-start' gap={2}>
-          <Button variant="contained" color="primary" component={Link} to={`/orders/${order.id}`}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-start', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Button variant="contained" color="primary" component={Link} to={`/orders/${order.id}`} sx={{ width: { xs: '100%', sm: 'auto' } }}>
             View your order
           </Button>
-          <Button component={Link} to='/catalog' variant="outlined" color='primary'>
+          <Button component={Link} to='/catalog' variant="outlined" color='primary' sx={{ width: { xs: '100%', sm: 'auto' } }}>
             Continue shopping
           </Button>
         </Box>

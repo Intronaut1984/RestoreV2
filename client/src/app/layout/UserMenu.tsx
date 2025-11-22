@@ -1,7 +1,7 @@
-import { Button, Menu, Fade, MenuItem, ListItemIcon, ListItemText, Divider } from "@mui/material";
+import { IconButton, Menu, Fade, MenuItem, ListItemIcon, ListItemText, Divider } from "@mui/material";
 import { useState } from "react";
 import { User } from "../models/user";
-import { History, Inventory, Logout, Person } from "@mui/icons-material";
+import { History, Inventory, Logout, Person, AccountCircle } from "@mui/icons-material";
 import { useLogoutMutation } from "../../features/account/accountApi";
 import { Link } from "react-router-dom";
 
@@ -22,14 +22,9 @@ export default function UserMenu({ user }: Props) {
 
     return (
         <div>
-            <Button
-                onClick={handleClick}
-                color='inherit'
-                size='large'
-                sx={{fontSize: '1.1rem'}}
-            >
-                {user.email}
-            </Button>
+            <IconButton onClick={handleClick} color='inherit' size='large'>
+                <AccountCircle />
+            </IconButton>
             <Menu
                 id="fade-menu"
                 MenuListProps={{
@@ -40,6 +35,10 @@ export default function UserMenu({ user }: Props) {
                 onClose={handleClose}
                 TransitionComponent={Fade}
             >
+                <MenuItem disabled>
+                    <ListItemText primary={user.email} />
+                </MenuItem>
+                <Divider />
                 <MenuItem>
                     <ListItemIcon>
                         <Person />
