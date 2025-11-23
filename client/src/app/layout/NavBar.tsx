@@ -1,5 +1,6 @@
 import { AppBar, Badge, Box, IconButton, LinearProgress, List, ListItem, Toolbar, Typography, Menu, MenuItem, useTheme, useMediaQuery, Drawer } from "@mui/material";
 import { DarkMode, LightMode, ShoppingCart, AccountCircle, FilterList as FilterListIcon, Search as SearchIcon } from '@mui/icons-material';
+import { useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { Link, NavLink } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../store/store";
@@ -46,6 +47,8 @@ export default function NavBar() {
     const { data: filtersData } = useFetchFiltersQuery();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const location = useLocation();
+    const isCatalogRoute = location.pathname.startsWith('/catalog');
     const [anchorProfileEl, setAnchorProfileEl] = useState<null | HTMLElement>(null);
     const handleProfileOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorProfileEl(e.currentTarget);
     const handleProfileClose = () => setAnchorProfileEl(null);
@@ -62,9 +65,11 @@ export default function NavBar() {
         <AppBar position="fixed">
             <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box display='flex' alignItems='center'>
-                    <IconButton color="inherit" onClick={openFilters} sx={{ display: { xs: 'inline-flex', md: 'none' } }}>
-                        <FilterListIcon />
-                    </IconButton>
+                    {isCatalogRoute && (
+                        <IconButton color="inherit" onClick={openFilters} sx={{ display: { xs: 'inline-flex', md: 'none' } }}>
+                            <FilterListIcon />
+                        </IconButton>
+                    )}
                     <Typography component={NavLink} sx={navStyles} to='/' variant="h6">My Store</Typography>
                     <IconButton onClick={() => dispatch(setDarkMode())}>
                         {darkMode ? <DarkMode /> : <LightMode sx={{ color: 'yellow' }} />}
