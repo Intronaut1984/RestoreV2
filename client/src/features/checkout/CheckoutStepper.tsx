@@ -1,4 +1,4 @@
-import { Box, Button, Checkbox, FormControlLabel, Paper, Step, StepLabel, Stepper, Typography, useTheme, useMediaQuery } from "@mui/material";
+import { Box, Button, Checkbox, FormControlLabel, Paper, Step, StepLabel, Stepper, Typography, useTheme, useMediaQuery, TextField } from "@mui/material";
 import { AddressElement, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { useState } from "react"
 import Review from "./Review";
@@ -26,6 +26,7 @@ export default function CheckoutStepper() {
     const stripe = useStripe();
     const [addressComplete, setAddressComplete] = useState(false);
     const [paymentComplete, setPaymentComplete] = useState(false);
+    const [phone, setPhone] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const {total, clearBasket} = useBasket();
     const navigate = useNavigate();
@@ -69,7 +70,12 @@ export default function CheckoutStepper() {
                 clientSecret: basket.clientSecret,
                 redirect: 'if_required',
                 confirmParams: {
-                    confirmation_token: confirmationToken.id
+                    confirmation_token: confirmationToken.id,
+                    payment_method_data: {
+                        billing_details: {
+                            phone
+                        }
+                    }
                 }
             });
 
@@ -94,9 +100,23 @@ export default function CheckoutStepper() {
 
     const createOrderModel = async () => {
         const shippingAddress = await getStripeAddress();
-        const paymentSummary = confirmationToken?.payment_method_preview.card;
+        const pmPreview = confirmationToken?.payment_method_preview;
 
-        if (!shippingAddress || !paymentSummary) throw new Error('Problem creating order');
+        if (!shippingAddress || !pmPreview) throw new Error('Problem creating order');
+
+        let paymentSummary;
+
+        if (pmPreview.card) {
+            paymentSummary = pmPreview.card;
+        } else {
+            // For non-card methods (mb_way, multibanco, etc.) create a minimal PaymentSummary
+            paymentSummary = {
+                last4: 0,
+                brand: pmPreview.type || 'unknown',
+                exp_month: 0,
+                exp_year: 0
+            };
+        }
 
         return {shippingAddress, paymentSummary}
     }
@@ -150,6 +170,13 @@ export default function CheckoutStepper() {
                             }
                         }}
                         onChange={handleAddressChange}
+                    />
+                    <TextField
+                        label="Phone"
+                        fullWidth
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        sx={{ mt: 2 }}
                     />
                     <FormControlLabel 
                         sx={{display: 'flex', justifyContent: 'end'}}
