@@ -29,8 +29,9 @@ public class PaymentsService(IConfiguration config, DiscountService discountServ
             var options = new PaymentIntentCreateOptions
             {
                 Amount = totalAmount,
-                Currency = "usd",
-                PaymentMethodTypes = ["card"]
+                Currency = "eur",
+                // PaymentMethodTypes = ["card"]
+                
             };
             intent = await service.CreateAsync(options);
         }

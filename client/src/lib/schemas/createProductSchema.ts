@@ -13,7 +13,7 @@ export const createProductSchema = z.object({
         message: 'Description must be at least 10 characters'
     }),
     price: z.coerce.number({required_error: 'Price is required'})
-        .min(100, 'Price must be at least $1.00'),
+        .min(100, 'Price must be at least €1.00'),
     type: z.string({required_error: 'Type is required'}),
     brand: z.string({required_error: 'Brand is required'}),
     quantityInStock: z.coerce.number({required_error: 'Quantity is required'})
