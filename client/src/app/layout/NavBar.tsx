@@ -76,11 +76,11 @@ export default function NavBar() {
                     <></>
                 ) : (
                     <List sx={{ display: 'flex' }}>
-                        {midLinks.map(({ title, path }) => (
+                        {midLinks.map(({ title, path }, index) => (
                             <ListItem
                                 component={NavLink}
                                 to={path}
-                                key={path}
+                                key={`${path}-${title}-${index}`}
                                 sx={navStyles}
                             >
                                 {title.toUpperCase()}
@@ -152,9 +152,9 @@ export default function NavBar() {
                     }}
                 >
                     <Box sx={{ display: 'inline-flex', gap: 2, px: 1 }}>
-                        {midLinks.map(({ title, path }) => (
+                        {midLinks.map(({ title, path }, index) => (
                             <Typography
-                                key={path}
+                                key={`${path}-${title}-${index}`}
                                 component={Link}
                                 to={path}
                                 sx={{

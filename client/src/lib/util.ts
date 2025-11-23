@@ -2,7 +2,7 @@ import { FieldValues, Path, UseFormSetError } from "react-hook-form"
 import { PaymentSummary, ShippingAddress } from "../app/models/order"
 
 export function currencyFormat(amount: number) {
-    return '$' + (amount / 100).toFixed(2)
+    return '€' + (amount / 100).toFixed(2)
 }
 
 export function filterEmptyValues(values: object) {

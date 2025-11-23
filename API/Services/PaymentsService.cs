@@ -1,5 +1,6 @@
 using API.Entities;
 using Stripe;
+using System.Collections.Generic;
 
 namespace API.Services;
 
@@ -29,8 +30,8 @@ public class PaymentsService(IConfiguration config, DiscountService discountServ
             var options = new PaymentIntentCreateOptions
             {
                 Amount = totalAmount,
-                Currency = "usd",
-                PaymentMethodTypes = ["card"]
+                Currency = "eur",
+                PaymentMethodTypes = new List<string> { "card", "multibanco", "mb_way" }
             };
             intent = await service.CreateAsync(options);
         }
