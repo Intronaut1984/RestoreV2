@@ -11,8 +11,8 @@ export type Item = {
   name: string
   price: number
   pictureUrl: string
-  brand: string
-  type: string
+  genero?: string
+  anoPublicacao?: number
   quantity: number
 }
 

@@ -14,8 +14,10 @@ export const createProductSchema = z.object({
     }),
     price: z.coerce.number({required_error: 'Price is required'})
         .min(100, 'Price must be at least €1.00'),
-    type: z.string({required_error: 'Type is required'}),
-    brand: z.string({required_error: 'Brand is required'}),
+    anoPublicacao: z.coerce.number().optional(),
+    genero: z.string().optional(),
+    precoPromocional: z.coerce.number().optional(),
+    descontoPercentagem: z.coerce.number().optional(),
     quantityInStock: z.coerce.number({required_error: 'Quantity is required'})
         .min(1, 'Quantity must be at least 1'),
     pictureUrl: z.string().optional(),

@@ -26,24 +26,34 @@ public static class ProductExtensions
         return query.Where(x => x.Name.ToLower().Contains(lowerCaseSearchTerm));
     }
 
-    public static IQueryable<Product> Filter(this IQueryable<Product> query, 
-        string? brands, string? types) {
-            var brandList = new List<string>();
-            var typeList = new List<string>();
+    public static IQueryable<Product> Filter(this IQueryable<Product> query,
+        string? generos, string? anos)
+    {
+        var generoList = new List<string>();
+        var anoList = new List<int>();
 
-            if (!string.IsNullOrEmpty(brands))
-            {
-                brandList.AddRange([.. brands.ToLower().Split(",")]);
-            }
-
-            if (!string.IsNullOrEmpty(types))
-            {
-                typeList.AddRange([.. types.ToLower().Split(",")]);
-            }
-
-            query = query.Where(x => brandList.Count == 0 || brandList.Contains(x.Brand.ToLower()));
-            query = query.Where(x => typeList.Count == 0 || typeList.Contains(x.Type.ToLower()));
-
-            return query;
+        if (!string.IsNullOrEmpty(generos))
+        {
+            generoList.AddRange(generos.ToLower().Split(",", StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()));
         }
+
+        if (!string.IsNullOrEmpty(anos))
+        {
+            anoList.AddRange(anos.Split(",", StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => { if (int.TryParse(s.Trim(), out var v)) return v; return -1; })
+                .Where(v => v > 0));
+        }
+
+        if (generoList.Count > 0)
+        {
+            query = query.Where(x => x.Genero != null && generoList.Contains(x.Genero.ToString().ToLower()));
+        }
+
+        if (anoList.Count > 0)
+        {
+            query = query.Where(x => x.PublicationYear != null && anoList.Contains(x.PublicationYear.Value));
+        }
+
+        return query;
+    }
 }

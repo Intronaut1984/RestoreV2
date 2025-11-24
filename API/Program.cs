@@ -1,4 +1,5 @@
 using API.Data;
+using System.Text.Json.Serialization;
 using API.Entities;
 using API.Middleware;
 using API.RequestHelpers;
@@ -10,7 +11,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("Cloudinary"));
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(opt =>
+{
+    // serialize enums as their string names so frontend receives readable genero values
+    opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddDbContext<StoreContext>(opt => 
 {
     opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));

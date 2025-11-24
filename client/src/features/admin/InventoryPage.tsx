@@ -53,8 +53,8 @@ export default function InventoryPage() {
                             <TableCell>#</TableCell>
                             <TableCell align="left">Product</TableCell>
                             <TableCell align="right">Price</TableCell>
-                            <TableCell align="center">Type</TableCell>
-                            <TableCell align="center">Brand</TableCell>
+                            <TableCell align="center">Género</TableCell>
+                            <TableCell align="center">Ano</TableCell>
                             <TableCell align="center">Quantity</TableCell>
                             <TableCell align="right"></TableCell>
                         </TableRow>
@@ -83,8 +83,8 @@ export default function InventoryPage() {
                                     </Box>
                                 </TableCell>
                                 <TableCell align="right">{currencyFormat(product.price)}</TableCell>
-                                <TableCell align="center">{product.type}</TableCell>
-                                <TableCell align="center">{product.brand}</TableCell>
+                                <TableCell align="center">{product.genero ?? '—'}</TableCell>
+                                <TableCell align="center">{product.anoPublicacao ?? '—'}</TableCell>
                                 <TableCell align="center">{product.quantityInStock}</TableCell>
                                                 <TableCell align="right">
                                                     <Button onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary' size='small' />

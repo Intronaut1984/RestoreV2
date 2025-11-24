@@ -39,8 +39,8 @@ export default function ProductDetails() {
   const productDetails = [
     { label: 'Name', value: product.name },
     { label: 'Description', value: product.description },
-    { label: 'Type', value: product.type },
-    { label: 'Brand', value: product.brand },
+    { label: 'Género', value: product.genero ?? '—' },
+    { label: 'Ano de Publicação', value: product.anoPublicacao ?? '—' },
     { label: 'Quantity in stock', value: product.quantityInStock },
   ]
 

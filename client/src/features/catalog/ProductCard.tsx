@@ -1,4 +1,5 @@
-import { Button, Card, CardActions, CardContent, CardMedia, Typography, useTheme } from "@mui/material";
+import { Button, Card, CardActions, CardContent, CardMedia, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { Product } from "../../app/models/product";
 import { Link } from "react-router-dom";
 import { useAddBasketItemMutation } from "../basket/basketApi";
