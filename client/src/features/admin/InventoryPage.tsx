@@ -86,10 +86,10 @@ export default function InventoryPage() {
                                 <TableCell align="center">{product.type}</TableCell>
                                 <TableCell align="center">{product.brand}</TableCell>
                                 <TableCell align="center">{product.quantityInStock}</TableCell>
-                                <TableCell align="right">
-                                    <Button onClick={() => handleSelectProduct(product)} startIcon={<Edit />} />
-                                    <Button onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />} color="error" />
-                                </TableCell>
+                                                <TableCell align="right">
+                                                    <Button onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary' size='small' />
+                                                    <Button onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />} color="error" size='small' sx={{ ml: 1 }} />
+                                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -127,7 +127,7 @@ export default function InventoryPage() {
                                     </Typography>
                                     <Typography variant='subtitle2' sx={{color: 'secondary.main'}}>{currencyFormat(product.price)}</Typography>
                                     <Box sx={{display: 'flex', gap:1, mt:1}}>
-                                        <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />}>Edit</Button>
+                                        <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary'>Edit</Button>
                                         <Button size='small' color='error' onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />}>Del</Button>
                                     </Box>
                                 </Box>
