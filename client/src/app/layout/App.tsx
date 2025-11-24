@@ -12,7 +12,7 @@ function App() {
     palette: {
       mode: palleteType,
       background: {
-        default: (palleteType === 'light') ? '#eaeaea' : '#121212'
+        default: (palleteType === 'light') ? '#ffffffff' : '#000000ff'
       }
     }
   });
@@ -27,8 +27,8 @@ function App() {
         sx={{
           minHeight: '100vh',
           background: darkMode 
-            ? 'radial-gradient(circle, #1e3aBa, #111B27)'
-            : 'radial-gradient(circle, #baecf9, #f0f9ff)',
+            ? 'radial-gradient(circle, #9c6f0eff, #111B27)'
+            : 'radial-gradient(circle, #c9bfacff, #ffffffff)',
           py: 6
         }}
       >

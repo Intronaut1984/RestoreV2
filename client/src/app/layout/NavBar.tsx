@@ -28,14 +28,14 @@ const rightLinks = [
 ]
 
 const navStyles = {
-    color: 'inherit',
+    color: "White",
     typography: 'h6',
     textDecoration: 'none',
     '&:hover': {
         color: 'grey.500'
     },
     '&.active': {
-        color: '#baecf9'
+        color: '#ffffffff'
     }
 }
 
@@ -140,7 +140,7 @@ export default function NavBar() {
             </Toolbar>
             {isLoading && (
                 <Box sx={{ width: '100%' }}>
-                    <LinearProgress color="secondary" />
+                    <LinearProgress color= "inherit" />
                 </Box>
             )}
             {/* Mobile mid-links row: show names under the toolbar */}
@@ -150,7 +150,6 @@ export default function NavBar() {
                         display: { xs: 'flex', md: 'none' },
                         alignItems: 'center',
                         py: 0.5,
-                        bgcolor: 'inherit',
                         overflowX: 'auto',
                         WebkitOverflowScrolling: 'touch',
                         '&::-webkit-scrollbar': { display: 'none' }
@@ -164,7 +163,7 @@ export default function NavBar() {
                                 to={path}
                                 sx={{
                                         ...navStyles,
-                                        color: 'inherit',
+                                        color: "Inherit",
                                         typography: 'body2',
                                         py: 1,
                                         px: 1.5,

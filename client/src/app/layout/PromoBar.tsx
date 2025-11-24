@@ -7,6 +7,7 @@ export default function PromoBar() {
   const theme = useTheme();
   const isSm = useMediaQuery(theme.breakpoints.down('sm'));
   const rootRef = useRef<HTMLElement | null>(null);
+  const previousBodyPaddingRef = useRef<string | null>(null);
 
   // Fallback toolbar height from theme (used only if DOM measure fails)
   const toolbarHeight = ((theme.mixins as unknown) as { toolbar?: { minHeight?: number } })?.toolbar?.minHeight ?? 64;
@@ -17,28 +18,28 @@ export default function PromoBar() {
 
     // measure the AppBar (if present) to position PromoBar directly below it
     function measure() {
-      // Try common selectors used by MUI AppBar/NavBar
-      const selectors = [
-        '.MuiAppBar-root',
-        'header[role="banner"]',
-        '#app-navbar',
-        '.navbar',
-      ];
+      // Sum heights of fixed-position elements at the top of the page (exclude the promo itself)
+      let totalFixedTop = 0;
 
-      let foundHeight: number | null = null;
-      for (const sel of selectors) {
-        const el = document.querySelector<HTMLElement>(sel);
-        if (el && el.getBoundingClientRect) {
-          const h = Math.ceil(el.getBoundingClientRect().height);
-          if (h > 0) {
-            foundHeight = h;
-            break;
-          }
+      // Iterate reasonable set of elements to detect fixed top bars. We include all body children
+      const all = Array.from(document.querySelectorAll<HTMLElement>('body *'));
+      for (const el of all) {
+        if (!el.getBoundingClientRect) continue;
+        if (el === rootRef.current) continue; // don't include the promo itself
+
+        const style = window.getComputedStyle(el);
+        if (style.position !== 'fixed') continue;
+        if (style.display === 'none' || style.visibility === 'hidden') continue;
+
+        const rect = el.getBoundingClientRect();
+        // consider elements that are pinned to the top (top ~= 0)
+        if (Math.abs(rect.top) <= 2 && rect.height > 0) {
+          totalFixedTop += Math.ceil(rect.height);
         }
       }
 
-      // If no AppBar found, fallback to theme toolbar height
-      const finalTop = foundHeight ?? toolbarHeight;
+      // If we found no fixed elements, fallback to theme toolbar height
+      const finalTop = totalFixedTop > 0 ? totalFixedTop : toolbarHeight;
       setTopOffset(`${finalTop + extraGap}px`);
     }
 
@@ -52,6 +53,51 @@ export default function PromoBar() {
     };
   }, [theme, toolbarHeight, extraGap, isSm]);
 
+  // when the promo becomes visible, ensure page content is pushed down
+  useEffect(() => {
+    function applyBodyPadding() {
+      const rootEl = rootRef.current;
+      if (!rootEl) return;
+
+      // save previous inline paddingTop so we can restore it later
+      if (previousBodyPaddingRef.current === null) {
+        previousBodyPaddingRef.current = document.body.style.paddingTop || '';
+      }
+
+      const promoHeight = Math.ceil(rootEl.getBoundingClientRect().height || 0);
+      // topOffset is like '64px' or number; try to parse a number
+      const parsedTop = typeof topOffset === 'string' ? parseInt(topOffset, 10) || 0 : (topOffset as number || 0);
+      const total = parsedTop + promoHeight;
+
+      // respect existing computed paddingTop (from CSS) and only increase if our total is larger
+      const computed = window.getComputedStyle(document.body).paddingTop;
+      const computedVal = parseInt(computed, 10) || 0;
+      if (computedVal < total) {
+        document.body.style.paddingTop = `${total}px`;
+      }
+    }
+
+    function resetBodyPadding() {
+      if (previousBodyPaddingRef.current !== null) {
+        document.body.style.paddingTop = previousBodyPaddingRef.current;
+        previousBodyPaddingRef.current = null;
+      }
+    }
+
+    if (visible) {
+      // allow browser to compute layout first
+      requestAnimationFrame(applyBodyPadding);
+      window.addEventListener('resize', applyBodyPadding);
+    } else {
+      resetBodyPadding();
+    }
+
+    return () => {
+      window.removeEventListener('resize', applyBodyPadding);
+      resetBodyPadding();
+    };
+  }, [visible, topOffset]);
+
   return (
     <Box
       component="section"
@@ -62,7 +108,7 @@ export default function PromoBar() {
         left: 0,
         right: 0,
         width: '100%',
-        bgcolor: '#1e3aBa',
+        bgcolor: '#050505ff',
         color: '#fff',
         py: { xs: 0.75, sm: 1 },
         px: { xs: 2, sm: 3 },
