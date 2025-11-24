@@ -5,6 +5,7 @@ using API.Extensions;
 using API.RequestHelpers;
 using API.Services;
 using AutoMapper;
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -53,8 +54,8 @@ namespace API.Controllers
                 .ToListAsync();
 
             var anos = await context.Products
-                .Where(p => p.PublicationYear != null)
-                .Select(p => p.PublicationYear.Value)
+                .Where(p => p.PublicationYear.HasValue)
+                .Select(p => p.PublicationYear!.Value)
                 .Distinct()
                 .OrderByDescending(x => x)
                 .ToListAsync();

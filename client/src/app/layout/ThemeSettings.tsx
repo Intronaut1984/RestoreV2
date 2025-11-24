@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Stack, Box, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { useAppDispatch, useAppSelector } from '../store/store';
 import { setPaletteColor } from './uiSlice';
