@@ -6,13 +6,17 @@ import { useAppSelector } from "../store/store";
 
 
 function App() {
-  const {darkMode} = useAppSelector(state => state.ui);
-  const palleteType = darkMode ? 'dark' : 'light'
+  const { darkMode, colors } = useAppSelector(state => state.ui);
+  const palleteType = darkMode ? 'dark' : 'light';
+  const modeColors = colors?.[palleteType as 'light'|'dark'] ?? { primary: '#1565c0', secondary: '#ffb300' };
+
   const theme = createTheme({
     palette: {
       mode: palleteType,
+      primary: { main: modeColors.primary },
+      secondary: { main: modeColors.secondary },
       background: {
-        default: (palleteType === 'light') ? '#ffffffff' : '#000000ff'
+        default: palleteType === 'light' ? '#ffffffff' : '#000000ff'
       }
     }
   });

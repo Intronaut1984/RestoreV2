@@ -35,7 +35,7 @@ const navStyles = {
         color: 'grey.500'
     },
     '&.active': {
-        color: '#ffffffff'
+        color: '#000000ff'
     }
 }
 
@@ -49,6 +49,7 @@ export default function NavBar() {
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const location = useLocation();
     const isCatalogRoute = location.pathname.startsWith('/catalog');
+    const isHome = location.pathname === '/';
     const [anchorProfileEl, setAnchorProfileEl] = useState<null | HTMLElement>(null);
     const handleProfileOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorProfileEl(e.currentTarget);
     const handleProfileClose = () => setAnchorProfileEl(null);
@@ -70,9 +71,19 @@ export default function NavBar() {
                             <FilterListIcon />
                         </IconButton>
                     )}
-                    <Typography component={NavLink} sx={navStyles} to='/' variant="h6">My Store</Typography>
+                    <Typography
+                        component={NavLink}
+                        to='/'
+                        variant="h6"
+                        sx={{
+                            ...navStyles,
+                            color: isHome ? '#4b2e2e' : '#000000ff'
+                        }}
+                    >
+                        My Store
+                    </Typography>
                     <IconButton onClick={() => dispatch(setDarkMode())}>
-                        {darkMode ? <DarkMode /> : <LightMode sx={{ color: 'yellow' }} />}
+                        {darkMode ? <DarkMode /> : <LightMode sx={{ color: 'orange' }} />}
                     </IconButton>
                 </Box>
 
