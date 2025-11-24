@@ -39,20 +39,20 @@ export default function UserMenu({ user }: Props) {
                     <ListItemText primary={user.email} />
                 </MenuItem>
                 <Divider />
-                <MenuItem>
+                <MenuItem onClick={handleClose}>
                     <ListItemIcon>
                         <Person />
                     </ListItemIcon>
                     <ListItemText>My profile</ListItemText>
                 </MenuItem>
-                <MenuItem component={Link} to='/orders'>
+                <MenuItem component={Link} to='/orders' onClick={handleClose}>
                     <ListItemIcon>
                         <History />
                     </ListItemIcon>
                     <ListItemText>My orders</ListItemText>
                 </MenuItem>
                 {user.roles.includes('Admin') &&
-                <MenuItem component={Link} to='/inventory'>
+                <MenuItem component={Link} to='/inventory' onClick={handleClose}>
                     <ListItemIcon>
                         <Inventory />
                     </ListItemIcon>

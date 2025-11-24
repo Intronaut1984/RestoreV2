@@ -14,7 +14,7 @@ export default function OrdersPage() {
 
     return (
         <Container maxWidth='md'>
-            <Typography variant="h5" align="center" gutterBottom>
+            <Typography variant="h6" align="center" gutterBottom>
                 My orders
             </Typography>
             <Paper sx={{borderRadius: 3}}>
