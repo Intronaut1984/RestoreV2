@@ -1,8 +1,8 @@
 export type ProductParams = {
     orderBy: string;
     searchTerm?: string;
-    types: string[];
-    brands: string[];
+    generos?: string[];
+    anos?: number[];
     pageNumber: number;
     pageSize: number;
 }

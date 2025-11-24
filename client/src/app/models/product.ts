@@ -4,7 +4,8 @@ export type Product = {
     description: string
     price: number
     pictureUrl: string
-    type: string
-    brand: string
+    // removed 'type' and 'brand' — replaced with book-specific fields
+    genero?: string
+    anoPublicacao?: number
     quantityInStock: number
 }

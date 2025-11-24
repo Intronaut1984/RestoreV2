@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using API.DTOs;
 using API.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -18,9 +19,9 @@ public static class BasketExtensions
             {
                 ProductId = x.ProductId,
                 Name = x.Product.Name,
+                // expose price as euros (decimal) to the client
                 Price = x.Product.Price,
-                Brand = x.Product.Brand,
-                Type = x.Product.Type,
+                Genero = x.Product.Genero?.ToString(),
                 PictureUrl = x.Product.PictureUrl,
                 Quantity = x.Quantity
             }).ToList()

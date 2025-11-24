@@ -3,7 +3,6 @@ import { createProductSchema, CreateProductSchema } from "../../lib/schemas/crea
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Box, Button, Grid, Paper, Typography } from "@mui/material";
 import AppTextInput from "../../app/shared/components/AppTextInput";
-import { useFetchFiltersQuery } from "../catalog/catalogApi";
 import AppSelectInput from "../../app/shared/components/AppSelectInput";
 import AppDropzone from "../../app/shared/components/AppDropzone";
 import { Product } from "../../app/models/product";
@@ -30,7 +29,12 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
         });
 
     const watchFile = watch("file");
-    const { data } = useFetchFiltersQuery();
+    const genres = [
+        "Ficção","NãoFicção","Fantasia","FicçãoCientífica","Mistério","Thriller","Terror",
+        "Romance","Histórico","Juvenil","Infantil","Biografia","Autobiografia","Poesia",
+        "AutoAjuda","Negócios","Ciências","Filosofia","Religião","Arte","Culinária","Viagens",
+        "Saúde","Educação","BandaDesenhada","NovelaGráfica","Manga","Drama","Clássico","Crime"
+    ];
     const [createProduct] = useCreateProductMutation();
     const [updateProduct] = useUpdateProductMutation();
 
@@ -78,17 +82,17 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
             setEditMode(false);
             setSelectedProduct(null);
             refetch();
-        } catch (error) {
+            } catch (error) {
             console.log(error);
             handleApiError<CreateProductSchema>(error, setError, [
-                "brand",
                 "description",
                 "file",
                 "name",
                 "pictureUrl",
                 "price",
                 "quantityInStock",
-                "type"
+                "genero",
+                "anoPublicacao"
             ]);
         }
     };
@@ -106,25 +110,21 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                     </Grid>
 
                     <Grid item xs={12} md={6}>
-                        {data?.brands && (
-                            <AppSelectInput
-                                items={data.brands}
-                                control={control}
-                                name="brand"
-                                label="Brand"
-                            />
-                        )}
+                        <AppSelectInput
+                            items={genres}
+                            control={control}
+                            name="genero"
+                            label="Género"
+                        />
                     </Grid>
 
                     <Grid item xs={12} md={6}>
-                        {data?.types && (
-                            <AppSelectInput
-                                items={data.types}
-                                control={control}
-                                name="type"
-                                label="Type"
-                            />
-                        )}
+                        <AppTextInput
+                            type="number"
+                            control={control}
+                            name="anoPublicacao"
+                            label="Ano de Publicação"
+                        />
                     </Grid>
 
                     <Grid item xs={12} md={6}>
@@ -132,7 +132,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             type="number"
                             control={control}
                             name="price"
-                            label="Price in cents"
+                            label="Price"
                         />
                     </Grid>
 

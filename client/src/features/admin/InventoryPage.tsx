@@ -53,8 +53,8 @@ export default function InventoryPage() {
                             <TableCell>#</TableCell>
                             <TableCell align="left">Product</TableCell>
                             <TableCell align="right">Price</TableCell>
-                            <TableCell align="center">Type</TableCell>
-                            <TableCell align="center">Brand</TableCell>
+                            <TableCell align="center">Género</TableCell>
+                            <TableCell align="center">Ano</TableCell>
                             <TableCell align="center">Quantity</TableCell>
                             <TableCell align="right"></TableCell>
                         </TableRow>
@@ -83,13 +83,13 @@ export default function InventoryPage() {
                                     </Box>
                                 </TableCell>
                                 <TableCell align="right">{currencyFormat(product.price)}</TableCell>
-                                <TableCell align="center">{product.type}</TableCell>
-                                <TableCell align="center">{product.brand}</TableCell>
+                                <TableCell align="center">{product.genero ?? '—'}</TableCell>
+                                <TableCell align="center">{product.anoPublicacao ?? '—'}</TableCell>
                                 <TableCell align="center">{product.quantityInStock}</TableCell>
-                                <TableCell align="right">
-                                    <Button onClick={() => handleSelectProduct(product)} startIcon={<Edit />} />
-                                    <Button onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />} color="error" />
-                                </TableCell>
+                                                <TableCell align="right">
+                                                    <Button onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary' size='small' />
+                                                    <Button onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />} color="error" size='small' sx={{ ml: 1 }} />
+                                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -127,7 +127,7 @@ export default function InventoryPage() {
                                     </Typography>
                                     <Typography variant='subtitle2' sx={{color: 'secondary.main'}}>{currencyFormat(product.price)}</Typography>
                                     <Box sx={{display: 'flex', gap:1, mt:1}}>
-                                        <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />}>Edit</Button>
+                                        <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary'>Edit</Button>
                                         <Button size='small' color='error' onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />}>Del</Button>
                                     </Box>
                                 </Box>

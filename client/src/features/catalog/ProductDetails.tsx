@@ -39,23 +39,27 @@ export default function ProductDetails() {
   const productDetails = [
     { label: 'Name', value: product.name },
     { label: 'Description', value: product.description },
-    { label: 'Type', value: product.type },
-    { label: 'Brand', value: product.brand },
+    { label: 'Género', value: product.genero ?? '—' },
+    { label: 'Ano de Publicação', value: product.anoPublicacao ?? '—' },
     { label: 'Quantity in stock', value: product.quantityInStock },
   ]
 
   return (
-    <Grid2 container spacing={6} maxWidth='lg' sx={{ mx: 'auto' }}>
-      <Grid2 size={6}>
-        <img src={product?.pictureUrl} alt={product.name} style={{ width: '100%' }} />
+    <Grid2 container spacing={4} sx={{ mx: 'auto', px: { xs: 2, md: 3 }, maxWidth: 1200, justifyContent: 'center' }}>
+      <Grid2 size={6} sx={{ width: { xs: '100%', md: '50%' } }}>
+        <img
+          src={product?.pictureUrl}
+          alt={product.name}
+          style={{ width: '100%', height: 'auto', objectFit: 'cover', borderRadius: 8 }}
+        />
       </Grid2>
-      <Grid2 size={6}>
-        <Typography variant="h3">{product.name}</Typography>
+      <Grid2 size={6} sx={{ width: { xs: '100%', md: '50%' } }}>
+        <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2rem' } }}>{product.name}</Typography>
         <Divider sx={{ mb: 2 }} />
-        <Typography variant="h4" color='secondary'>{currencyFormat(product.price)}</Typography>
+        <Typography variant="h6" color='secondary' sx={{ fontSize: { xs: '1rem', md: '1.5rem' } }}>{currencyFormat(product.price)}</Typography>
         <TableContainer>
           <Table sx={{
-            '& td': {fontSize: '1rem'}
+            '& td': { fontSize: { xs: '0.9rem', md: '1rem' } }
           }}>
             <TableBody>
               {productDetails.map((detail, index) => (
@@ -69,7 +73,7 @@ export default function ProductDetails() {
           </Table>
         </TableContainer>
         <Grid2 container spacing={2} marginTop={3}>
-          <Grid2 size={6}>
+          <Grid2 size={6} sx={{ width: { xs: '100%', md: '50%' } }}>
             <TextField
               variant="outlined"
               type="number"
@@ -79,11 +83,11 @@ export default function ProductDetails() {
               onChange={handleInputChange}
             />
           </Grid2>
-          <Grid2 size={6}>
+          <Grid2 size={6} sx={{ width: { xs: '100%', md: '50%' } }}>
             <Button
               onClick={handleUpdateBasket}
-              disabled={quantity === item?.quantity || !item && quantity === 0}
-              sx={{height: '55px'}}
+              disabled={quantity === item?.quantity || (!item && quantity === 0)}
+              sx={{height: { xs: '48px', md: '55px' }}}
               color="primary"
               size="large"
               variant="contained"

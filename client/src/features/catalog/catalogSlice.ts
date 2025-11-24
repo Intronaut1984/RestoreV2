@@ -4,8 +4,8 @@ import { ProductParams } from "../../app/models/productParams";
 const initialState: ProductParams = {
     pageNumber: 1,
     pageSize: 8,
-    types: [],
-    brands: [],
+    anos: [],
+    generos: [],
     searchTerm: '',
     orderBy: 'name'
 }
@@ -24,12 +24,8 @@ export const catalogSlice = createSlice({
             state.orderBy = action.payload
             state.pageNumber = 1;
         },
-        setTypes(state, action) {
-            state.types = action.payload
-            state.pageNumber = 1;
-        },
-        setBrands(state, action) {
-            state.brands = action.payload
+        setAnos(state, action) {
+            state.anos = action.payload
             state.pageNumber = 1;
         },
         setSearchTerm(state, action) {
@@ -42,6 +38,6 @@ export const catalogSlice = createSlice({
     }
 });
 
-export const {setBrands, setOrderBy, setPageNumber, setPageSize, 
-    setSearchTerm, setTypes, resetParams} 
+export const { setOrderBy, setPageNumber, setPageSize, 
+    setSearchTerm, setAnos, resetParams } 
     = catalogSlice.actions;

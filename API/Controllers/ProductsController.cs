@@ -21,7 +21,7 @@ namespace API.Controllers
             var query = context.Products
                 .Sort(productParams.OrderBy)
                 .Search(productParams.SearchTerm)
-                .Filter(productParams.Brands, productParams.Types)
+                .Filter(productParams.Generos, productParams.Anos)
                 .AsQueryable();
 
             var products = await PagedList<Product>.ToPagedList(query,
@@ -45,16 +45,28 @@ namespace API.Controllers
         [HttpGet("filters")]
         public async Task<IActionResult> GetFilters()
         {
-            var brands = await context.Products.Select(x => x.Brand).Distinct().ToListAsync();
-            var types = await context.Products.Select(x => x.Type).Distinct().ToListAsync();
+            // return distinct generos and publication years available for filters
+            var generos = await context.Products
+                .Where(p => p.Genero != null)
+                .Select(p => p.Genero.ToString())
+                .Distinct()
+                .ToListAsync();
 
-            return Ok(new { brands, types });
+            var anos = await context.Products
+                .Where(p => p.PublicationYear != null)
+                .Select(p => p.PublicationYear.Value)
+                .Distinct()
+                .OrderByDescending(x => x)
+                .ToListAsync();
+
+            return Ok(new { generos, anos });
         }
 
         [Authorize(Roles = "Admin")]
         [HttpPost]
-        public async Task<ActionResult<Product>> CreateProduct(CreateProductDto productDto)
+        public async Task<ActionResult<Product>> CreateProduct([FromForm] CreateProductDto productDto)
         {
+
             var product = mapper.Map<Product>(productDto);
 
             if (productDto.File != null)
@@ -70,22 +82,36 @@ namespace API.Controllers
                 product.PublicId = imageResult.PublicId;
             }
 
+            // Ensure publication year from form ('anoPublicacao') is applied in case model binding missed it
+            if (Request.HasFormContentType)
+            {
+                var form = await Request.ReadFormAsync();
+                if (form.TryGetValue("anoPublicacao", out var yearValues))
+                {
+                    if (int.TryParse(yearValues.FirstOrDefault(), out var year))
+                    {
+                        product.PublicationYear = year;
+                    }
+                }
+            }
+
             context.Products.Add(product);
 
             var result = await context.SaveChangesAsync() > 0;
 
             if (result) return CreatedAtAction(nameof(GetProduct), new { Id = product.Id }, product);
 
-            return BadRequest("Problem creating new procuct");
+            return BadRequest(new { message = "Problem creating new product" });
         }
 
         [Authorize(Roles = "Admin")]
         [HttpPut]
-        public async Task<ActionResult> UpdateProduct(UpdateProductDto updateProductDto)
+        public async Task<ActionResult> UpdateProduct([FromForm] UpdateProductDto updateProductDto)
         {
             var product = await context.Products.FindAsync(updateProductDto.Id);
 
             if (product == null) return NotFound();
+
 
             mapper.Map(updateProductDto, product);
 
@@ -103,11 +129,24 @@ namespace API.Controllers
                 product.PublicId = imageResult.PublicId;
             }
 
+            // Ensure publication year from form ('anoPublicacao') is applied in case model binding missed it
+            if (Request.HasFormContentType)
+            {
+                var form = await Request.ReadFormAsync();
+                if (form.TryGetValue("anoPublicacao", out var yearValues))
+                {
+                    if (int.TryParse(yearValues.FirstOrDefault(), out var year))
+                    {
+                        product.PublicationYear = year;
+                    }
+                }
+            }
+
             var result = await context.SaveChangesAsync() > 0;
 
             if (result) return NoContent();
 
-            return BadRequest("Problem updating product");
+            return BadRequest(new { message = "Problem updating product" });
         }
 
         [Authorize(Roles = "Admin")]

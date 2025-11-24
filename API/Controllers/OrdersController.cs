@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using API.Data;
 using API.DTOs;
 using API.Entities;
@@ -51,7 +52,7 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
 
         var items = CreateOrderItems(basket.Items);
         if (items == null) return BadRequest("Some items out of stock");
-
+        // items.Price is stored as cents (long) in the OrderItem entity, so subtotal is in cents
         var subtotal = items.Sum(x => x.Price * x.Quantity);
         var deliveryFee = CalculateDeliveryFee(subtotal);
         long discount = 0;
@@ -146,7 +147,8 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
                     PictureUrl = item.Product.PictureUrl,
                     Name = item.Product.Name
                 },
-                Price = item.Product.Price,
+                // store price in cents for orders (long)
+                Price = (long)Math.Round(item.Product.Price * 100M),
                 Quantity = item.Quantity
             };
             orderItems.Add(orderItem);

@@ -180,34 +180,117 @@ namespace API.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Brand")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit")
+                        .HasAnnotation("Relational:JsonPropertyName", "activo");
 
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<string>("Author")
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "autor");
+
+                    b.Property<double?>("AverageRating")
+                        .HasColumnType("float")
+                        .HasAnnotation("Relational:JsonPropertyName", "avaliacaoMedia");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasAnnotation("Relational:JsonPropertyName", "dataCriacao");
+
+                    b.Property<int?>("DiscountPercentage")
+                        .HasColumnType("int")
+                        .HasAnnotation("Relational:JsonPropertyName", "descontoPercentagem");
+
+                    b.Property<int?>("Edition")
+                        .HasColumnType("int")
+                        .HasAnnotation("Relational:JsonPropertyName", "edicao");
+
+                    b.Property<string>("Format")
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "formato");
+
+                    b.Property<int?>("Genero")
+                        .HasColumnType("int")
+                        .HasAnnotation("Relational:JsonPropertyName", "genero");
+
+                    b.Property<string>("ISBN")
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "isbn");
+
+                    b.Property<string>("Index")
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "indice");
+
+                    b.Property<string>("Language")
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "idioma");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "titulo");
+
+                    b.Property<int?>("PageCount")
+                        .HasColumnType("int")
+                        .HasAnnotation("Relational:JsonPropertyName", "numeroPaginas");
 
                     b.Property<string>("PictureUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "imagemCapaUrl");
 
-                    b.Property<long>("Price")
-                        .HasColumnType("bigint");
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)")
+                        .HasAnnotation("Relational:JsonPropertyName", "preco");
+
+                    b.Property<decimal?>("PromotionalPrice")
+                        .HasColumnType("decimal(18,2)")
+                        .HasAnnotation("Relational:JsonPropertyName", "precoPromocional");
 
                     b.Property<string>("PublicId")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("QuantityInStock")
-                        .HasColumnType("int");
+                    b.Property<int?>("PublicationYear")
+                        .HasColumnType("int")
+                        .HasAnnotation("Relational:JsonPropertyName", "anoPublicacao");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<string>("Publisher")
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "editora");
+
+                    b.Property<int>("QuantityInStock")
+                        .HasColumnType("int")
+                        .HasAnnotation("Relational:JsonPropertyName", "stock");
+
+                    b.Property<int?>("RatingsCount")
+                        .HasColumnType("int")
+                        .HasAnnotation("Relational:JsonPropertyName", "avaliacoes");
+
+                    b.PrimitiveCollection<string>("SecondaryAuthors")
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "autoresSecundarios");
+
+                    b.PrimitiveCollection<string>("SecondaryImages")
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "imagensSecundarias");
+
+                    b.Property<string>("Subtitle")
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "subtitulo");
+
+                    b.Property<string>("Synopsis")
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "sinopse");
+
+                    b.PrimitiveCollection<string>("Tags")
+                        .HasColumnType("nvarchar(max)")
+                        .HasAnnotation("Relational:JsonPropertyName", "tags");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasAnnotation("Relational:JsonPropertyName", "dataAtualizacao");
+
+                    b.Property<int?>("Weight")
+                        .HasColumnType("int")
+                        .HasAnnotation("Relational:JsonPropertyName", "peso");
 
                     b.HasKey("Id");
 
@@ -597,6 +680,38 @@ namespace API.Data.Migrations
 
                     b.Navigation("ItemOrdered")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("API.Entities.Product", b =>
+                {
+                    b.OwnsOne("API.Entities.Dimensions", "Dimensoes", b1 =>
+                        {
+                            b1.Property<int>("ProductId")
+                                .HasColumnType("int");
+
+                            b1.Property<int?>("Altura")
+                                .HasColumnType("int")
+                                .HasAnnotation("Relational:JsonPropertyName", "altura");
+
+                            b1.Property<int?>("Espessura")
+                                .HasColumnType("int")
+                                .HasAnnotation("Relational:JsonPropertyName", "espessura");
+
+                            b1.Property<int?>("Largura")
+                                .HasColumnType("int")
+                                .HasAnnotation("Relational:JsonPropertyName", "largura");
+
+                            b1.HasKey("ProductId");
+
+                            b1.ToTable("Products");
+
+                            b1.HasAnnotation("Relational:JsonPropertyName", "dimensoes");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ProductId");
+                        });
+
+                    b.Navigation("Dimensoes");
                 });
 
             modelBuilder.Entity("API.Entities.User", b =>

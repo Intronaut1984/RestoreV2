@@ -28,14 +28,10 @@ const rightLinks = [
 ]
 
 const navStyles = {
-    color: 'inherit',
     typography: 'h6',
     textDecoration: 'none',
     '&:hover': {
         color: 'grey.500'
-    },
-    '&.active': {
-        color: '#baecf9'
     }
 }
 
@@ -49,6 +45,7 @@ export default function NavBar() {
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const location = useLocation();
     const isCatalogRoute = location.pathname.startsWith('/catalog');
+    // removed isHome (previously used to color text) since brand is now an image
     const [anchorProfileEl, setAnchorProfileEl] = useState<null | HTMLElement>(null);
     const handleProfileOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorProfileEl(e.currentTarget);
     const handleProfileClose = () => setAnchorProfileEl(null);
@@ -62,7 +59,15 @@ export default function NavBar() {
     const itemCount = basket?.items.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
     return (
-        <AppBar position="fixed">
+        <AppBar
+            position="fixed"
+            sx={{
+                bgcolor: (theme) => theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(6px)',
+                boxShadow: 'none',
+                zIndex: (theme) => theme.zIndex.appBar + 10
+            }}
+        >
             <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box display='flex' alignItems='center'>
                     {isCatalogRoute && (
@@ -70,9 +75,20 @@ export default function NavBar() {
                             <FilterListIcon />
                         </IconButton>
                     )}
-                    <Typography component={NavLink} sx={navStyles} to='/' variant="h6">My Store</Typography>
+                    <Box
+                        component={NavLink}
+                        to='/'
+                        sx={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
+                    >
+                        <Box
+                            component='img'
+                            src='/images/logo.png'
+                            alt='Logo'
+                            sx={{ height: { xs: 28, md: 40 }, display: 'block' }}
+                        />
+                    </Box>
                     <IconButton onClick={() => dispatch(setDarkMode())}>
-                        {darkMode ? <DarkMode /> : <LightMode sx={{ color: 'yellow' }} />}
+                        {darkMode ? <DarkMode /> : <LightMode sx={{ color: 'orange' }} />}
                     </IconButton>
                 </Box>
 
@@ -86,7 +102,16 @@ export default function NavBar() {
                                 component={NavLink}
                                 to={path}
                                 key={`${path}-${title}-${index}`}
-                                sx={navStyles}
+                                sx={{
+                                    ...navStyles,
+                                    color: darkMode ? 'white' : 'black',
+                                    fontWeight: 'normal',
+                                    '&.active': {
+                                        color: darkMode ? 'white' : 'black',
+                                        fontWeight: 700,
+                                        fontSize: '1.05rem'
+                                    }
+                                }}
                             >
                                 {title.toUpperCase()}
                             </ListItem>
@@ -140,7 +165,7 @@ export default function NavBar() {
             </Toolbar>
             {isLoading && (
                 <Box sx={{ width: '100%' }}>
-                    <LinearProgress color="secondary" />
+                    <LinearProgress color= "inherit" />
                 </Box>
             )}
             {/* Mobile mid-links row: show names under the toolbar */}
@@ -150,7 +175,6 @@ export default function NavBar() {
                         display: { xs: 'flex', md: 'none' },
                         alignItems: 'center',
                         py: 0.5,
-                        bgcolor: 'inherit',
                         overflowX: 'auto',
                         WebkitOverflowScrolling: 'touch',
                         '&::-webkit-scrollbar': { display: 'none' }
@@ -164,7 +188,7 @@ export default function NavBar() {
                                 to={path}
                                 sx={{
                                         ...navStyles,
-                                        color: 'inherit',
+                                        color: "Inherit",
                                         typography: 'body2',
                                         py: 1,
                                         px: 1.5,
