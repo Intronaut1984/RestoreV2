@@ -33,7 +33,8 @@ public class CreateProductDto
 
     [JsonIgnore]
     // bind form field 'anoPublicacao' to PublicationYear when multipart/form-data is posted
-    public int? anoPublicacao { set { PublicationYear = value; } }
+    // provide getter so controller or other code can read the bound value
+    public int? anoPublicacao { get => PublicationYear; set => PublicationYear = value; }
 
     [JsonPropertyName("genero")]
     public string? Genero { get; set; }
