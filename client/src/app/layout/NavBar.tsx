@@ -28,14 +28,10 @@ const rightLinks = [
 ]
 
 const navStyles = {
-    color: "White",
     typography: 'h6',
     textDecoration: 'none',
     '&:hover': {
         color: 'grey.500'
-    },
-    '&.active': {
-        color: '#000000ff'
     }
 }
 
@@ -49,7 +45,7 @@ export default function NavBar() {
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const location = useLocation();
     const isCatalogRoute = location.pathname.startsWith('/catalog');
-    const isHome = location.pathname === '/';
+    // removed isHome (previously used to color text) since brand is now an image
     const [anchorProfileEl, setAnchorProfileEl] = useState<null | HTMLElement>(null);
     const handleProfileOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorProfileEl(e.currentTarget);
     const handleProfileClose = () => setAnchorProfileEl(null);
@@ -79,17 +75,18 @@ export default function NavBar() {
                             <FilterListIcon />
                         </IconButton>
                     )}
-                    <Typography
+                    <Box
                         component={NavLink}
                         to='/'
-                        variant="h6"
-                        sx={{
-                            ...navStyles,
-                            color: isHome ? '#4b2e2e' : '#000000ff'
-                        }}
+                        sx={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
                     >
-                        My Store
-                    </Typography>
+                        <Box
+                            component='img'
+                            src='/images/logo.png'
+                            alt='Logo'
+                            sx={{ height: { xs: 28, md: 40 }, display: 'block' }}
+                        />
+                    </Box>
                     <IconButton onClick={() => dispatch(setDarkMode())}>
                         {darkMode ? <DarkMode /> : <LightMode sx={{ color: 'orange' }} />}
                     </IconButton>
@@ -105,7 +102,16 @@ export default function NavBar() {
                                 component={NavLink}
                                 to={path}
                                 key={`${path}-${title}-${index}`}
-                                sx={navStyles}
+                                sx={{
+                                    ...navStyles,
+                                    color: darkMode ? 'white' : 'black',
+                                    fontWeight: 'normal',
+                                    '&.active': {
+                                        color: darkMode ? 'white' : 'black',
+                                        fontWeight: 700,
+                                        fontSize: '1.05rem'
+                                    }
+                                }}
                             >
                                 {title.toUpperCase()}
                             </ListItem>

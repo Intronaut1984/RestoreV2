@@ -1,4 +1,4 @@
-import { Button, Card, CardActions, CardContent, CardMedia, Typography } from "@mui/material"
+import { Button, Card, CardActions, CardContent, CardMedia, Typography, useTheme } from "@mui/material"
 import { Product } from "../../app/models/product"
 import { Link } from "react-router-dom"
 import { useAddBasketItemMutation } from "../basket/basketApi"
@@ -10,6 +10,8 @@ type Props = {
 
 export default function ProductCard({ product }: Props) {
     const [addBasketItem, {isLoading}] = useAddBasketItemMutation();
+    const theme = useTheme();
+    const isLight = theme.palette.mode === 'light';
     return (
         <Card
             elevation={3}
@@ -37,7 +39,7 @@ export default function ProductCard({ product }: Props) {
                 </Typography>
                 <Typography
                     variant="h6"
-                    sx={{ color: 'secondary.main' }}
+                    sx={{ color: isLight ? 'text.primary' : 'secondary.main' }}
                 >
                     {currencyFormat(product.price)}
                 </Typography>
@@ -48,8 +50,9 @@ export default function ProductCard({ product }: Props) {
                 <Button 
                     disabled={isLoading}
                     onClick={() => addBasketItem({product, quantity: 1})}
+                    sx={{ color: isLight ? 'text.primary' : undefined }}
                 >Add to cart</Button>
-                <Button component={Link} to={`/catalog/${product.id}`}>View</Button>
+                <Button component={Link} to={`/catalog/${product.id}`} sx={{ color: isLight ? 'text.primary' : undefined }}>View</Button>
             </CardActions>
         </Card>
     )
