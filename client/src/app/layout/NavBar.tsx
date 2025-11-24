@@ -63,7 +63,15 @@ export default function NavBar() {
     const itemCount = basket?.items.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
     return (
-        <AppBar position="fixed">
+        <AppBar
+            position="fixed"
+            sx={{
+                bgcolor: (theme) => theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(6px)',
+                boxShadow: 'none',
+                zIndex: (theme) => theme.zIndex.appBar + 10
+            }}
+        >
             <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box display='flex' alignItems='center'>
                     {isCatalogRoute && (
