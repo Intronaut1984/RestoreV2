@@ -13,7 +13,7 @@ export const accountApi = createApi({
         login: builder.mutation<void, LoginSchema>({
             query: (creds) => {
                 return {
-                    url: 'login?useCookies=true',
+                    url: 'account/login?useCookies=true',
                     method: 'POST',
                     body: creds
                 }
@@ -87,9 +87,25 @@ export const accountApi = createApi({
                 }
             }
         })
+        ,
+        updateUserInfo: builder.mutation<User, Partial<User>>({
+            query: (payload) => ({
+                url: 'account/user-info',
+                method: 'PUT',
+                body: payload
+            }),
+            async onQueryStarted(_, {dispatch, queryFulfilled}){
+                try{
+                    await queryFulfilled;
+                    dispatch(accountApi.util.invalidateTags(['UserInfo']));
+                } catch (error){
+                    console.log(error);
+                }
+            }
+        })
     })
 });
 
 export const {useLoginMutation, useRegisterMutation, useLogoutMutation, 
     useUserInfoQuery, useLazyUserInfoQuery, useFetchAddressQuery, 
-    useUpdateUserAddressMutation} = accountApi;
+    useUpdateUserAddressMutation, useUpdateUserInfoMutation} = accountApi;

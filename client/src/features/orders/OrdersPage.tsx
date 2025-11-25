@@ -1,4 +1,4 @@
-import { Container, Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { Container, Table, TableBody, TableCell, TableHead, TableRow, Typography, Box } from "@mui/material";
 import { useFetchOrdersQuery } from "./orderApi"
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -14,10 +14,10 @@ export default function OrdersPage() {
 
     return (
         <Container maxWidth='md'>
-            <Typography variant="h6" align="center" gutterBottom>
+            <Typography variant="h6" align="center" gutterBottom sx={{ mb: 1 }}>
                 My orders
             </Typography>
-            <Paper sx={{borderRadius: 3}}>
+            <Box>
                 <Table>
                     <TableHead>
                         <TableRow>
@@ -35,15 +35,23 @@ export default function OrdersPage() {
                                 onClick={() => navigate(`/orders/${order.id}`)}
                                 style={{cursor: 'pointer'}}
                             >
-                                <TableCell align="center"># {order.id}</TableCell>
-                                <TableCell>{format(order.orderDate, 'dd MMM yyyy')}</TableCell>
-                                <TableCell>{currencyFormat(order.total)}</TableCell>
-                                <TableCell>{order.orderStatus}</TableCell>
+                                <TableCell align="center">
+                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}># {order.id}</Box>
+                                </TableCell>
+                                <TableCell>
+                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{format(order.orderDate, 'dd MMM yyyy')}</Box>
+                                </TableCell>
+                                <TableCell>
+                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{currencyFormat(order.total)}</Box>
+                                </TableCell>
+                                <TableCell>
+                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{order.orderStatus}</Box>
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
-            </Paper>
+            </Box>
         </Container>
     )
 }

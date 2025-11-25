@@ -1,4 +1,4 @@
-import { Box, Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, Grid } from "@mui/material";
+import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, Grid } from "@mui/material";
 import { useAppDispatch, useAppSelector } from "../../app/store/store"
 import { useFetchProductsQuery } from "../catalog/catalogApi";
 import { currencyFormat } from "../../lib/util";
@@ -46,7 +46,7 @@ export default function InventoryPage() {
             </Box>
 
             {/* Desktop/tablet: show table */}
-            <TableContainer component={Paper} sx={{ display: { xs: 'none', md: 'block' } }}>
+            <TableContainer component={Box} sx={{ display: { xs: 'none', md: 'block' } }}>
                 <Table sx={{minWidth: 650, tableLayout: 'fixed'}}>
                     <TableHead>
                         <TableRow>
@@ -68,7 +68,7 @@ export default function InventoryPage() {
                                 }}
                             >
                                 <TableCell component='th' scope="row">
-                                    {product.id}
+                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{product.id}</Box>
                                 </TableCell>
                                 <TableCell align="left" sx={{width: 300, maxWidth: 300}}>
                                     <Box sx={{display: 'flex', alignItems: 'center'}}>
@@ -78,14 +78,16 @@ export default function InventoryPage() {
                                             style={{height: 50, marginRight: 20, flex: '0 0 auto'}}
                                         />
                                         <Box sx={{flex: 1, minWidth: 0, overflow: 'hidden'}}>
-                                            <Typography sx={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{product.name}</Typography>
+                                            <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                                                <Typography sx={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{product.name}</Typography>
+                                            </Box>
                                         </Box>
                                     </Box>
                                 </TableCell>
-                                <TableCell align="right">{currencyFormat(product.price)}</TableCell>
-                                <TableCell align="center">{product.genero ?? '—'}</TableCell>
-                                <TableCell align="center">{product.anoPublicacao ?? '—'}</TableCell>
-                                <TableCell align="center">{product.quantityInStock}</TableCell>
+                                <TableCell align="right"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{currencyFormat(product.price)}</Box></TableCell>
+                                <TableCell align="center"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{product.genero ?? '—'}</Box></TableCell>
+                                <TableCell align="center"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{product.anoPublicacao ?? '—'}</Box></TableCell>
+                                <TableCell align="center"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{product.quantityInStock}</Box></TableCell>
                                                 <TableCell align="right">
                                                     <Button onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary' size='small' />
                                                     <Button onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />} color="error" size='small' sx={{ ml: 1 }} />
@@ -109,29 +111,34 @@ export default function InventoryPage() {
                 <Grid container spacing={2}>
                     {data && data.items.map(product => (
                         <Grid item xs={6} sm={4} key={product.id}>
-                            <Paper sx={{p: 1}}>
+                            <Box sx={{p: 1}}>
                                 <Box display='flex' flexDirection='column' alignItems='center'>
                                     <img src={product.pictureUrl} alt={product.name} style={{width: '100%', height: 100, objectFit: 'cover', borderRadius: 8}} />
-                                    <Typography
-                                        variant='subtitle2'
-                                        sx={{
-                                            mt: 1,
-                                            textAlign: 'center',
-                                            width: '100%',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap'
-                                        }}
-                                    >
-                                        {product.name}
-                                    </Typography>
-                                    <Typography variant='subtitle2' sx={{color: 'secondary.main'}}>{currencyFormat(product.price)}</Typography>
-                                    <Box sx={{display: 'flex', gap:1, mt:1}}>
-                                        <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary'>Edit</Button>
-                                        <Button size='small' color='error' onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />}>Del</Button>
+                                    <Box sx={{ mt: 1, width: '100%' }}>
+                                        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                                            <Typography
+                                                variant='subtitle2'
+                                                sx={{
+                                                    textAlign: 'center',
+                                                    width: '100%',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                {product.name}
+                                            </Typography>
+                                        </Box>
+                                        <Box sx={{ mt: 1, textAlign: 'center' }}>
+                                            <Typography variant='subtitle2' sx={{color: 'secondary.main'}}>{currencyFormat(product.price)}</Typography>
+                                        </Box>
+                                        <Box sx={{display: 'flex', gap:1, mt:1, justifyContent: 'center'}}>
+                                            <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary'>Edit</Button>
+                                            <Button size='small' color='error' onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />}>Del</Button>
+                                        </Box>
                                     </Box>
                                 </Box>
-                            </Paper>
+                            </Box>
                         </Grid>
                     ))}
                 </Grid>

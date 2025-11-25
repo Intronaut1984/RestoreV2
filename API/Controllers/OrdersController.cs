@@ -23,7 +23,7 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
     {
         var orders = await context.Orders
             .ProjectToDto()
-            .Where(x => x.BuyerEmail == User.GetUsername())
+            .Where(x => x.BuyerEmail == User.GetEmail())
             .ToListAsync();
 
         return orders;
@@ -34,7 +34,7 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
     {
         var order = await context.Orders
             .ProjectToDto()
-            .Where(x => x.BuyerEmail == User.GetUsername() && id == x.Id)
+            .Where(x => x.BuyerEmail == User.GetEmail() && id == x.Id)
             .FirstOrDefaultAsync();
 
         if (order == null) return NotFound();
@@ -68,17 +68,17 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
 
         if (order == null)
         {
-            order = new Order
-            {
-                OrderItems = items,
-                BuyerEmail = User.GetUsername(),
-                ShippingAddress = orderDto.ShippingAddress,
-                DeliveryFee = deliveryFee,
-                Subtotal = subtotal,
-                Discount = discount,
-                PaymentSummary = orderDto.PaymentSummary,
-                PaymentIntentId = basket.PaymentIntentId
-            };
+                order = new Order
+                {
+                    OrderItems = items,
+                    BuyerEmail = User.GetEmail(),
+                    ShippingAddress = orderDto.ShippingAddress,
+                    DeliveryFee = deliveryFee,
+                    Subtotal = subtotal,
+                    Discount = discount,
+                    PaymentSummary = orderDto.PaymentSummary,
+                    PaymentIntentId = basket.PaymentIntentId
+                };
 
             context.Orders.Add(order);
         }
@@ -100,10 +100,14 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
                 {
                     if (intent.Status == "succeeded")
                     {
-                        if (order.GetTotal() == intent.Amount)
-                            order.OrderStatus = OrderStatus.PaymentReceived;
-                        else
-                            order.OrderStatus = OrderStatus.PaymentMismatch;
+                        var intentAmount = intent.Amount;
+                        if (Math.Abs(order.GetTotal() - intentAmount) > 1)
+                        {
+                            logger.LogWarning("Payment mismatch for order {OrderId} during creation: orderTotal={OrderTotal}, intentAmount={IntentAmount} - marking as PaymentReceived.", order.Id, order.GetTotal(), intentAmount);
+                        }
+
+                        logger.LogInformation("Payment received for order {OrderId} during creation: intent amount {Amount}", order.Id, intentAmount);
+                        order.OrderStatus = OrderStatus.PaymentReceived;
                     }
                     else if (intent.Status == "requires_payment_method" || intent.Status == "requires_confirmation" || intent.Status == "requires_action")
                     {

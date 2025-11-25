@@ -91,4 +91,90 @@ public class AccountController(SignInManager<User> signInManager) : BaseApiContr
 
         return address;
     }
+
+    [Authorize]
+    [HttpPut("user-info")]
+    public async Task<ActionResult> UpdateUserInfo(UpdateUserDto update)
+    {
+        var user = await signInManager.UserManager.GetUserAsync(User);
+
+        if (user == null) return Unauthorized();
+
+        // If email is changing, ensure it's not already taken and update via UserManager
+        if (!string.IsNullOrWhiteSpace(update.Email) && update.Email != user.Email)
+        {
+            var existing = await signInManager.UserManager.FindByEmailAsync(update.Email);
+            if (existing != null && existing.Id != user.Id)
+            {
+                return BadRequest("Email is already in use");
+            }
+
+            var setEmailResult = await signInManager.UserManager.SetEmailAsync(user, update.Email);
+            if (!setEmailResult.Succeeded)
+            {
+                return BadRequest("Problem updating email");
+            }
+        }
+
+        // If username is changing, ensure it's not already taken and update via UserManager
+        if (!string.IsNullOrWhiteSpace(update.UserName) && update.UserName != user.UserName)
+        {
+            var existingUser = await signInManager.UserManager.FindByNameAsync(update.UserName);
+            if (existingUser != null && existingUser.Id != user.Id)
+            {
+                return BadRequest("Username is already in use");
+            }
+
+            var setUserNameResult = await signInManager.UserManager.SetUserNameAsync(user, update.UserName);
+            if (!setUserNameResult.Succeeded)
+            {
+                return BadRequest("Problem updating username");
+            }
+        }
+
+        // Ensure other user fields are persisted
+        var result = await signInManager.UserManager.UpdateAsync(user);
+
+        if (!result.Succeeded) return BadRequest("Problem updating user");
+
+        var roles = await signInManager.UserManager.GetRolesAsync(user);
+
+        return Ok(new
+        {
+            user.Email,
+            user.UserName,
+            Roles = roles
+        });
+    }
+
+    [HttpPost("login")]
+    public async Task<ActionResult> Login(LoginDto login)
+    {
+        if (login == null) return BadRequest("Invalid login request");
+
+        string? userName = null;
+
+        // try find by email first
+        if (!string.IsNullOrWhiteSpace(login.Identifier) && login.Identifier.Contains('@'))
+        {
+            var byEmail = await signInManager.UserManager.FindByEmailAsync(login.Identifier);
+            if (byEmail != null) userName = byEmail.UserName;
+        }
+
+        // if not found by email, try as username
+        if (userName == null)
+        {
+            var byName = await signInManager.UserManager.FindByNameAsync(login.Identifier);
+            if (byName != null) userName = byName.UserName;
+        }
+
+        if (userName == null)
+            return Unauthorized();
+
+        var result = await signInManager.PasswordSignInAsync(userName, login.Password, isPersistent: false, lockoutOnFailure: false);
+
+        if (!result.Succeeded) return Unauthorized();
+
+        return Ok();
+    }
 }

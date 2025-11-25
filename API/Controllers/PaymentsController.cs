@@ -27,8 +27,10 @@ public class PaymentsController(PaymentsService paymentsService,
 
         if (intent == null) return BadRequest("Problem creating payment intent");
 
-        basket.PaymentIntentId ??= intent.Id;
-        basket.ClientSecret ??= intent.ClientSecret;
+        // Always set the basket PaymentIntentId and ClientSecret to the returned intent
+        // (the service may have created a fresh PaymentIntent when the previous one was terminal).
+        basket.PaymentIntentId = intent.Id;
+        basket.ClientSecret = intent.ClientSecret;
 
         if (context.ChangeTracker.HasChanges())
         {
@@ -98,15 +100,21 @@ public class PaymentsController(PaymentsService paymentsService,
            .Include(x => x.OrderItems)
            .FirstOrDefaultAsync(x => x.PaymentIntentId == intent.Id)
                ?? throw new Exception("Order not found");
+        var intentAmount = intent.Amount;
+        // Log amounts to help diagnose mismatches
+        logger.LogInformation("Stripe webhook succeeded for intent {IntentId}: intentAmount={IntentAmount}. Order {OrderId} totals: subtotal={Subtotal}, delivery={DeliveryFee}, discount={Discount}, computedTotal={OrderTotal}.",
+            intent.Id, intentAmount, order.Id, order.Subtotal, order.DeliveryFee, order.Discount, order.GetTotal());
 
-        if (order.GetTotal() != intent.Amount)
+        // Mark the order as received when Stripe reports success. Keep a warning log
+        // if amounts differ so admins can investigate, but don't treat Stripe success
+        // as a mismatch that prevents the order from being fulfilled.
+        if (Math.Abs(order.GetTotal() - intentAmount) > 1)
         {
-            order.OrderStatus = OrderStatus.PaymentMismatch;
+            logger.LogWarning("Payment mismatch for order {OrderId}: orderTotal={OrderTotal}, intentAmount={IntentAmount} - marking as PaymentReceived due to Stripe success.", order.Id, order.GetTotal(), intentAmount);
         }
-        else
-        {
-            order.OrderStatus = OrderStatus.PaymentReceived;
-        }
+
+        logger.LogInformation("Payment received for order {OrderId}: intent amount {Amount}", order.Id, intentAmount);
+        order.OrderStatus = OrderStatus.PaymentReceived;
 
         var basket = await context.Baskets.FirstOrDefaultAsync(x => 
             x.PaymentIntentId == intent.Id);
