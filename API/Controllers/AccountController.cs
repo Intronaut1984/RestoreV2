@@ -6,11 +6,21 @@ using Microsoft.AspNetCore.Identity;
 using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using API.RequestHelpers;
+using API.Services;
+using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Hosting;
+using SendGrid;
+using SendGrid.Helpers.Mail;
 
 namespace API.Controllers;
 
-public class AccountController(SignInManager<User> signInManager) : BaseApiController
+public class AccountController(SignInManager<User> signInManager, IEmailService emailService, IOptions<EmailSettings> emailSettings, IWebHostEnvironment env) : BaseApiController
 {
+    private readonly IEmailService _emailService = emailService;
+    private readonly EmailSettings _emailSettings = emailSettings.Value;
+    private readonly bool _isDevelopment = env.IsDevelopment();
+
     [HttpPost("register")]
     public async Task<ActionResult> RegisterUser(RegisterDto registerDto)
     {
@@ -215,11 +225,53 @@ public class AccountController(SignInManager<User> signInManager) : BaseApiContr
         var token = await signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
         var encodedToken = WebUtility.UrlEncode(token);
 
-        // Construct reset url for frontend. In production you would send this via email.
-        var resetUrl = $"/reset-password?email={WebUtility.UrlEncode(user.Email)}&token={encodedToken}";
+        // Build a full reset URL using configured frontend base URL
+        var resetUrl = $"{_emailSettings.FrontendUrl.TrimEnd('/')}/reset-password?email={WebUtility.UrlEncode(user.Email)}&token={encodedToken}";
 
-        // For development convenience return the url and token (do NOT do this in production)
-        return Ok(new { email = user.Email, token = encodedToken, resetUrl });
+        // Send reset email using configured email service
+        var subject = "Password reset";
+        var html = $"<p>You requested a password reset. Click the link below to reset your password:</p><p><a href=\"{resetUrl}\">Reset password</a></p>";
+        await _emailService.SendEmailAsync(user.Email!, subject, html);
+
+        // In Development environment return the resetUrl for easier debugging.
+        if (_isDevelopment)
+        {
+            return Ok(new { email = user.Email, token = encodedToken, resetUrl });
+        }
+
+        // Production: do not return token in response; simply acknowledge the request
+        return Ok(new { message = "If an account with that email exists, a password reset link has been sent." });
+    }
+
+    [HttpPost("send-test-email")]
+    public async Task<ActionResult> SendTestEmail(ForgotPasswordDto dto)
+    {
+        if (dto == null || string.IsNullOrWhiteSpace(dto.Email)) return BadRequest();
+
+        // Build a simple test message
+        var client = new SendGridClient(_emailSettings.SendGridApiKey);
+        var from = new EmailAddress(_emailSettings.FromEmail, _emailSettings.FromName);
+        var to = new EmailAddress(dto.Email);
+        var subject = "Test email from Restore";
+        var html = "<p>This is a test email from the Restore app.</p>";
+        var plain = System.Net.WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Replace(html, "<[^>]+>", string.Empty));
+        var msg = MailHelper.CreateSingleEmail(from, to, subject, plain, html);
+
+        if (_emailSettings.UseSandbox)
+        {
+            msg.MailSettings = new MailSettings { SandboxMode = new SandboxMode { Enable = true } };
+        }
+
+        try
+        {
+            var response = await client.SendEmailAsync(msg);
+            var body = response.Body?.ToString() ?? string.Empty;
+            return Ok(new { status = (int)response.StatusCode, body });
+        }
+        catch (System.Exception ex)
+        {
+            return Problem(detail: ex.ToString());
+        }
     }
 
     [HttpPost("reset-password")]
