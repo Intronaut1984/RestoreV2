@@ -4,7 +4,7 @@ import { useState } from 'react';
 // Search moved to NavBar for global access
 import RadioButtonGroup from "../../app/shared/components/RadioButtonGroup";
 import { useAppDispatch, useAppSelector } from "../../app/store/store";
-import { resetParams, setOrderBy, setAnos } from "./catalogSlice";
+import { resetParams, setOrderBy, setAnos, setGeneros } from "./catalogSlice";
 import CheckboxButtons from "../../app/shared/components/CheckboxButtons";
 
 const sortOptions = [
@@ -16,15 +16,16 @@ const sortOptions = [
 ]
 
 type Props = {
-    filtersData?: { anos: number[] }
+    filtersData?: { generos: string[], anos: number[] }
 }
 
 export default function Filters({filtersData: data}: Props) {
-    const { orderBy, anos } = useAppSelector(state => state.catalog);
+    const { orderBy, anos, generos } = useAppSelector(state => state.catalog);
     const dispatch = useAppDispatch();
     const theme = useTheme();
 
     const [openSort, setOpenSort] = useState(false);
+    const [openGenres, setOpenGenres] = useState(false);
     const [openTypes, setOpenTypes] = useState(false);
 
     const selectedCount = (arr?: Array<string | number>) => (arr && arr.length) ? arr.length : 0;
@@ -51,6 +52,23 @@ export default function Filters({filtersData: data}: Props) {
                         <Collapse in={openSort} timeout={160}>
                             <Box sx={{ p: 2 }}>
                                 <RadioButtonGroup selectedValue={orderBy} options={sortOptions} onChange={e => dispatch(setOrderBy(e.target.value))} />
+                            </Box>
+                        </Collapse>
+
+                        {/* Generos */}
+                        <Box
+                            onClick={() => setOpenGenres(s => !s)}
+                            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
+                        >
+                            <Typography sx={{ fontWeight: 700 }}>Género</Typography>
+                            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                <Typography color='text.secondary'>{selectedCount(generos) > 0 ? `${selectedCount(generos)} selecionados` : 'Todos'}</Typography>
+                                <Box component='span' sx={{ transform: openGenres ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
+                            </Box>
+                        </Box>
+                        <Collapse in={openGenres} timeout={160}>
+                            <Box sx={{ p: 2 }}>
+                                <CheckboxButtons items={(data?.generos ?? [])} checked={(generos ?? [])} onChange={(items: string[]) => dispatch(setGeneros(items))} />
                             </Box>
                         </Collapse>
 
@@ -85,6 +103,11 @@ export default function Filters({filtersData: data}: Props) {
                     <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
                         <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Ordenar</Typography>
                         <RadioButtonGroup selectedValue={orderBy} options={sortOptions} onChange={e => dispatch(setOrderBy(e.target.value))} />
+                    </Paper>
+
+                    <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                        <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Género</Typography>
+                        <CheckboxButtons items={(data?.generos ?? [])} checked={(generos ?? [])} onChange={(items: string[]) => dispatch(setGeneros(items))} />
                     </Paper>
 
                     <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
