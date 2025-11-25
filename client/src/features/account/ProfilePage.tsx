@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Container, Typography, Grid, Box, Divider, TextField, Button, Stack } from '@mui/material';
+import { Container, Typography, Grid, Box, Divider, TextField, Button, Stack, IconButton, InputAdornment } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useUserInfoQuery, useFetchAddressQuery, useUpdateUserInfoMutation, useUpdateUserAddressMutation } from './accountApi';
+import { useChangePasswordMutation } from './accountApi';
 import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'react-toastify';
 
@@ -9,7 +11,15 @@ export default function ProfilePage() {
   const { data: address, isLoading: addressLoading } = useFetchAddressQuery();
   const [updateUserInfo] = useUpdateUserInfoMutation();
   const [updateUserAddress, { isLoading: updatingAddress }] = useUpdateUserAddressMutation();
+  const [changePassword, { isLoading: isChanging }] = useChangePasswordMutation();
   const [editing, setEditing] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const { control, handleSubmit, reset } = useForm({
     defaultValues: {
@@ -89,6 +99,45 @@ export default function ProfilePage() {
     }
   };
 
+  const handleChangePassword = async () => {
+    try {
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        toast.error('Preencha todas as passwords');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        toast.error('A nova password e a confirmação não coincidem');
+        return;
+      }
+
+      if (newPassword === currentPassword) {
+        toast.error('A nova password não pode ser igual à atual');
+        return;
+      }
+
+      await changePassword({ currentPassword, newPassword }).unwrap();
+      toast.success('Password alterada');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setChangingPassword(false);
+    } catch (err) {
+      const getErrorMessage = (err: unknown) => {
+        if (!err) return 'Problem changing password';
+        if (typeof err === 'string') return err;
+        if (typeof err === 'object') {
+          const o = err as Record<string, unknown>;
+          if (typeof o.data === 'string') return o.data;
+          if (typeof o.message === 'string') return o.message;
+        }
+        return 'Problem changing password';
+      };
+
+      toast.error(getErrorMessage(err));
+    }
+  };
+
   return (
     <Container maxWidth="md" sx={{ mt: 4 }}>
       <Box sx={{ px: 0 }}>
@@ -162,6 +211,7 @@ export default function ProfilePage() {
 
             <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
               <Button variant="contained" onClick={() => setEditing(true)}>Edit</Button>
+              <Button variant="outlined" onClick={() => setChangingPassword(s => !s)}>Change password</Button>
             </Stack>
           </>
         ) : (
@@ -223,6 +273,74 @@ export default function ProfilePage() {
               </Grid>
             </Grid>
           </form>
+        )}
+
+        {changingPassword && (
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="h6">Change Password</Typography>
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column', maxWidth: 480, mt: 1 }}>
+                <TextField
+                  label="Current password"
+                  type={showCurrent ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={e => setCurrentPassword(e.target.value)}
+                  fullWidth
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton onClick={() => setShowCurrent(s => !s)} edge="end">
+                          {showCurrent ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }}
+                />
+
+                <TextField
+                  label="New password"
+                  type={showNew ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  fullWidth
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton onClick={() => setShowNew(s => !s)} edge="end">
+                          {showNew ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }}
+                />
+                <TextField
+                  label="Confirm new password"
+                  type={showConfirm ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  fullWidth
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton onClick={() => setShowConfirm(s => !s)} edge="end">
+                          {showConfirm ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }}
+                />
+
+                <Box>
+                  <Button
+                    variant="contained"
+                    onClick={handleChangePassword}
+                    disabled={isChanging || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword || newPassword === currentPassword}
+                  >
+                    Save password
+                  </Button>
+                  <Button variant="text" onClick={() => setChangingPassword(false)}>Cancel</Button>
+                </Box>
+            </Box>
+          </Box>
         )}
       </Box>
     </Container>

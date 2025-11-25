@@ -17,6 +17,8 @@ import OrdersPage from "../../features/orders/OrdersPage";
 import OrderDetailedPage from "../../features/orders/OrderDetailedPage";
 import InventoryPage from "../../features/admin/InventoryPage";
 import ProfilePage from "../../features/account/ProfilePage";
+import ForgotPassword from "../../features/account/ForgotPassword";
+import ResetPassword from "../../features/account/ResetPassword";
 
 export const router = createBrowserRouter([
     {
@@ -39,7 +41,9 @@ export const router = createBrowserRouter([
             {path: 'basket', element: <BasketPage />},
             {path: 'server-error', element: <ServerError />},
             {path: 'login', element: <LoginForm />},
+            {path: 'forgot-password', element: <ForgotPassword />},
             {path: 'register', element: <RegisterForm />},
+            {path: 'reset-password', element: <ResetPassword />},
             {path: 'not-found', element: <NotFound />},
             {path: '*', element: <Navigate replace to='/not-found' />}
         ]

@@ -1,6 +1,7 @@
-import { LockOutlined } from "@mui/icons-material";
-import { Box, Button, Container, Paper, TextField, Typography } from "@mui/material";
+import { LockOutlined, Visibility, VisibilityOff } from "@mui/icons-material";
+import { Box, Button, Container, Paper, TextField, Typography, IconButton, InputAdornment } from "@mui/material";
 import { useForm } from "react-hook-form";
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { loginSchema, LoginSchema } from "../../lib/schemas/loginSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,6 +16,7 @@ export default function LoginForm() {
         resolver: zodResolver(loginSchema)
     });
     const navigate = useNavigate();
+    const [showPassword, setShowPassword] = useState(false);
 
     const onSubmit = async (data: LoginSchema) => {
         await login(data);
@@ -49,11 +51,23 @@ export default function LoginForm() {
                     <TextField
                         fullWidth
                         label='Password'
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         {...register('password')}
                         error={!!errors.password}
                         helperText={errors.password?.message}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton edge="end" onClick={() => setShowPassword(s => !s)}>
+                                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                                    </IconButton>
+                                </InputAdornment>
+                            )
+                        }}
                     />
+                    <Typography sx={{ textAlign: 'right' }}>
+                        <Link to='/forgot-password'>Esqueci-me da password</Link>
+                    </Typography>
                     <Button disabled={isLoading} variant="contained" type="submit">
                         Sign in
                     </Button>

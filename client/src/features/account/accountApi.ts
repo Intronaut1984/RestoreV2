@@ -103,9 +103,42 @@ export const accountApi = createApi({
                 }
             }
         })
+        ,
+        changePassword: builder.mutation<void, { currentPassword: string; newPassword: string }>({
+            query: (payload) => ({
+                url: 'account/change-password',
+                method: 'POST',
+                body: payload
+            }),
+            async onQueryStarted(_, { queryFulfilled }){
+                try{
+                    await queryFulfilled;
+                    // no specific cache invalidation required
+                } catch (error){
+                    console.log(error);
+                    throw error;
+                }
+            }
+        })
+        ,
+        forgotPassword: builder.mutation<{ message?: string }, { email: string }>({
+            query: (payload) => ({
+                url: 'account/forgot-password',
+                method: 'POST',
+                body: payload
+            })
+        }),
+        resetPassword: builder.mutation<void, { email: string; token: string; newPassword: string }>({
+            query: (payload) => ({
+                url: 'account/reset-password',
+                method: 'POST',
+                body: payload
+            })
+        })
     })
 });
 
 export const {useLoginMutation, useRegisterMutation, useLogoutMutation, 
     useUserInfoQuery, useLazyUserInfoQuery, useFetchAddressQuery, 
-    useUpdateUserAddressMutation, useUpdateUserInfoMutation} = accountApi;
+    useUpdateUserAddressMutation, useUpdateUserInfoMutation, useChangePasswordMutation,
+    useForgotPasswordMutation, useResetPasswordMutation} = accountApi;
