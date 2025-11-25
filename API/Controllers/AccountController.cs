@@ -3,6 +3,7 @@ using API.DTOs;
 using API.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -147,6 +148,29 @@ public class AccountController(SignInManager<User> signInManager) : BaseApiContr
         });
     }
 
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<ActionResult> ChangePassword(ChangePasswordDto dto)
+    {
+        var user = await signInManager.UserManager.GetUserAsync(User);
+
+        if (user == null) return Unauthorized();
+
+        var result = await signInManager.UserManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
+
+        if (!result.Succeeded)
+        {
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(error.Code, error.Description);
+            }
+
+            return ValidationProblem();
+        }
+
+        return Ok();
+    }
+
     [HttpPost("login")]
     public async Task<ActionResult> Login(LoginDto login)
     {
@@ -174,6 +198,51 @@ public class AccountController(SignInManager<User> signInManager) : BaseApiContr
         var result = await signInManager.PasswordSignInAsync(userName, login.Password, isPersistent: false, lockoutOnFailure: false);
 
         if (!result.Succeeded) return Unauthorized();
+
+        return Ok();
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<ActionResult> ForgotPassword(ForgotPasswordDto dto)
+    {
+        if (dto == null || string.IsNullOrWhiteSpace(dto.Email)) return BadRequest();
+
+        var user = await signInManager.UserManager.FindByEmailAsync(dto.Email);
+
+        // Do not reveal whether user exists
+        if (user == null) return Ok();
+
+        var token = await signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
+        var encodedToken = WebUtility.UrlEncode(token);
+
+        // Construct reset url for frontend. In production you would send this via email.
+        var resetUrl = $"/reset-password?email={WebUtility.UrlEncode(user.Email)}&token={encodedToken}";
+
+        // For development convenience return the url and token (do NOT do this in production)
+        return Ok(new { email = user.Email, token = encodedToken, resetUrl });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<ActionResult> ResetPassword(ResetPasswordDto dto)
+    {
+        if (dto == null) return BadRequest();
+
+        var user = await signInManager.UserManager.FindByEmailAsync(dto.Email);
+        if (user == null) return BadRequest("Invalid request");
+
+        var token = WebUtility.UrlDecode(dto.Token);
+
+        var result = await signInManager.UserManager.ResetPasswordAsync(user, token, dto.NewPassword);
+
+        if (!result.Succeeded)
+        {
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(error.Code, error.Description);
+            }
+
+            return ValidationProblem();
+        }
 
         return Ok();
     }

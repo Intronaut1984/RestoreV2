@@ -2,8 +2,9 @@ import { useForm } from "react-hook-form";
 import { useRegisterMutation } from "./accountApi"
 import { registerSchema, RegisterSchema } from "../../lib/schemas/registerSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LockOutlined } from "@mui/icons-material";
-import { Container, Paper, Box, Typography, TextField, Button } from "@mui/material";
+import { LockOutlined, Visibility, VisibilityOff } from "@mui/icons-material";
+import { Container, Paper, Box, Typography, TextField, Button, IconButton, InputAdornment } from "@mui/material";
+import { useState } from 'react';
 import { Link } from "react-router-dom";
 
 export default function RegisterForm() {
@@ -12,6 +13,8 @@ export default function RegisterForm() {
         mode: 'onTouched',
         resolver: zodResolver(registerSchema)
     })
+
+    const [showPassword, setShowPassword] = useState(false);
 
     const onSubmit = async (data: RegisterSchema) => {
         try {
@@ -60,10 +63,19 @@ export default function RegisterForm() {
                     <TextField
                         fullWidth
                         label='Password'
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         {...register('password')}
                         error={!!errors.password}
                         helperText={errors.password?.message}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton edge="end" onClick={() => setShowPassword(s => !s)}>
+                                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                                    </IconButton>
+                                </InputAdornment>
+                            )
+                        }}
                     />
                     <Button disabled={isLoading || !isValid} variant="contained" type="submit">
                         Register
