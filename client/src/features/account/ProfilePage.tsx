@@ -1,0 +1,230 @@
+import { useState, useEffect } from 'react';
+import { Container, Typography, Grid, Box, Divider, TextField, Button, Stack } from '@mui/material';
+import { useUserInfoQuery, useFetchAddressQuery, useUpdateUserInfoMutation, useUpdateUserAddressMutation } from './accountApi';
+import { useForm, Controller } from 'react-hook-form';
+import { toast } from 'react-toastify';
+
+export default function ProfilePage() {
+  const { data: user, isLoading: userLoading } = useUserInfoQuery();
+  const { data: address, isLoading: addressLoading } = useFetchAddressQuery();
+  const [updateUserInfo] = useUpdateUserInfoMutation();
+  const [updateUserAddress, { isLoading: updatingAddress }] = useUpdateUserAddressMutation();
+  const [editing, setEditing] = useState(false);
+
+  const { control, handleSubmit, reset } = useForm({
+    defaultValues: {
+      email: '',
+      userName: '',
+      name: '',
+      line1: '',
+      line2: '',
+      city: '',
+      state: '',
+      postal_code: '',
+      country: ''
+    }
+  });
+
+  useEffect(() => {
+    reset({
+      email: user?.email ?? '',
+      userName: user?.userName ?? '',
+      name: address?.name ?? '',
+      line1: address?.line1 ?? '',
+      line2: address?.line2 ?? '',
+      city: address?.city ?? '',
+      state: address?.state ?? '',
+      postal_code: address?.postal_code ?? '',
+      country: address?.country ?? ''
+    });
+  }, [user, address, reset]);
+
+  if (userLoading) return <div>Loading profile...</div>;
+
+  interface ProfileFormValues {
+    email: string;
+    userName: string;
+    name?: string;
+    line1?: string;
+    line2?: string | null;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+  }
+
+  const onSubmit = async (values: ProfileFormValues) => {
+    try {
+      const { email, userName, name, line1, line2, city, state, postal_code, country } = values;
+
+      // Update user info
+      await updateUserInfo({ email, userName }).unwrap();
+
+      // Update address - ensure required string fields are present (use empty string fallback)
+      await updateUserAddress({
+        name: name ?? '',
+        line1: line1 ?? '',
+        line2: line2 ?? null,
+        city: city ?? '',
+        state: state ?? '',
+        postal_code: postal_code ?? '',
+        country: country ?? ''
+      }).unwrap();
+
+      toast.success('Profile updated');
+      setEditing(false);
+    } catch (error: unknown) {
+      const getErrorMessage = (err: unknown) => {
+        if (!err) return 'Problem updating profile';
+        if (typeof err === 'string') return err;
+        if (typeof err === 'object') {
+          const o = err as Record<string, unknown>;
+          if (typeof o.data === 'string') return o.data;
+          if (typeof o.message === 'string') return o.message;
+        }
+        return 'Problem updating profile';
+      };
+
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  return (
+    <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Box sx={{ px: 0 }}>
+        <Typography variant="h5" sx={{ mb: 1 }}>My Profile</Typography>
+        <Divider sx={{ my: 1 }} />
+
+        {!editing ? (
+          <>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                  <Typography variant="subtitle2">Email</Typography>
+                  <Typography>{user?.email ?? '-'}</Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                  <Typography variant="subtitle2">Username</Typography>
+                  <Typography>{user?.userName ?? '-'}</Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12}>
+                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                  <Typography variant="subtitle2">Roles</Typography>
+                  <Typography>{user?.roles?.join(', ') ?? '-'}</Typography>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="h6">Saved Address</Typography>
+                {addressLoading ? (
+                  <Typography>Loading address...</Typography>
+                ) : address ? (
+                  <Grid container spacing={1}>
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                        <Typography>{address.name}</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                        <Typography>{address.line1}</Typography>
+                      </Box>
+                    </Grid>
+                    {address.line2 && (
+                      <Grid item xs={12} sm={6}>
+                        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                          <Typography>{address.line2}</Typography>
+                        </Box>
+                      </Grid>
+                    )}
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                        <Typography>
+                          {address.city}, {address.state} {address.postal_code}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                        <Typography>{address.country}</Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                ) : (
+                  <Typography>No saved address</Typography>
+                )}
+              </Grid>
+            </Grid>
+
+            <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+              <Button variant="contained" onClick={() => setEditing(true)}>Edit</Button>
+            </Stack>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Controller
+                  name="email"
+                  control={control}
+                  rules={{ required: 'Email is required' }}
+                  render={({ field, fieldState }) => (
+                    <TextField {...field} label="Email" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Controller
+                  name="userName"
+                  control={control}
+                  rules={{ required: 'Username is required' }}
+                  render={({ field, fieldState }) => (
+                    <TextField {...field} label="Username" fullWidth error={!!fieldState.error} helperText={fieldState.error?.message} />
+                  )}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="h6">Saved Address</Typography>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <Controller name="name" control={control} render={({ field }) => <TextField {...field} label="Full name" fullWidth />} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Controller name="line1" control={control} render={({ field }) => <TextField {...field} label="Line 1" fullWidth />} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Controller name="line2" control={control} render={({ field }) => <TextField {...field} label="Line 2" fullWidth />} />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Controller name="city" control={control} render={({ field }) => <TextField {...field} label="City" fullWidth />} />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Controller name="state" control={control} render={({ field }) => <TextField {...field} label="State" fullWidth />} />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Controller name="postal_code" control={control} render={({ field }) => <TextField {...field} label="Postal code" fullWidth />} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Controller name="country" control={control} render={({ field }) => <TextField {...field} label="Country" fullWidth />} />
+              </Grid>
+
+              <Grid item xs={12} sx={{ mt: 1 }}>
+                <Stack direction="row" spacing={2}>
+                  <Button type="submit" variant="contained" disabled={updatingAddress}>Save</Button>
+                  <Button variant="outlined" onClick={() => setEditing(false)}>Cancel</Button>
+                </Stack>
+              </Grid>
+            </Grid>
+          </form>
+        )}
+      </Box>
+    </Container>
+  );
+}

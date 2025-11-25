@@ -3,7 +3,7 @@ import { useState } from "react";
 import { User } from "../models/user";
 import { History, Inventory, Logout, Person, AccountCircle } from "@mui/icons-material";
 import { useLogoutMutation } from "../../features/account/accountApi";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 type Props = {
     user: User
@@ -11,6 +11,7 @@ type Props = {
 
 export default function UserMenu({ user }: Props) {
     const [logout] = useLogoutMutation();
+    const navigate = useNavigate();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
     const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -18,6 +19,19 @@ export default function UserMenu({ user }: Props) {
     };
     const handleClose = () => {
         setAnchorEl(null);
+    };
+
+    const handleLogout = async () => {
+        // close the menu immediately so overlay/backdrop is removed
+        handleClose();
+        try {
+            await logout(undefined).unwrap();
+            navigate('/');
+        } catch (error) {
+            console.error('Logout failed', error);
+            // still navigate home to ensure UI isn't stuck
+            navigate('/');
+        }
     };
 
     return (
@@ -39,7 +53,7 @@ export default function UserMenu({ user }: Props) {
                     <ListItemText primary={user.email} />
                 </MenuItem>
                 <Divider />
-                <MenuItem onClick={handleClose}>
+                    <MenuItem component={Link} to='/profile' onClick={handleClose}>
                     <ListItemIcon>
                         <Person />
                     </ListItemIcon>
@@ -59,7 +73,7 @@ export default function UserMenu({ user }: Props) {
                     <ListItemText>Inventory</ListItemText>
                 </MenuItem>}
                 <Divider />
-                <MenuItem onClick={logout}>
+                <MenuItem onClick={handleLogout}>
                     <ListItemIcon>
                         <Logout />
                     </ListItemIcon>

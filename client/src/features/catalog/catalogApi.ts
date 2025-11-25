@@ -50,7 +50,7 @@ export const catalogApi = createApi({
         fetchProductDetails: builder.query<Product, number>({
             query: (productId) => `products/${productId}`
         ,
-            providesTags: (result, error, id) => [{ type: 'Products', id }]
+            providesTags: (_result, _error, id) => [{ type: 'Products', id }]
         }),
         fetchFilters: builder.query<{ generos: string[], anos: number[] }, void>({
             query: () => 'products/filters'

@@ -66,11 +66,45 @@ public class PaymentsService(IConfiguration config, DiscountService discountServ
         }
         else
         {
-            var options = new PaymentIntentUpdateOptions
+            // Try to fetch existing intent to check its status. If it's in a terminal/non-updatable state
+            // (for example 'succeeded') we must create a new PaymentIntent instead of updating it.
+            try
             {
-                Amount = totalAmount
-            };
-            await service.UpdateAsync(basket.PaymentIntentId, options);
+                var existing = await service.GetAsync(basket.PaymentIntentId);
+
+                var updatableStatuses = new[] { "requires_payment_method", "requires_confirmation", "requires_action" };
+
+                if (existing == null || !updatableStatuses.Contains(existing.Status))
+                {
+                    // create a new PaymentIntent
+                    var options = new PaymentIntentCreateOptions
+                    {
+                        Amount = totalAmount,
+                        Currency = "eur",
+                        PaymentMethodTypes = new List<string> { "card", "multibanco", "mb_way" }
+                    };
+                    intent = await service.CreateAsync(options);
+                }
+                else
+                {
+                    var options = new PaymentIntentUpdateOptions
+                    {
+                        Amount = totalAmount
+                    };
+                    intent = await service.UpdateAsync(basket.PaymentIntentId, options);
+                }
+            }
+            catch (StripeException)
+            {
+                // If something goes wrong fetching/updating the existing intent, create a new one as a safe fallback.
+                var options = new PaymentIntentCreateOptions
+                {
+                    Amount = totalAmount,
+                    Currency = "eur",
+                    PaymentMethodTypes = new List<string> { "card", "multibanco", "mb_way" }
+                };
+                intent = await service.CreateAsync(options);
+            }
         }
 
         return intent;

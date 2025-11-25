@@ -9,4 +9,10 @@ public static class ClaimsPrincipalExtensions
     {
         return user.Identity?.Name ?? throw new UnauthorizedAccessException();
     }
+
+    public static string GetEmail(this ClaimsPrincipal user)
+    {
+        var email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.FindFirst("email")?.Value;
+        return !string.IsNullOrEmpty(email) ? email : throw new UnauthorizedAccessException();
+    }
 }

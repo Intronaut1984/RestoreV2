@@ -40,11 +40,11 @@ export default function LoginForm() {
                 >
                     <TextField
                         fullWidth
-                        label='Email'
+                        label='Username or email'
                         autoFocus
-                        {...register('email')}
-                        error={!!errors.email}
-                        helperText={errors.email?.message}
+                        {...register('identifier')}
+                        error={!!errors.identifier}
+                        helperText={errors.identifier?.message}
                     />
                     <TextField
                         fullWidth

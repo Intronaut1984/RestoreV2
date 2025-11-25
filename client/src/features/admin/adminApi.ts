@@ -29,7 +29,7 @@ export const adminApi = createApi({
                 }
             }
         ,
-            invalidatesTags: (result, error, { id }) => [{ type: 'Products', id }, { type: 'Products', id: 'LIST' }, 'Filters']
+            invalidatesTags: (_result, _error, { id }) => [{ type: 'Products', id }, { type: 'Products', id: 'LIST' }, 'Filters']
         }),
         deleteProduct: builder.mutation<void, number>({
             query: (id: number) => {
@@ -39,7 +39,7 @@ export const adminApi = createApi({
                 }
             }
         ,
-            invalidatesTags: (result, error, id) => [{ type: 'Products', id }, { type: 'Products', id: 'LIST' }, 'Filters']
+            invalidatesTags: (_result, _error, id) => [{ type: 'Products', id }, { type: 'Products', id: 'LIST' }, 'Filters']
         })
     })
 });
