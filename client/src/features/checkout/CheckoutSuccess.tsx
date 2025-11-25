@@ -1,4 +1,4 @@
-import { Box, Button, Container, Divider, Paper, Typography } from "@mui/material";
+import { Box, Button, Container, Divider, Typography } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
 import { Order } from "../../app/models/order";
 import { currencyFormat, formatAddressString, formatPaymentString } from "../../lib/util";
