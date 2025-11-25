@@ -115,6 +115,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             control={control}
                             name="genero"
                             label="Género"
+                            searchable
                         />
                     </Grid>
 
