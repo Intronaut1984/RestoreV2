@@ -28,6 +28,10 @@ export const catalogSlice = createSlice({
             state.anos = action.payload
             state.pageNumber = 1;
         },
+        setGeneros(state, action) {
+            state.generos = action.payload
+            state.pageNumber = 1;
+        },
         setSearchTerm(state, action) {
             state.searchTerm = action.payload
             state.pageNumber = 1;
@@ -39,5 +43,5 @@ export const catalogSlice = createSlice({
 });
 
 export const { setOrderBy, setPageNumber, setPageSize, 
-    setSearchTerm, setAnos, resetParams } 
+    setSearchTerm, setAnos, setGeneros, resetParams } 
     = catalogSlice.actions;

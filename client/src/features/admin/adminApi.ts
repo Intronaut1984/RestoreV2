@@ -5,6 +5,7 @@ import { Product } from "../../app/models/product";
 export const adminApi = createApi({
     reducerPath: 'adminApi',
     baseQuery: baseQueryWithErrorHandling,
+    tagTypes: ['Products','Filters'],
     endpoints: (builder) => ({
         createProduct: builder.mutation<Product, FormData>({
             query: (data: FormData) => {
@@ -14,6 +15,8 @@ export const adminApi = createApi({
                     body: data
                 }
             }
+        ,
+            invalidatesTags: ['Products','Filters']
         }),
         updateProduct: builder.mutation<void, {id: number, data: FormData}>({
             query: ({id, data}) => {
@@ -25,6 +28,8 @@ export const adminApi = createApi({
                     body: data
                 }
             }
+        ,
+            invalidatesTags: (result, error, { id }) => [{ type: 'Products', id }, { type: 'Products', id: 'LIST' }, 'Filters']
         }),
         deleteProduct: builder.mutation<void, number>({
             query: (id: number) => {
@@ -33,6 +38,8 @@ export const adminApi = createApi({
                     method: 'DELETE'
                 }
             }
+        ,
+            invalidatesTags: (result, error, id) => [{ type: 'Products', id }, { type: 'Products', id: 'LIST' }, 'Filters']
         })
     })
 });

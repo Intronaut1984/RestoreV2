@@ -8,13 +8,38 @@ import { Pagination } from "../../app/models/pagination";
 export const catalogApi = createApi({
     reducerPath: 'catalogApi',
     baseQuery: baseQueryWithErrorHandling,
+    tagTypes: ['Products','Filters'],
     endpoints: (builder) => ({
         fetchProducts: builder.query<{items: Product[], pagination: Pagination}, ProductParams>({
             query: (productParams) => {
+                // backend expects comma-separated strings for generos and anos
+                const params: Record<string, string | number | undefined> = {
+                    orderBy: productParams.orderBy,
+                    pageNumber: productParams.pageNumber,
+                    pageSize: productParams.pageSize,
+                    searchTerm: productParams.searchTerm
+                };
+
+                if (productParams.generos && productParams.generos.length > 0) {
+                    params.generos = productParams.generos.map(g => g.toLowerCase()).join(',');
+                }
+
+                if (productParams.anos && productParams.anos.length > 0) {
+                    params.anos = productParams.anos.join(',');
+                }
+
                 return {
                     url: 'products',
-                    params: filterEmptyValues(productParams)
+                    params: filterEmptyValues(params)
                 }
+                },
+            providesTags: (result) =>
+            {
+                // provide a Products list tag so mutations can invalidate
+                return result?.items ? [
+                    ...result.items.map(({ id }) => ({ type: 'Products' as const, id })),
+                    { type: 'Products', id: 'LIST' }
+                ] : [{ type: 'Products', id: 'LIST' }]
             },
             transformResponse: (items: Product[], meta) => {
                 const paginationHeader = meta?.response?.headers.get('Pagination');
@@ -24,9 +49,13 @@ export const catalogApi = createApi({
         }),
         fetchProductDetails: builder.query<Product, number>({
             query: (productId) => `products/${productId}`
+        ,
+            providesTags: (result, error, id) => [{ type: 'Products', id }]
         }),
         fetchFilters: builder.query<{ generos: string[], anos: number[] }, void>({
             query: () => 'products/filters'
+        ,
+            providesTags: ['Filters']
         })
     })
 });

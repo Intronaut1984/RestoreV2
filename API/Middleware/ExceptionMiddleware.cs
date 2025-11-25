@@ -18,7 +18,7 @@ public class ExceptionMiddleware(IHostEnvironment env, ILogger<ExceptionMiddlewa
         {
             await HandleException(context, ex);
         }
-    }
+    } 
 
     private async Task HandleException(HttpContext context, Exception ex)
     {
