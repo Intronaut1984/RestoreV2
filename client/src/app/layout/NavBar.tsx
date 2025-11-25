@@ -1,7 +1,7 @@
 import { AppBar, Badge, Box, IconButton, LinearProgress, List, ListItem, Toolbar, Typography, Menu, MenuItem, useTheme, useMediaQuery, Drawer } from "@mui/material";
 import { DarkMode, LightMode, ShoppingCart, AccountCircle, FilterList as FilterListIcon, Search as SearchIcon } from '@mui/icons-material';
 import { useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, NavLink } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../store/store";
 import { setDarkMode } from "./uiSlice";
@@ -57,6 +57,14 @@ export default function NavBar() {
     const closeSearch = () => setSearchOpen(false);
 
     const itemCount = basket?.items.reduce((sum, item) => sum + item.quantity, 0) || 0;
+    const { generos, anos, orderBy, searchTerm } = useAppSelector(state => state.catalog);
+
+    // Close the filters drawer automatically on mobile when any catalog param changes
+    useEffect(() => {
+        if (isMobile && filtersOpen) {
+            setFiltersOpen(false);
+        }
+    }, [generos, anos, orderBy, searchTerm]);
 
     return (
         <AppBar
