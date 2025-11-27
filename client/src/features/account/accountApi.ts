@@ -121,7 +121,7 @@ export const accountApi = createApi({
             }
         })
         ,
-        forgotPassword: builder.mutation<{ message?: string }, { email: string }>({
+        forgotPassword: builder.mutation<{ email?: string; token?: string; resetUrl?: string; message?: string }, { email: string }>({
             query: (payload) => ({
                 url: 'account/forgot-password',
                 method: 'POST',

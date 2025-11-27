@@ -34,7 +34,9 @@ export default function ResetPassword() {
       return;
     }
     try {
-      await resetPassword({ email, token, newPassword }).unwrap();
+      // send the token URL-encoded so backend UrlDecode(...) restores original token
+      const encodedToken = encodeURIComponent(token);
+      await resetPassword({ email, token: encodedToken, newPassword }).unwrap();
       toast.success('Password reposta com sucesso');
       navigate('/login');
     } catch (err) {
