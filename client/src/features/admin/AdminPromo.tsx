@@ -22,7 +22,7 @@ export default function AdminPromo() {
             // notify other parts of the UI (PromoBar) about the update
             try {
                 window.dispatchEvent(new CustomEvent('promoUpdated', { detail: { message, color } }));
-            } catch (e) {
+            } catch {
                 // ignore
             }
         } catch (error) {
