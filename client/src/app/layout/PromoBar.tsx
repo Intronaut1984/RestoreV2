@@ -8,6 +8,8 @@ export default function PromoBar() {
   const isSm = useMediaQuery(theme.breakpoints.down('sm'));
   const rootRef = useRef<HTMLElement | null>(null);
   const previousBodyPaddingRef = useRef<string | null>(null);
+  const [message, setMessage] = useState('Promoção: Entrega grátis em compras acima de €50 — Aproveite!');
+  const [color, setColor] = useState('#050505');
 
   // Fallback toolbar height from theme (used only if DOM measure fails)
   const toolbarHeight = ((theme.mixins as unknown) as { toolbar?: { minHeight?: number } })?.toolbar?.minHeight ?? 64;
@@ -98,6 +100,45 @@ export default function PromoBar() {
     };
   }, [visible, topOffset]);
 
+  // fetch promo from public endpoint and listen for updates
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchPromo() {
+      try {
+        const base = import.meta.env.VITE_API_URL || '';
+        const url = `${base.replace(/\/$/, '')}/promo`;
+        const res = await fetch(url, { method: 'GET' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!mounted) return;
+        if (data?.message) setMessage(data.message);
+        if (data?.color) setColor(data.color);
+      } catch (e) {
+        // ignore network errors
+      }
+    }
+
+    fetchPromo();
+
+    function onPromoUpdated(e: any) {
+      if (e?.detail) {
+        if (e.detail.message) setMessage(e.detail.message);
+        if (e.detail.color) setColor(e.detail.color);
+      } else {
+        // fallback: refetch
+        fetchPromo();
+      }
+    }
+
+    window.addEventListener('promoUpdated', onPromoUpdated as EventListener);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('promoUpdated', onPromoUpdated as EventListener);
+    }
+  }, []);
+
   return (
     <Box
       component="section"
@@ -108,7 +149,7 @@ export default function PromoBar() {
         left: 0,
         right: 0,
         width: '100%',
-        bgcolor: '#050505ff',
+        bgcolor: color,
         color: '#fff',
         py: { xs: 0.75, sm: 1 },
         px: { xs: 2, sm: 3 },
@@ -124,7 +165,7 @@ export default function PromoBar() {
       }}
     >
       <Typography variant={isSm ? 'body2' : 'body1'} sx={{ fontWeight: 600, lineHeight: 1 }}>
-        Promoção: Entrega grátis em compras acima de €50 — Aproveite!
+        {message}
       </Typography>
     </Box>
   );

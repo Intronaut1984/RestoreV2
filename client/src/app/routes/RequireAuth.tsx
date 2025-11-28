@@ -13,7 +13,9 @@ export default function RequireAuth() {
 
     const adminRoutes = [
         '/inventory',
-        '/admin-dashboard'
+        '/admin-dashboard',
+        '/admin/users',
+        '/admin/promo'
     ]
 
     if (adminRoutes.includes(location.pathname) && !user.roles.includes('Admin')) {
