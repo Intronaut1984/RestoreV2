@@ -1,4 +1,5 @@
 import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import { Link as RouterLink } from 'react-router-dom';
 import { useGetUsersQuery, useUpdateUserRoleMutation } from "./adminApi";
 
 export default function AdminPanel() {
@@ -19,6 +20,9 @@ export default function AdminPanel() {
     return (
         <Box sx={{p:2}}>
             <Typography variant="h4" sx={{mb:2}}>Admin - Usuários</Typography>
+            <Box sx={{mb:2}}>
+                <Button component={RouterLink} to="/admin/heroblocks" variant="outlined">Manage Hero Blocks</Button>
+            </Box>
             <TableContainer>
                 <Table>
                     <TableHead>
