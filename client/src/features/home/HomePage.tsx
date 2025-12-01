@@ -75,56 +75,62 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
   }, [features.length]);
 
   return (
-    <Box sx={{ display: 'block', p: 0, m: 0 }}>
-    <Box
-      ref={heroRef}
-      sx={{ position: 'relative', width: '100vw', left: '50%', right: '50%', marginLeft: '-50vw', marginRight: '-50vw', aspectRatio: '16/9', overflow: 'hidden', mt: 0, cursor: 'pointer' }}
-      style={{ marginTop: `${pullUp}px` }}
-      onClick={() => navigate('/catalog')}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/catalog'); }}
-    >
-      <Box sx={{ position: 'absolute', inset: 0, backgroundImage: `url(${images[index] ?? ''})`, backgroundSize: 'cover', backgroundPosition: 'center', transition: 'background-image 500ms ease-in-out' }} />
+    <Box sx={{ width: '100%', p: 0, m: 0 }}>
+      {/* hero image area (fixed px height for predictability) */}
+      <Box
+        ref={heroRef}
+        sx={{
+          position: 'relative',
+          width: '100%',
+          height: { xs: 240, md: 400 },
+          overflow: 'hidden',
+          mt: 0,
+          cursor: 'pointer',
+        }}
+        style={{ marginTop: `${pullUp}px` }}
+        onClick={() => navigate('/catalog')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/catalog'); }}
+      >
+        <Box sx={{ position: 'absolute', inset: 0, backgroundImage: `url(${images[index] ?? ''})`, backgroundSize: 'cover', backgroundPosition: 'center', transition: 'background-image 500ms ease-in-out' }} />
 
-      {/* Center CTA */}
-      <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 4 }}>
-        <Button
-          aria-label="Ver Produtos"
-          variant="contained"
-          onClick={(e) => { e.stopPropagation(); navigate('/catalog'); }}
-          sx={{
-            bgcolor: 'white',
-            color: 'common.black',
-            px: { xs: 3, md: 5 },
-            py: { xs: 1, md: 1.25 },
-            borderRadius: 6,
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.25)',
-            textTransform: 'none',
-            fontWeight: 700,
-            fontSize: { xs: '0.95rem', md: '1.05rem' },
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 1,
-            backdropFilter: 'blur(6px)',
-            '&:hover': {
-              transform: 'translateY(-3px)',
-              boxShadow: '0 14px 40px rgba(0, 0, 0, 0.32)',
-              bgcolor: 'primary.dark',
-            },
-            transition: 'all 240ms ease',
-          }}
-        >
-          <StorefrontIcon fontSize="small" />
-          Ver Produtos
-        </Button>
+        {/* Bottom-aligned CTA inside hero */}
+        <Box sx={{ position: 'absolute', left: 0, right: 0, bottom: { xs: 12, md: 24 }, display: 'flex', justifyContent: 'center', zIndex: 4, pointerEvents: 'auto' }} onClick={(e) => e.stopPropagation()}>
+          <Button
+            aria-label="Ver Produtos"
+            variant="contained"
+            onClick={() => navigate('/catalog')}
+            sx={{
+              bgcolor: 'white',
+              color: 'common.black',
+              px: { xs: 16, md: 24 },
+              py: { xs: 0.75, md: 1 },
+              borderRadius: 6,
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.25)',
+              textTransform: 'none',
+              fontWeight: 700,
+              fontSize: { xs: '0.9rem', md: '1rem' },
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 1,
+              backdropFilter: 'blur(6px)',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 14px 40px rgba(0, 0, 0, 0.32)',
+                bgcolor: 'primary.dark',
+              },
+              transition: 'all 180ms ease',
+            }}
+          >
+            <StorefrontIcon fontSize="small" />
+            Ver Produtos
+          </Button>
+        </Box>
       </Box>
 
-    </Box>
-
-    {/* Full-bleed sliding features bar immediately after the hero image (thin strip) */}
-    <Box sx={{ position: 'relative', width: '100vw', left: '50%', marginLeft: '-50vw', marginRight: '-50vw', height: { xs: 56, md: 80 }, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 0 }} onClick={(e) => e.stopPropagation()}>
-      <Box sx={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+      {/* Thin full-bleed sliding features bar immediately after the hero image */}
+      <Box sx={{ width: '100%', height: { xs: 56, md: 80 }, overflow: 'hidden', mt: 0 }} onClick={(e) => e.stopPropagation()}>
         <Box sx={{ display: 'flex', width: `${features.length * 100}%`, height: '100%', transform: `translateX(-${featIndex * (100 / features.length)}%)`, transition: 'transform 450ms cubic-bezier(.22,.9,.32,1)' }}>
           {features.map(f => (
             <Box key={f.id} sx={{ flex: `0 0 ${100 / features.length}%`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, px: 2, height: '100%' }}>
@@ -136,7 +142,6 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
           ))}
         </Box>
       </Box>
-    </Box>
     </Box>
   )
 }
