@@ -17,6 +17,8 @@ builder.Services.AddControllers().AddJsonOptions(opt =>
 {
     // serialize enums as their string names so frontend receives readable genero values
     opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    // prevent reference-cycle serialization errors when entities have back-references
+    opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
 });
 builder.Services.AddDbContext<StoreContext>(opt => 
 {

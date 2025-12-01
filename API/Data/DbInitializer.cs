@@ -1,5 +1,7 @@
 using System;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 using API.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +24,7 @@ public class DbInitializer
 
     private static async Task SeedData(StoreContext context, UserManager<User> userManager)
     {
-        context.Database.Migrate();
+        await context.Database.MigrateAsync();
 
         if (!userManager.Users.Any())
         {
@@ -42,7 +44,7 @@ public class DbInitializer
             };
 
             await userManager.CreateAsync(admin, "Pa$$w0rd");
-            await userManager.AddToRolesAsync(admin, ["Member", "Admin"]);
+            await userManager.AddToRolesAsync(admin, new[] { "Member", "Admin" });
         }
 
         if (context.Products.Any()) return;
@@ -95,6 +97,6 @@ public class DbInitializer
 
         context.Products.AddRange(products);
 
-        context.SaveChanges();
+        await context.SaveChangesAsync();
     }
 }

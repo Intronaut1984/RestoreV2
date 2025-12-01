@@ -15,7 +15,8 @@ export default function RequireAuth() {
         '/inventory',
         '/admin-dashboard',
         '/admin/users',
-        '/admin/promo'
+        '/admin/promo',
+        '/admin/heroblocks'
     ]
 
     if (adminRoutes.includes(location.pathname) && !user.roles.includes('Admin')) {
