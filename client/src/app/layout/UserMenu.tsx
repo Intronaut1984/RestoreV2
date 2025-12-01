@@ -86,6 +86,14 @@ export default function UserMenu({ user }: Props) {
                     </ListItemIcon>
                     <ListItemText>Promo Bar</ListItemText>
                 </MenuItem>}
+
+                {user.roles.includes('Admin') &&
+                <MenuItem component={Link} to='/admin/heroblocks' onClick={handleClose}>
+                    <ListItemIcon>
+                        <Inventory />
+                    </ListItemIcon>
+                    <ListItemText>Adicionar/Editar Promo</ListItemText>
+                </MenuItem>}
                 <Divider />
                 <MenuItem onClick={handleLogout}>
                     <ListItemIcon>
