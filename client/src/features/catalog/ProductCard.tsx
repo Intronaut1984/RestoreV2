@@ -30,10 +30,11 @@ export default function ProductCard({ product }: Props) {
             }}
         >
             <CardMedia
-                component="img"
+                component={Link}
+                to={`/catalog/${product.id}`}
                 image={product.pictureUrl}
                 alt={product.name}
-                sx={{ width: '100%', height: 'auto', objectFit: 'cover', minHeight: { xs: 100, sm: 140 } }}
+                sx={{ width: '100%', height: 'auto', objectFit: 'cover', minHeight: { xs: 100, sm: 140 }, cursor: 'pointer' }}
             />
 
             <CardContent>

@@ -2,7 +2,6 @@ import { Box, Typography } from "@mui/material";
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import LockIcon from '@mui/icons-material/Lock';
 import ReplayIcon from '@mui/icons-material/Replay';
-import StorefrontIcon from '@mui/icons-material/Storefront';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@mui/material';
@@ -102,28 +101,28 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
             variant="contained"
             onClick={() => navigate('/catalog')}
             sx={{
-              bgcolor: 'white',
-              color: 'common.black',
+              bgcolor: 'transparent',
+              color: 'common.white',
+              border: '1px solid rgba(255,255,255,0.12)',
               px: { xs: 16, md: 24 },
               py: { xs: 0.75, md: 1 },
               borderRadius: 6,
-              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.25)',
+              boxShadow: 'none',
               textTransform: 'none',
               fontWeight: 700,
-              fontSize: { xs: '0.9rem', md: '1rem' },
+              fontSize: { xs: '0.9rem', md: '0.7rem' },
               display: 'inline-flex',
               alignItems: 'center',
               gap: 1,
-              backdropFilter: 'blur(6px)',
+              backdropFilter: 'blur(4px)',
               '&:hover': {
                 transform: 'translateY(-2px)',
-                boxShadow: '0 14px 40px rgba(0, 0, 0, 0.32)',
-                bgcolor: 'primary.dark',
+                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.24)',
+                bgcolor: 'rgba(255,255,255,0.06)'
               },
               transition: 'all 180ms ease',
             }}
           >
-            <StorefrontIcon fontSize="small" />
             Ver Produtos
           </Button>
         </Box>
