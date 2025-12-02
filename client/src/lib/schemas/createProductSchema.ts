@@ -30,6 +30,8 @@ export const createProductSchema = z.object({
     file: fileSchema.optional(),
     // allow multiple secondary files to be attached at creation
     secondaryFiles: z.array(z.instanceof(File)).optional(),
+    campaignIds: z.array(z.number()).optional(),
+    categoryIds: z.array(z.number()).optional(),
     synopsis: z.string().optional(),
     index: z.string().optional(),
     pageCount: z.coerce.number().optional(),
@@ -37,6 +39,11 @@ export const createProductSchema = z.object({
     format: z.string().optional(),
     dimensoes: z.string().optional(),
     weight: z.coerce.number().optional(),
+    // clothing / toy specific fields
+    cor: z.string().optional(),
+    material: z.string().optional(),
+    tamanho: z.string().optional(),
+    marca: z.string().optional(),
     tags: z.array(z.string()).optional()
 }).refine((data) => data.pictureUrl || data.file, {
     message: 'Please provide an image',

@@ -10,6 +10,8 @@ namespace API.Data;
 public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(options)
 {
     public required DbSet<Product> Products { get; set; }
+    public required DbSet<Campaign> Campaigns { get; set; }
+    public required DbSet<Category> Categories { get; set; }
     public required DbSet<Basket> Baskets { get; set; }
     public required DbSet<Order> Orders { get; set; }
     public required DbSet<Promo> Promos { get; set; }

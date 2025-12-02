@@ -44,9 +44,9 @@ public static class ProductExtensions
                 .Where(v => v > 0));
         }
 
-        if (generoList.Count > 0)
-        {
-            query = query.Where(x => x.Genero != null && generoList.Contains(x.Genero.ToString().ToLower()));
+            if (generoList.Count > 0)
+            {
+                query = query.Where(x => x.Genero != null && generoList.Contains(x.Genero.ToLower()));
         }
 
         if (anoList.Count > 0)

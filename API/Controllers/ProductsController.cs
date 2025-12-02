@@ -19,7 +19,10 @@ namespace API.Controllers
         public async Task<ActionResult<List<Product>>> GetProducts(
             [FromQuery] ProductParams productParams)
         {
+            // include related campaigns and categories so callers receive essential data
             var query = context.Products
+                .Include(p => p.Campaigns)
+                .Include(p => p.Categories)
                 .Sort(productParams.OrderBy)
                 .Search(productParams.SearchTerm)
                 .Filter(productParams.Generos, productParams.Anos)
@@ -36,7 +39,11 @@ namespace API.Controllers
         [HttpGet("{id}")] // api/products/2
         public async Task<ActionResult<Product>> GetProduct(int id)
         {
-            var product = await context.Products.FindAsync(id);
+            // include campaigns and categories so the returned product contains related data
+            var product = await context.Products
+                .Include(p => p.Campaigns)
+                .Include(p => p.Categories)
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null) return NotFound();
 
@@ -49,7 +56,7 @@ namespace API.Controllers
             // return distinct generos and publication years available for filters
             var generos = await context.Products
                 .Where(p => p.Genero != null)
-                .Select(p => p.Genero.ToString())
+                .Select(p => p.Genero)
                 .Distinct()
                 .ToListAsync();
 
@@ -86,8 +93,8 @@ namespace API.Controllers
             // handle multiple secondary image uploads
             if (productDto.SecondaryFiles != null && productDto.SecondaryFiles.Any())
             {
-                product.SecondaryImages = product.SecondaryImages ?? new List<string>();
-                product.SecondaryImagePublicIds = product.SecondaryImagePublicIds ?? new List<string>();
+                product.SecondaryImages ??= new List<string>();
+                product.SecondaryImagePublicIds ??= new List<string>();
                 foreach (var file in productDto.SecondaryFiles)
                 {
                     var secResult = await imageService.AddImageAsync(file);
@@ -110,6 +117,21 @@ namespace API.Controllers
                         product.PublicationYear = year;
                     }
                 }
+            }
+
+            // assign campaigns and categories if provided
+            if (productDto.CampaignIds != null && productDto.CampaignIds.Any())
+            {
+                product.Campaigns = await context.Campaigns
+                    .Where(c => productDto.CampaignIds.Contains(c.Id))
+                    .ToListAsync();
+            }
+
+            if (productDto.CategoryIds != null && productDto.CategoryIds.Any())
+            {
+                product.Categories = await context.Categories
+                    .Where(c => productDto.CategoryIds.Contains(c.Id))
+                    .ToListAsync();
             }
 
             context.Products.Add(product);
@@ -149,8 +171,8 @@ namespace API.Controllers
             // handle newly uploaded secondary images
             if (updateProductDto.SecondaryFiles != null && updateProductDto.SecondaryFiles.Any())
             {
-                product.SecondaryImages = product.SecondaryImages ?? new List<string>();
-                product.SecondaryImagePublicIds = product.SecondaryImagePublicIds ?? new List<string>();
+                product.SecondaryImages ??= new List<string>();
+                product.SecondaryImagePublicIds ??= new List<string>();
                 foreach (var file in updateProductDto.SecondaryFiles)
                 {
                     var secResult = await imageService.AddImageAsync(file);
@@ -174,7 +196,7 @@ namespace API.Controllers
                 foreach (var identifier in toRemove)
                 {
                     // if identifier matches a publicId we have stored, delete via Cloudinary
-                    if (product.SecondaryImagePublicIds.Contains(identifier))
+                    if (product.SecondaryImagePublicIds != null && product.SecondaryImagePublicIds.Contains(identifier))
                     {
                         try
                         {
@@ -183,7 +205,7 @@ namespace API.Controllers
                         catch { /* swallow deletion errors, proceed to remove from lists */ }
 
                         var idx = product.SecondaryImagePublicIds.IndexOf(identifier);
-                        if (idx >= 0 && idx < product.SecondaryImages.Count)
+                        if (idx >= 0 && product.SecondaryImages != null && idx < product.SecondaryImages.Count)
                         {
                             product.SecondaryImages.RemoveAt(idx);
                         }
@@ -192,7 +214,7 @@ namespace API.Controllers
                     else
                     {
                         // treat identifier as URL - remove URL and any matching publicId at same index
-                        if (product.SecondaryImages.Contains(identifier))
+                        if (product.SecondaryImages != null && product.SecondaryImages.Contains(identifier))
                         {
                             var idx = product.SecondaryImages.IndexOf(identifier);
                             // if there's a publicId at same index, attempt deletion
@@ -222,6 +244,21 @@ namespace API.Controllers
                         product.PublicationYear = year;
                     }
                 }
+            }
+
+            // update campaigns/categories if provided
+            if (updateProductDto.CampaignIds != null)
+            {
+                product.Campaigns = await context.Campaigns
+                    .Where(c => updateProductDto.CampaignIds.Contains(c.Id))
+                    .ToListAsync();
+            }
+
+            if (updateProductDto.CategoryIds != null)
+            {
+                product.Categories = await context.Categories
+                    .Where(c => updateProductDto.CategoryIds.Contains(c.Id))
+                    .ToListAsync();
             }
 
             var result = await context.SaveChangesAsync() > 0;

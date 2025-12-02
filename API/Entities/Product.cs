@@ -5,39 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Entities;
 
-public enum Genero
-{
-    Ficcao,
-    NaoFiccao,
-    Fantasia,
-    FiccaoCientifica,
-    Misterio,
-    Thriller,
-    Terror,
-    Romance,
-    Historico,
-    Juvenil,
-    Infantil,
-    Biografia,
-    Autobiografia,
-    Poesia,
-    AutoAjuda,
-    Negocios,
-    Ciencias,
-    Filosofia,
-    Religiao,
-    Arte,
-    Culinaria,
-    Viagens,
-    Saude,
-    Educacao,
-    BandaDesenhada,
-    NovelaGrafica,
-    Manga,
-    Drama,
-    Classico,
-    Crime
-}
 
 [Owned]
 public class Dimensions
@@ -73,7 +40,8 @@ public class Product
     [JsonPropertyName("anoPublicacao")]
     public int? PublicationYear { get; set; }
 
-    public Genero? Genero { get; set; }
+    // store genre as free-form text so admins can add genres without code changes
+    public string? Genero { get; set; }
 
     public decimal Price { get; set; }
 
@@ -97,6 +65,12 @@ public class Product
 
     public int? Weight { get; set; }
 
+    // clothing / toy specific attributes
+    public string? Cor { get; set; }
+    public string? Material { get; set; }
+    public string? Tamanho { get; set; }
+    public string? Marca { get; set; }
+
     public string? PictureUrl { get; set; }
 
     public List<string>? SecondaryImages { get; set; }
@@ -116,4 +90,8 @@ public class Product
     public bool Active { get; set; } = true;
 
     public string? PublicId { get; set; }
+
+    // relations
+    public List<Campaign>? Campaigns { get; set; }
+    public List<Category>? Categories { get; set; }
 }

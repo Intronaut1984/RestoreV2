@@ -26,7 +26,19 @@ export type Product = {
     weight?: number | null
     secondaryImages?: string[] | null
     secondaryImagePublicIds?: string[] | null
+    // clothing / toy specific
+    cor?: string | null
+    material?: string | null
+    tamanho?: string | null
+    marca?: string | null
+    // metadata
+    averageRating?: number | null
+    ratingsCount?: number | null
+    createdAt?: string | null
+    updatedAt?: string | null
+    active?: boolean | null
     tags?: string[]
-    active?: boolean
     publicId?: string | null
+    categories?: { id: number; name: string }[] | null
+    campaigns?: { id: number; name: string }[] | null
 }
