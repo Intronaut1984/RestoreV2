@@ -28,6 +28,14 @@ export const catalogApi = createApi({
                     params.anos = productParams.anos.join(',');
                 }
 
+                if (productParams.categoryIds && productParams.categoryIds.length > 0) {
+                    params.categoryIds = productParams.categoryIds.join(',');
+                }
+
+                if (productParams.campaignIds && productParams.campaignIds.length > 0) {
+                    params.campaignIds = productParams.campaignIds.join(',');
+                }
+
                 return {
                     url: 'products',
                     params: filterEmptyValues(params)
@@ -52,7 +60,7 @@ export const catalogApi = createApi({
         ,
             providesTags: (_result, _error, id) => [{ type: 'Products', id }]
         }),
-        fetchFilters: builder.query<{ generos: string[], anos: number[] }, void>({
+        fetchFilters: builder.query<{ generos: string[], anos: number[], categories?: { id: number; name: string; slug?: string; isActive?: boolean }[], campaigns?: { id: number; name: string; slug?: string; isActive?: boolean }[] }, void>({
             query: () => 'products/filters'
         ,
             providesTags: ['Filters']

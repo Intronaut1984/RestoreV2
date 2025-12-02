@@ -57,20 +57,20 @@ export default function UserMenu({ user }: Props) {
                     <ListItemIcon>
                         <Person />
                     </ListItemIcon>
-                    <ListItemText>My profile</ListItemText>
+                    <ListItemText>Perfil</ListItemText>
                 </MenuItem>
                 <MenuItem component={Link} to='/orders' onClick={handleClose}>
                     <ListItemIcon>
                         <History />
                     </ListItemIcon>
-                    <ListItemText>My orders</ListItemText>
+                    <ListItemText>Minhas Encomendas</ListItemText>
                 </MenuItem>
                 {user.roles.includes('Admin') &&
                 <MenuItem component={Link} to='/inventory' onClick={handleClose}>
                     <ListItemIcon>
                         <Inventory />
                     </ListItemIcon>
-                    <ListItemText>Inventory</ListItemText>
+                    <ListItemText>Inventário</ListItemText>
                 </MenuItem>}
                 {user.roles.includes('Admin') &&
                 <MenuItem component={Link} to='/admin/users' onClick={handleClose}>
@@ -92,7 +92,7 @@ export default function UserMenu({ user }: Props) {
                     <ListItemIcon>
                         <Inventory />
                     </ListItemIcon>
-                    <ListItemText>Adicionar/Editar Promo</ListItemText>
+                    <ListItemText>Criar Campanha</ListItemText>
                 </MenuItem>}
                 <Divider />
                 <MenuItem onClick={handleLogout}>

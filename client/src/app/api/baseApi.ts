@@ -25,31 +25,44 @@ export const baseQueryWithErrorHandling = async (args: string | FetchArgs, api: 
             ? result.error.originalStatus
             : result.error.status
 
-        const responseData = result.error.data as ErrorResponse;
+        const responseData = result.error.data as ErrorResponse | null | undefined;
 
         switch (originalStatus) {
             case 400:
-                if (typeof responseData === 'string') toast.error(responseData);
-                else if ('errors' in responseData) {
-                    throw Object.values(responseData.errors).flat().join(', ')
+                if (typeof responseData === 'string') {
+                    toast.error(responseData);
+                } else if (responseData && typeof responseData === 'object' && 'errors' in responseData) {
+                    throw Object.values((responseData as any).errors).flat().join(', ')
+                } else if (responseData && typeof responseData === 'object' && 'title' in responseData) {
+                    toast.error((responseData as any).title);
+                } else {
+                    toast.error('Bad Request');
                 }
-                else toast.error(responseData.title);
                 break;
             case 401:
-                if (typeof responseData === 'object' && 'title' in responseData)
-                    toast.error(responseData.title);
+                if (responseData && typeof responseData === 'object' && 'title' in responseData) {
+                    toast.error((responseData as any).title);
+                } else {
+                    toast.error('Unauthorized. Please sign in.');
+                }
                 break;
             case 403:
-                if (typeof responseData === 'object')
+                if (responseData && typeof responseData === 'object')
                     toast.error('403 Forbidden');
+                else
+                    toast.error('Forbidden');
                 break;
             case 404:
-                if (typeof responseData === 'object' && 'title' in responseData)
+                if (responseData && typeof responseData === 'object' && 'title' in responseData)
+                    router.navigate('/not-found')
+                else
                     router.navigate('/not-found')
                 break;
             case 500:
-                if (typeof responseData === 'object')
+                if (responseData && typeof responseData === 'object')
                     router.navigate('/server-error', { state: { error: responseData } })
+                else
+                    router.navigate('/server-error')
                 break;
             default:
                 break;

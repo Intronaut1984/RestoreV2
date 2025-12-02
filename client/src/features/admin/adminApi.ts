@@ -77,6 +77,10 @@ export const adminApi = createApi({
             query: (payload) => ({ url: 'campaigns', method: 'POST', body: payload }),
             invalidatesTags: ['Filters']
         }),
+        deleteCampaign: builder.mutation<void, number>({
+            query: (id: number) => ({ url: `campaigns/${id}`, method: 'DELETE' }),
+            invalidatesTags: ['Filters']
+        }),
         getCategories: builder.query<Category[], void>({
             query: () => ({ url: 'categories' }),
             providesTags: ['Filters']
@@ -94,6 +98,7 @@ export const {
     useUpdateProductMutation,
     useDeleteProductMutation,
     useGetCampaignsQuery,
+    useDeleteCampaignMutation,
     useGetCategoriesQuery,
     useCreateCampaignMutation,
     useCreateCategoryMutation,

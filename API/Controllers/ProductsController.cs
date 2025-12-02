@@ -19,14 +19,56 @@ namespace API.Controllers
         public async Task<ActionResult<List<Product>>> GetProducts(
             [FromQuery] ProductParams productParams)
         {
-            // include related campaigns and categories so callers receive essential data
+            // Start with base query applying sort/search and simple scalar filters
             var query = context.Products
-                .Include(p => p.Campaigns)
-                .Include(p => p.Categories)
                 .Sort(productParams.OrderBy)
                 .Search(productParams.SearchTerm)
                 .Filter(productParams.Generos, productParams.Anos)
                 .AsQueryable();
+
+            // Parse category and campaign id strings into lists
+            var categoryList = new List<int>();
+            if (!string.IsNullOrEmpty(productParams.CategoryIds))
+            {
+                categoryList.AddRange(productParams.CategoryIds.Split(",", StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => { if (int.TryParse(s.Trim(), out var v)) return v; return -1; })
+                    .Where(v => v > 0));
+            }
+
+            var campaignList = new List<int>();
+            if (!string.IsNullOrEmpty(productParams.CampaignIds))
+            {
+                campaignList.AddRange(productParams.CampaignIds.Split(",", StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => { if (int.TryParse(s.Trim(), out var v)) return v; return -1; })
+                    .Where(v => v > 0));
+            }
+
+            // If category filters are present, fetch matching product ids via the relationship
+            // This avoids EF trying to materialize collection navigations during translation.
+            if (categoryList.Count > 0)
+            {
+                var productIds = await context.Categories
+                    .Where(c => categoryList.Contains(c.Id))
+                    .SelectMany(c => c.Products!.Select(p => p.Id))
+                    .Distinct()
+                    .ToListAsync();
+
+                query = query.Where(p => productIds.Contains(p.Id));
+            }
+
+            if (campaignList.Count > 0)
+            {
+                var productIds = await context.Campaigns
+                    .Where(c => campaignList.Contains(c.Id))
+                    .SelectMany(c => c.Products!.Select(p => p.Id))
+                    .Distinct()
+                    .ToListAsync();
+
+                query = query.Where(p => productIds.Contains(p.Id));
+            }
+
+            // include navigation properties after all filtering to keep the EF translation simple
+            query = query.Include(p => p.Campaigns).Include(p => p.Categories);
 
             var products = await PagedList<Product>.ToPagedList(query,
                 productParams.PageNumber, productParams.PageSize);
@@ -67,7 +109,18 @@ namespace API.Controllers
                 .OrderByDescending(x => x)
                 .ToListAsync();
 
-            return Ok(new { generos, anos });
+            // include available categories and campaigns for filter UI
+            var categories = await context.Categories
+                .Where(c => c.IsActive)
+                .Select(c => new { c.Id, c.Name, c.Slug, c.IsActive })
+                .ToListAsync();
+
+            var campaigns = await context.Campaigns
+                .Where(c => c.IsActive)
+                .Select(c => new { c.Id, c.Name, c.Slug, c.IsActive })
+                .ToListAsync();
+
+            return Ok(new { generos, anos, categories, campaigns });
         }
 
         [Authorize(Roles = "Admin")]
@@ -107,10 +160,11 @@ namespace API.Controllers
             }
 
             // Ensure publication year from form ('anoPublicacao') is applied in case model binding missed it
+            IFormCollection? formData = null;
             if (Request.HasFormContentType)
             {
-                var form = await Request.ReadFormAsync();
-                if (form.TryGetValue("anoPublicacao", out var yearValues))
+                formData = await Request.ReadFormAsync();
+                if (formData.TryGetValue("anoPublicacao", out var yearValues))
                 {
                     if (int.TryParse(yearValues.FirstOrDefault(), out var year))
                     {
@@ -147,7 +201,10 @@ namespace API.Controllers
         [HttpPut]
         public async Task<ActionResult> UpdateProduct([FromForm] UpdateProductDto updateProductDto)
         {
-            var product = await context.Products.FindAsync(updateProductDto.Id);
+            var product = await context.Products
+                .Include(p => p.Campaigns)
+                .Include(p => p.Categories)
+                .FirstOrDefaultAsync(p => p.Id == updateProductDto.Id);
 
             if (product == null) return NotFound();
 
@@ -234,10 +291,11 @@ namespace API.Controllers
             }
 
             // Ensure publication year from form ('anoPublicacao') is applied in case model binding missed it
+            IFormCollection? formData = null;
             if (Request.HasFormContentType)
             {
-                var form = await Request.ReadFormAsync();
-                if (form.TryGetValue("anoPublicacao", out var yearValues))
+                formData = await Request.ReadFormAsync();
+                if (formData.TryGetValue("anoPublicacao", out var yearValues))
                 {
                     if (int.TryParse(yearValues.FirstOrDefault(), out var year))
                     {
@@ -246,26 +304,50 @@ namespace API.Controllers
                 }
             }
 
-            // update campaigns/categories if provided
-            if (updateProductDto.CampaignIds != null)
+            // update campaigns/categories if provided. Also treat the presence of the
+            // keys in the multipart form as an explicit update (even when empty)
+            if (updateProductDto.CampaignIds != null || (formData != null && formData.ContainsKey("campaignIds_present")))
             {
-                product.Campaigns = await context.Campaigns
-                    .Where(c => updateProductDto.CampaignIds.Contains(c.Id))
+                var ids = updateProductDto.CampaignIds ?? new List<int>();
+                var selectedCampaigns = await context.Campaigns
+                    .Where(c => ids.Contains(c.Id))
                     .ToListAsync();
+
+                product.Campaigns ??= new List<Campaign>();
+                product.Campaigns.Clear();
+                foreach (var c in selectedCampaigns)
+                {
+                    product.Campaigns.Add(c);
+                }
             }
 
-            if (updateProductDto.CategoryIds != null)
+            if (updateProductDto.CategoryIds != null || (formData != null && formData.ContainsKey("categoryIds_present")))
             {
-                product.Categories = await context.Categories
-                    .Where(c => updateProductDto.CategoryIds.Contains(c.Id))
+                var ids = updateProductDto.CategoryIds ?? new List<int>();
+                var selectedCategories = await context.Categories
+                    .Where(c => ids.Contains(c.Id))
                     .ToListAsync();
+
+                product.Categories ??= new List<Category>();
+                product.Categories.Clear();
+                foreach (var c in selectedCategories)
+                {
+                    product.Categories.Add(c);
+                }
             }
 
-            var result = await context.SaveChangesAsync() > 0;
-
-            if (result) return NoContent();
-
-            return BadRequest(new { message = "Problem updating product" });
+            try
+            {
+                var result = await context.SaveChangesAsync() > 0;
+                if (result) return NoContent();
+                return BadRequest(new { message = "Problem updating product" });
+            }
+            catch (DbUpdateException dbEx)
+            {
+                // surface DB error details to aid debugging
+                var inner = dbEx.InnerException?.Message ?? dbEx.Message;
+                return BadRequest(new { message = "Problem updating product", detail = inner });
+            }
         }
 
         [Authorize(Roles = "Admin")]

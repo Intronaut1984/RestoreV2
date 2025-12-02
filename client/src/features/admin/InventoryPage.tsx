@@ -41,7 +41,7 @@ export default function InventoryPage() {
     return (
         <>
             <Box display='flex' justifyContent='space-between' alignItems='center'>
-                <Typography sx={{p: 2}} variant='h4'>Inventory</Typography>
+                <Typography sx={{p: 2}} variant='h4'>Inventário</Typography>
                 <Button onClick={() => setEditMode(true)} sx={{m: 2}} size='large' variant='contained'>Create</Button>
             </Box>
 

@@ -8,4 +8,6 @@ public class ProductParams : PaginationParams
     public string? SearchTerm { get; set; }
     public string? Generos { get; set; }
     public string? Anos { get; set; }
+    public string? CategoryIds { get; set; }
+    public string? CampaignIds { get; set; }
 }
