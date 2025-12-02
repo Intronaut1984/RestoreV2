@@ -10,4 +10,5 @@ public class ProductParams : PaginationParams
     public string? Anos { get; set; }
     public string? CategoryIds { get; set; }
     public string? CampaignIds { get; set; }
+    public bool? HasDiscount { get; set; }
 }

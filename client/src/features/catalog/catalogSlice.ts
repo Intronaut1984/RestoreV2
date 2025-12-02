@@ -8,6 +8,7 @@ const initialState: ProductParams = {
     generos: [],
     categoryIds: [],
     campaignIds: [],
+    hasDiscount: undefined,
     searchTerm: '',
     orderBy: 'name'
 }
@@ -42,6 +43,10 @@ export const catalogSlice = createSlice({
             state.campaignIds = action.payload
             state.pageNumber = 1;
         },
+        setHasDiscount(state, action) {
+            state.hasDiscount = action.payload;
+            state.pageNumber = 1;
+        },
         setSearchTerm(state, action) {
             state.searchTerm = action.payload
             state.pageNumber = 1;
@@ -55,4 +60,4 @@ export const catalogSlice = createSlice({
 export const { setOrderBy, setPageNumber, setPageSize, 
     setSearchTerm, setAnos, setGeneros, resetParams } 
     = catalogSlice.actions;
-export const { setCategories, setCampaigns } = catalogSlice.actions;
+export const { setCategories, setCampaigns, setHasDiscount } = catalogSlice.actions;

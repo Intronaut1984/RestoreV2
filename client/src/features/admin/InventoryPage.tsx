@@ -1,6 +1,7 @@
 import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, Grid } from "@mui/material";
 import { useAppDispatch, useAppSelector } from "../../app/store/store"
-import { useFetchProductsQuery } from "../catalog/catalogApi";
+import { useFetchProductsQuery, useFetchFiltersQuery } from "../catalog/catalogApi";
+import Filters from "../catalog/Filters";
 import { currencyFormat, computeFinalPrice } from "../../lib/util";
 import { Delete, Edit } from "@mui/icons-material";
 import AppPagination from "../../app/shared/components/AppPagination";
@@ -13,6 +14,7 @@ import { useDeleteProductMutation } from "./adminApi";
 export default function InventoryPage() {
     const productParams = useAppSelector(state => state.catalog);
     const {data, refetch} = useFetchProductsQuery(productParams);
+    const {data: filtersData, isLoading: filtersLoading} = useFetchFiltersQuery();
     const dispatch = useAppDispatch();
     const [editMode, setEditMode] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -38,6 +40,8 @@ export default function InventoryPage() {
         refetch={refetch}
         setSelectedProduct={setSelectedProduct}
     />
+    if (!filtersData && !filtersLoading && !data) return <div>Loading...</div>
+
     return (
         <>
             <Box display='flex' justifyContent='space-between' alignItems='center'>
@@ -45,8 +49,13 @@ export default function InventoryPage() {
                 <Button onClick={() => setEditMode(true)} sx={{m: 2}} size='large' variant='contained'>Create</Button>
             </Box>
 
-            {/* Desktop/tablet: show table */}
-            <TableContainer component={Box} sx={{ display: { xs: 'none', md: 'block' } }}>
+            <Grid container spacing={4}>
+                <Grid item xs={12} md={3} sx={{ display: { xs: 'none', md: 'block' } }}>
+                    {filtersData && <Filters filtersData={filtersData} />}
+                </Grid>
+                <Grid item xs={12} md={9}>
+                    {/* Desktop/tablet: show table */}
+                    <TableContainer component={Box} sx={{ display: { xs: 'none', md: 'block' } }}>
                 <Table sx={{minWidth: 650, tableLayout: 'fixed'}}>
                     <TableHead>
                         <TableRow>
@@ -171,6 +180,8 @@ export default function InventoryPage() {
                     )}
                 </Box>
             </Box>
+                </Grid>
+            </Grid>
         </>
     )
 }

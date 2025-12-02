@@ -7,6 +7,21 @@ public static class ProductExtensions
 {
     public static IQueryable<Product> Sort(this IQueryable<Product> query, string? orderBy)
     {
+        if (string.IsNullOrEmpty(orderBy)) return query.OrderBy(x => x.Name);
+
+        // support discount-based sorting: prefer explicit DiscountPercentage, then fallback to absolute promotional amount
+        if (orderBy == "discountDesc")
+        {
+            return query.OrderByDescending(x => x.DiscountPercentage ?? 0)
+                        .ThenByDescending(x => x.PromotionalPrice.HasValue ? (x.Price - x.PromotionalPrice.Value) : 0m);
+        }
+
+        if (orderBy == "discount")
+        {
+            return query.OrderBy(x => x.DiscountPercentage ?? 0)
+                        .ThenBy(x => x.PromotionalPrice.HasValue ? (x.Price - x.PromotionalPrice.Value) : 0m);
+        }
+
         query = orderBy switch
         {
             "price" => query.OrderBy(x => x.Price),
@@ -27,7 +42,7 @@ public static class ProductExtensions
     }
 
     public static IQueryable<Product> Filter(this IQueryable<Product> query,
-        string? generos, string? anos, string? categoryIds = null, string? campaignIds = null)
+        string? generos, string? anos, bool? hasDiscount = null)
     {
         var generoList = new List<string>();
         var anoList = new List<int>();
@@ -46,19 +61,8 @@ public static class ProductExtensions
                 .Where(v => v > 0));
         }
 
-        if (!string.IsNullOrEmpty(categoryIds))
-        {
-            categoryList.AddRange(categoryIds.Split(",", StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => { if (int.TryParse(s.Trim(), out var v)) return v; return -1; })
-                .Where(v => v > 0));
-        }
-
-        if (!string.IsNullOrEmpty(campaignIds))
-        {
-            campaignList.AddRange(campaignIds.Split(",", StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => { if (int.TryParse(s.Trim(), out var v)) return v; return -1; })
-                .Where(v => v > 0));
-        }
+        // category and campaign lists are parsed in controller where DbContext is available
+        // keep placeholders here for potential future use
 
             if (generoList.Count > 0)
             {
@@ -68,6 +72,12 @@ public static class ProductExtensions
         if (anoList.Count > 0)
         {
             query = query.Where(x => x.PublicationYear != null && anoList.Contains(x.PublicationYear.Value));
+        }
+
+        // Filter products that have a discount: either a positive promotional price or a discount percentage
+        if (hasDiscount.HasValue && hasDiscount.Value)
+        {
+            query = query.Where(x => (x.PromotionalPrice.HasValue && x.PromotionalPrice.Value > 0) || (x.DiscountPercentage.HasValue && x.DiscountPercentage.Value > 0));
         }
 
         // category and campaign filtering are handled in the controller where the DbContext

@@ -4,6 +4,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import ReplayIcon from '@mui/icons-material/Replay';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGetCampaignsQuery } from '../admin/adminApi';
 import { Button } from '@mui/material';
 import { useGetHeroBlocksQuery } from '../admin/heroBlocksApi';
 
@@ -53,6 +54,7 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
   const [featIndex, setFeatIndex] = useState(0);
   const heroRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
+  const { data: campaigns } = useGetCampaignsQuery();
 
   // image slideshow for this hero block
   useEffect(() => {
@@ -87,7 +89,19 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
           cursor: 'pointer',
         }}
         style={{ marginTop: `${pullUp}px` }}
-        onClick={() => navigate('/catalog')}
+        onClick={() => {
+          // try to find a campaign with the same name as the block title
+          const title = (block.title ?? '').trim().toLowerCase();
+          if (title && campaigns && campaigns.length > 0) {
+            const match = campaigns.find(c => (c.name ?? '').toLowerCase() === title);
+            if (match) {
+              navigate(`/catalog?campaignIds=${match.id}`);
+              return;
+            }
+          }
+          // fallback to general catalog
+          navigate('/catalog');
+        }}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/catalog'); }}
@@ -99,7 +113,17 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
           <Button
             aria-label="Ver Produtos"
             variant="contained"
-            onClick={() => navigate('/catalog')}
+            onClick={() => {
+              const title = (block.title ?? '').trim().toLowerCase();
+              if (title && campaigns && campaigns.length > 0) {
+                const match = campaigns.find(c => (c.name ?? '').toLowerCase() === title);
+                if (match) {
+                  navigate(`/catalog?campaignIds=${match.id}`);
+                  return;
+                }
+              }
+              navigate('/catalog');
+            }}
             sx={{
               bgcolor: 'transparent',
               color: 'common.white',

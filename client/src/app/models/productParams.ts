@@ -5,6 +5,7 @@ export type ProductParams = {
     anos?: number[];
     categoryIds?: number[];
     campaignIds?: number[];
+    hasDiscount?: boolean;
     pageNumber: number;
     pageSize: number;
 }
