@@ -1,10 +1,15 @@
 import { Box, Button, Card, CardContent, Grid, IconButton, TextField, Typography } from "@mui/material";
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useGetHeroBlocksQuery, useCreateHeroBlockMutation, useUpdateHeroBlockMutation, useDeleteHeroBlockMutation, useUploadHeroImageMutation, useDeleteHeroImageMutation } from "./heroBlocksApi";
+
+// Local types for hero blocks/images returned by the API
+type HeroImage = { id: number; url: string; publicId?: string; order?: number };
+type HeroBlock = { id: number; title?: string; visible: boolean; order?: number; images?: HeroImage[] };
 
 export default function HeroBlocksAdmin() {
     const { data: blocks, isLoading } = useGetHeroBlocksQuery();
+    const blocksTyped = blocks as HeroBlock[] | undefined;
     const [createHeroBlock] = useCreateHeroBlockMutation();
     const [updateHeroBlock] = useUpdateHeroBlockMutation();
     const [deleteHeroBlock] = useDeleteHeroBlockMutation();
@@ -54,7 +59,7 @@ export default function HeroBlocksAdmin() {
             </Box>
 
             <Grid container spacing={2}>
-                {blocks?.map((b: any) => (
+                {blocksTyped?.map((b: HeroBlock) => (
                     <Grid item xs={12} md={6} key={b.id}>
                         <Card>
                             <CardContent>
@@ -69,7 +74,7 @@ export default function HeroBlocksAdmin() {
                                 <Box sx={{ mt: 1 }}>
                                     <Typography variant="subtitle2">Images (max 3)</Typography>
                                     {(!b.images || b.images.length === 0) && <Typography>No images</Typography>}
-                                    {b.images?.map((img: any) => (
+                                    {b.images?.map((img: HeroImage) => (
                                         <Box key={img.id} sx={{ display: 'flex', gap: 1, alignItems: 'center', my: 1 }}>
                                             <img src={img.url} alt="hero" style={{ width: 120, height: 60, objectFit: 'cover' }} />
                                             <Typography sx={{ flex: 1, wordBreak: 'break-all' }}>{img.url}</Typography>
