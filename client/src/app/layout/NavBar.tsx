@@ -13,11 +13,11 @@ import { useFetchFiltersQuery } from '../../features/catalog/catalogApi';
 import Search from '../../features/catalog/Search';
 
 const midLinks = [
-    { title: 'catalog', path: '/catalog' },
-    { title: 'about', path: '/about' },
-    { title: 'promoções', path: '/contact' },
+    { title: 'Loja', path: '/catalog' },
+    { title: 'sobre', path: '/about' },
+    { title: 'promoções', path: '/catalog?hasDiscount=true' },
+    { title: 'contactos', path: '/contact' },
     { title: 'exemplo', path: '/contact' },
-    { title: 'exemlplo', path: '/contact' },
     { title: 'exemplo', path: '/contact' },
     { title: 'exemplo', path: '/contact' },
 ]

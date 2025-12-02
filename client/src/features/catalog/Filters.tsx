@@ -12,6 +12,8 @@ const sortOptions = [
     { value: 'name', label: 'Alfabeticamente' },
     { value: 'priceDesc', label: 'Preço: Maior para menor' },
     { value: 'price', label: 'Preço: Menor para maior' },
+    { value: 'discountDesc', label: 'Desconto: Maior para menor' },
+    { value: 'discount', label: 'Desconto: Menor para maior' },
     { value: 'yearDesc', label: 'Ano: Mais recente' },
     { value: 'year', label: 'Ano: Mais antigo' }
 ]
@@ -63,7 +65,13 @@ export default function Filters({filtersData: data}: Props) {
                             <Typography sx={{ fontWeight: 700 }}>Ordenar</Typography>
                             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                                 <Typography color='text.secondary' sx={{ whiteSpace: 'nowrap' }}>
-                                    {orderBy === 'name' ? 'Alfabético' : orderBy === 'price' ? 'Preço: Menor para maior' : orderBy === 'priceDesc' ? 'Preço: Maior para menor' : orderBy === 'yearDesc' ? 'Ano: Mais recente' : orderBy === 'year' ? 'Ano: Mais antigo' : 'Todos'}
+                                    {orderBy === 'name' ? 'Alfabético'
+                                        : orderBy === 'price' ? 'Preço: Menor para maior'
+                                        : orderBy === 'priceDesc' ? 'Preço: Maior para menor'
+                                        : orderBy === 'discountDesc' ? 'Desconto: Maior para menor'
+                                        : orderBy === 'discount' ? 'Desconto: Menor para maior'
+                                        : orderBy === 'yearDesc' ? 'Ano: Mais recente'
+                                        : orderBy === 'year' ? 'Ano: Mais antigo' : 'Todos'}
                                 </Typography>
                                 <Box component='span' sx={{ transform: openSort ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
                             </Box>

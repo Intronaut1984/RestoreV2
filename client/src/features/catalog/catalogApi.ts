@@ -36,6 +36,10 @@ export const catalogApi = createApi({
                     params.campaignIds = productParams.campaignIds.join(',');
                 }
 
+                if (productParams.hasDiscount !== undefined) {
+                    params.hasDiscount = productParams.hasDiscount ? 'true' : 'false';
+                }
+
                 return {
                     url: 'products',
                     params: filterEmptyValues(params)

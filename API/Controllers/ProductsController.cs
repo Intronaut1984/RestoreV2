@@ -23,7 +23,7 @@ namespace API.Controllers
             var query = context.Products
                 .Sort(productParams.OrderBy)
                 .Search(productParams.SearchTerm)
-                .Filter(productParams.Generos, productParams.Anos)
+                .Filter(productParams.Generos, productParams.Anos, productParams.HasDiscount)
                 .AsQueryable();
 
             // Parse category and campaign id strings into lists
