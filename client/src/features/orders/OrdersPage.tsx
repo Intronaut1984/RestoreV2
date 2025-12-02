@@ -2,7 +2,7 @@ import { Container, Table, TableBody, TableCell, TableHead, TableRow, Typography
 import { useFetchOrdersQuery } from "./orderApi"
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { currencyFormat } from "../../lib/util";
+import { formatOrderAmount } from "../../lib/util";
 
 export default function OrdersPage() {
     const {data: orders, isLoading} = useFetchOrdersQuery();
@@ -23,6 +23,7 @@ export default function OrdersPage() {
                         <TableRow>
                             <TableCell align="center">Order</TableCell>
                             <TableCell>Date</TableCell>
+                            <TableCell>Discount</TableCell>
                             <TableCell>Total</TableCell>
                             <TableCell>Status</TableCell>
                         </TableRow>
@@ -42,7 +43,12 @@ export default function OrdersPage() {
                                     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{format(order.orderDate, 'dd MMM yyyy')}</Box>
                                 </TableCell>
                                 <TableCell>
-                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{currencyFormat(order.total)}</Box>
+                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block', color: order.discount && order.discount > 0 ? 'green' : 'inherit' }}>
+                                        {order.discount && order.discount > 0 ? formatOrderAmount(order.discount) : '-'}
+                                    </Box>
+                                </TableCell>
+                                <TableCell>
+                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{formatOrderAmount(order.total)}</Box>
                                 </TableCell>
                                 <TableCell>
                                     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{order.orderStatus}</Box>

@@ -23,7 +23,8 @@ public static class BasketExtensions
                 Price = x.Product.Price,
                 Genero = x.Product.Genero?.ToString(),
                 PictureUrl = x.Product.PictureUrl,
-                Quantity = x.Quantity
+                Quantity = x.Quantity,
+                DiscountPercentage = x.Product.DiscountPercentage
             }).ToList()
         };
     }

@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router-dom"
 import { useFetchOrderDetailedQuery } from "./orderApi";
 import { Box, Button, Divider, Table, TableBody, TableCell, TableContainer, TableRow, Typography } from "@mui/material";
 import { format } from "date-fns";
-import { currencyFormat, formatAddressString, formatPaymentString } from "../../lib/util";
+import { formatAddressString, formatPaymentString, formatOrderAmount } from "../../lib/util";
 
 export default function OrderDetailedPage() {
     const { id } = useParams();
@@ -77,7 +77,7 @@ export default function OrderDetailedPage() {
                                     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>x {item.quantity}</Box>
                                 </TableCell>
                                 <TableCell align="right" sx={{ p: 4 }}>
-                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{currencyFormat(item.price * item.quantity)}</Box>
+                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{formatOrderAmount(item.price * item.quantity)}</Box>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -88,20 +88,20 @@ export default function OrderDetailedPage() {
             <Box mx={0} sx={{ mt: 2 }}>
                 <Box display='flex' justifyContent='space-between' sx={{ mb: 1 }}>
                     <Typography variant='subtitle1' fontWeight='500'>Subtotal</Typography>
-                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{currencyFormat(order.subtotal)}</Box>
+                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{formatOrderAmount(order.subtotal)}</Box>
                 </Box>
                 <Box display='flex' justifyContent='space-between' sx={{ mb: 1 }}>
                     <Typography variant='subtitle1' fontWeight='500'>Discount</Typography>
-                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, color: 'green' }}>{currencyFormat(order.discount)}</Box>
+                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, color: 'green' }}>{formatOrderAmount(order.discount)}</Box>
                 </Box>
                 <Box display='flex' justifyContent='space-between' sx={{ mb: 1 }}>
                     <Typography variant='subtitle1' fontWeight='500'>Delivery fee</Typography>
-                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{currencyFormat(order.deliveryFee)}</Box>
+                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{formatOrderAmount(order.deliveryFee)}</Box>
                 </Box>
             </Box>
             <Box display='flex' justifyContent='space-between' sx={{ mt: 2 }}>
                 <Typography variant='subtitle1' fontWeight='500'>Total</Typography>
-                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, fontWeight: 700 }}>{currencyFormat(order.total)}</Box>
+                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, fontWeight: 700 }}>{formatOrderAmount(order.total)}</Box>
             </Box>
         </Box>
     )

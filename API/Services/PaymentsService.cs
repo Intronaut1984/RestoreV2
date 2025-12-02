@@ -15,12 +15,28 @@ public class PaymentsService(IConfiguration config, DiscountService discountServ
         var service = new PaymentIntentService();
 
         var intent = new PaymentIntent();
-        // product.Price is intended to be stored as decimal (euros). However, some data may already be in cents.
-        // Compute a subtotalDecimal from the stored Price values; detect if values look like cents and adjust.
-        decimal subtotalDecimal = basket.Items.Sum(x => x.Quantity * x.Product.Price);
+        // Compute per-item unit price using PromotionalPrice (if present), otherwise apply DiscountPercentage
+        // to the stored Product.Price. Product.Price is intended to be in euros, but legacy data may be in cents.
+        decimal subtotalDecimal = 0M;
 
-        // Heuristic: if prices look unusually large (e.g. any price > 1000 or subtotal > 1000), they may already be cents.
-        bool pricesLikelyInCents = basket.Items.Any(x => x.Product.Price > 1000M) || subtotalDecimal > 1000M;
+        foreach (var item in basket.Items)
+        {
+            var product = item.Product;
+
+            // Determine unit price in the same scale as stored values (assume euros unless heuristic below detects cents)
+            decimal unitPrice = product.PromotionalPrice ?? product.Price;
+
+            if (product.DiscountPercentage.HasValue && (product.PromotionalPrice == null))
+            {
+                var d = Math.Max(0, Math.Min(100, product.DiscountPercentage.Value));
+                unitPrice = unitPrice * (1 - (d / 100M));
+            }
+
+            subtotalDecimal += item.Quantity * unitPrice;
+        }
+
+        // Heuristic: if prices look unusually large (e.g. any unit price > 1000 or subtotal > 1000), they may already be cents.
+        bool pricesLikelyInCents = basket.Items.Any(x => (x.Product.PromotionalPrice ?? x.Product.Price) > 1000M) || subtotalDecimal > 1000M;
 
         long subtotal;
         if (pricesLikelyInCents)

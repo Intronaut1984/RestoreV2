@@ -9,4 +9,7 @@ public class BasketItemDto
     public required string PictureUrl { get; set; }
     public string? Genero { get; set; }
     public int Quantity { get; set; }
+
+    // Product-level discount percentage (e.g. 10 means 10%)
+    public int? DiscountPercentage { get; set; }
 }

@@ -79,4 +79,7 @@ public class CreateProductDto
 
     [JsonPropertyName("file")]
     public IFormFile? File { get; set; }
+
+    [JsonPropertyName("secondaryFiles")]
+    public List<IFormFile>? SecondaryFiles { get; set; }
 }

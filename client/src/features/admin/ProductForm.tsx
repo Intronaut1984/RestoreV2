@@ -6,8 +6,9 @@ import AppTextInput from "../../app/shared/components/AppTextInput";
 import AppSelectInput from "../../app/shared/components/AppSelectInput";
 import AppDropzone from "../../app/shared/components/AppDropzone";
 import { Product } from "../../app/models/product";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { LoadingButton } from "@mui/lab";
+import { computeFinalPrice, currencyFormat } from '../../lib/util';
 import { handleApiError } from "../../lib/util";
 import { useCreateProductMutation, useUpdateProductMutation } from "./adminApi";
 
@@ -22,11 +23,13 @@ type Props = {
 };
 
 export default function ProductForm({ setEditMode, product, refetch, setSelectedProduct }: Props) {
-    const { control, handleSubmit, watch, reset, setError, formState: { isSubmitting } } =
+    const { control, handleSubmit, watch, reset, setError, formState: { isSubmitting }, setValue } =
         useForm<CreateProductSchema>({
             mode: "onTouched",
             resolver: zodResolver(createProductSchema)
         });
+
+    const [removedSecondaryImages, setRemovedSecondaryImages] = useState<string[]>([]);
 
     const watchFile = watch("file");
     const genres = [
@@ -40,7 +43,22 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
 
     // 1) Atualizar valores quando "product" muda (evitar reset do file)
     useEffect(() => {
-        if (product) reset(product);
+        if (product) {
+            // map backend fields to form fields (only the fields the form needs)
+            const mapped: Partial<CreateProductSchema> = {
+                name: product.name,
+                description: product.description ?? '',
+                price: product.price,
+                subtitle: product.subtitle ?? undefined,
+                genero: product.genero ?? undefined,
+                anoPublicacao: product.anoPublicacao ?? undefined,
+                quantityInStock: product.quantityInStock,
+                pictureUrl: product.pictureUrl ?? undefined,
+                descontoPercentagem: product.discountPercentage ?? undefined,
+            };
+            reset(mapped as Partial<CreateProductSchema>);
+            setRemovedSecondaryImages([]);
+        }
     }, [product, reset]);
 
     // 2) Revogar preview anterior quando watchFile muda
@@ -54,12 +72,22 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
         };
     }, [watchFile]);
 
+    // compute final price for preview: use discount percentage only
+    const watchedPrice = watch('price') as number | undefined;
+    const watchedDiscount = watch('descontoPercentagem') as number | undefined;
+    const finalPrice = computeFinalPrice(watchedPrice ?? 0, watchedDiscount);
+
     const createFormData = (items: FieldValues) => {
         const formData = new FormData();
         for (const key in items) {
             const value = items[key];
             if (value !== undefined && value !== null) {
-                formData.append(key, value);
+                // handle arrays (tags) and files specially
+                if (Array.isArray(value)) {
+                    value.forEach(v => formData.append(key, v));
+                } else {
+                    formData.append(key, value);
+                }
             }
         }
         return formData;
@@ -71,6 +99,22 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
 
             if (watchFile) {
                 formData.append("file", watchFile);
+            }
+
+            // handle secondary files (multiple)
+            const secondaryFiles = data.secondaryFiles as File[] | undefined;
+            if (secondaryFiles && secondaryFiles.length) {
+                secondaryFiles.forEach((f) => formData.append('secondaryFiles', f));
+            }
+
+            // include any removed secondary images when updating
+            if (removedSecondaryImages && removedSecondaryImages.length) {
+                removedSecondaryImages.forEach(u => formData.append('removedSecondaryImages', u));
+            }
+
+            // map discount percentage to backend expected key
+            if (data.descontoPercentagem !== undefined) {
+                formData.append('discountPercentage', String(data.descontoPercentagem));
             }
 
             if (product) {
@@ -136,7 +180,27 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             label="Price"
                         />
                     </Grid>
+                    <Grid item xs={12} md={6}>
+                        <AppTextInput
+                            type="number"
+                            control={control}
+                            name="descontoPercentagem"
+                            label="Discount percentage"
+                        />
+                    </Grid>
 
+                    <Grid item xs={12} md={6}>
+                        <Typography sx={{ mt: 2 }}>
+                            {watchedDiscount && watchedDiscount > 0 ? (
+                                <>
+                                    <span style={{ textDecoration: 'line-through', marginRight: 8 }}>{currencyFormat(watchedPrice ?? 0)}</span>
+                                    <span style={{ color: 'crimson', fontWeight: 700 }}>{currencyFormat(finalPrice ?? 0)}</span>
+                                </>
+                            ) : (
+                                <span>{currencyFormat(finalPrice ?? 0)}</span>
+                            )}
+                        </Typography>
+                    </Grid>
                     <Grid item xs={12} md={6}>
                         <AppTextInput
                             type="number"
@@ -159,6 +223,16 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                     <Grid item xs={12} sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
                         <Box sx={{ flex: 1, width: '100%' }}>
                             <AppDropzone name="file" control={control} />
+                            <Box sx={{ mt: 2 }}>
+                                <input type="file" multiple onChange={(e) => {
+                                    const files = e.target.files;
+                                    if (files && files.length) {
+                                        // store as secondaryFiles (array) in the form
+                                        const arr = Array.from(files);
+                                        setValue('secondaryFiles', arr as unknown as CreateProductSchema['secondaryFiles']);
+                                    }
+                                }} />
+                            </Box>
                         </Box>
 
                         <Box sx={{ mt: { xs: 1, sm: 0 } }}>
@@ -177,6 +251,30 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             ) : null}
                         </Box>
                     </Grid>
+
+                    {/* Secondary images thumbnails and removal UI */}
+                    {product?.secondaryImages && product.secondaryImages.length > 0 && (
+                        <Grid item xs={12}>
+                            <Typography variant="subtitle1" sx={{ mb: 1 }}>Existing secondary images</Typography>
+                            <Box display='flex' gap={1} flexWrap='wrap'>
+                                {product.secondaryImages.map((url, idx) => {
+                                    const identifier = product.secondaryImagePublicIds?.[idx] ?? url;
+                                    const removed = removedSecondaryImages.includes(identifier);
+                                    return (
+                                        <Box key={identifier} sx={{ position: 'relative' }}>
+                                            <img src={url} alt="sec" style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 4, opacity: removed ? 0.4 : 1 }} />
+                                            <Button size="small" color={removed ? 'inherit' : 'error'} onClick={() => {
+                                                if (removed) setRemovedSecondaryImages(prev => prev.filter(x => x !== identifier));
+                                                else setRemovedSecondaryImages(prev => [...prev, identifier]);
+                                            }} sx={{ position: 'absolute', top: 4, right: 4 }}>
+                                                {removed ? 'Undo' : 'Remove'}
+                                            </Button>
+                                        </Box>
+                                    )
+                                })}
+                            </Box>
+                        </Grid>
+                    )}
                 </Grid>
 
                 <Box sx={{ mt: 3, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', gap: 2 }}>
