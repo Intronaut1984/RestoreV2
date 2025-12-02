@@ -3,6 +3,8 @@ export type ProductParams = {
     searchTerm?: string;
     generos?: string[];
     anos?: number[];
+    categoryIds?: number[];
+    campaignIds?: number[];
     pageNumber: number;
     pageSize: number;
 }

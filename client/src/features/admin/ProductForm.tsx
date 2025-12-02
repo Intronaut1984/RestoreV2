@@ -13,6 +13,7 @@ import { LoadingButton } from "@mui/lab";
 import { computeFinalPrice, currencyFormat } from '../../lib/util';
 import { handleApiError } from "../../lib/util";
 import { useCreateProductMutation, useUpdateProductMutation, useGetCampaignsQuery, useGetCategoriesQuery, useCreateCategoryMutation } from "./adminApi";
+import genres from "../../lib/genres";
 
 // --- Tipagem segura para ficheiros com preview ---
 type PreviewFile = File & { preview: string };
@@ -34,12 +35,6 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
     const [removedSecondaryImages, setRemovedSecondaryImages] = useState<string[]>([]);
 
     const watchFile = watch("file");
-    const genres = [
-        "Ficção","NãoFicção","Fantasia","FicçãoCientífica","Mistério","Thriller","Terror",
-        "Romance","Histórico","Juvenil","Infantil","Biografia","Autobiografia","Poesia",
-        "AutoAjuda","Negócios","Ciências","Filosofia","Religião","Arte","Culinária","Viagens",
-        "Saúde","Educação","BandaDesenhada","NovelaGráfica","Manga","Drama","Clássico","Crime"
-    ];
     const [createProduct] = useCreateProductMutation();
     const [updateProduct] = useUpdateProductMutation();
     const [createCategory] = useCreateCategoryMutation();
@@ -166,9 +161,18 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                 }
             }
 
-            // build submission payload ensuring categoryIds contains the created/existing ids
-            const submissionData = { ...data, categoryIds: finalCategoryIds } as unknown as FieldValues;
+            // ensure campaignIds are included (selectedCampaigns holds campaign objects)
+            const existingCampaignIds = (selectedCampaigns ?? []).map(c => (c as { id: number }).id);
+            const finalCampaignIds: number[] = [...existingCampaignIds];
+
+            // build submission payload ensuring categoryIds/campaignIds contain the created/existing ids
+            const submissionData = { ...data, categoryIds: finalCategoryIds, campaignIds: finalCampaignIds } as unknown as FieldValues;
             const formData = createFormData(submissionData);
+
+            // ensure explicit sentinel keys are present when user cleared selections so the server
+            // can detect an explicit update without model binding attempting to parse an empty string
+            if (finalCampaignIds.length === 0) formData.append('campaignIds_present', '1');
+            if (finalCategoryIds.length === 0) formData.append('categoryIds_present', '1');
 
             if (watchFile) {
                 formData.append("file", watchFile);
@@ -217,13 +221,16 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
     return (
         <Box component={Paper} sx={{ p: 4, maxWidth: 900, width: '100%', mx: "auto" }}>
             <Typography variant="h4" sx={{ mb: 4 }}>
-                Product details
+                Detalhes do Produto
+            </Typography>
+            <Typography variant="h6" sx={{ mb: 4 }}>
+                {product ? 'Editar Produto' : 'Criar Novo Produto'}
             </Typography>
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 <Grid container spacing={3}>
                     <Grid item xs={12}>
-                        <AppTextInput control={control} name="name" label="Product name" />
+                        <AppTextInput control={control} name="name" label="Nome do Produto" />
                     </Grid>
 
                     <Grid item xs={12} md={6}>
@@ -243,11 +250,11 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                     {isBook(selectedCategories) && (
                         <>
                             <Grid item xs={12} md={6}>
-                                <AppTextInput control={control} name="author" label="Author" />
+                                <AppTextInput control={control} name="author" label="Autor" />
                             </Grid>
 
                             <Grid item xs={12} md={6}>
-                                <AppTextInput control={control} name="secondaryAuthors" label="Secondary authors" />
+                                <AppTextInput control={control} name="secondaryAuthors" label="Autores secundários" />
                             </Grid>
 
                             <Grid item xs={12} md={6}>
@@ -264,35 +271,35 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             </Grid>
 
                             <Grid item xs={12} md={6}>
-                                <AppTextInput control={control} name="publisher" label="Publisher" />
+                                <AppTextInput control={control} name="publisher" label="Editora" />
                             </Grid>
 
                             <Grid item xs={12} md={6}>
-                                <AppTextInput control={control} name="edition" label="Edition" />
+                                <AppTextInput control={control} name="edition" label="Edição" />
                             </Grid>
 
                             <Grid item xs={12} md={6}>
-                                <AppTextInput control={control} name="precoPromocional" label="Promotional price" type="number" />
+                                <AppTextInput control={control} name="precoPromocional" label="Preço Promocional" type="number" />
                             </Grid>
 
                             <Grid item xs={12} md={6}>
-                                <AppTextInput control={control} name="synopsis" label="Synopsis" />
+                                <AppTextInput control={control} name="synopsis" label="Sinopse" />
                             </Grid>
 
                             <Grid item xs={12} md={6}>
-                                <AppTextInput control={control} name="index" label="Index" />
+                                <AppTextInput control={control} name="index" label="Índice" />
                             </Grid>
 
                             <Grid item xs={12} md={6}>
-                                <AppTextInput control={control} name="pageCount" label="Page count" type="number" />
+                                <AppTextInput control={control} name="pageCount" label="Número de páginas" type="number" />
                             </Grid>
 
                             <Grid item xs={12} md={6}>
-                                <AppTextInput control={control} name="language" label="Language" />
+                                <AppTextInput control={control} name="language" label="Idioma" />
                             </Grid>
 
                             <Grid item xs={12} md={6}>
-                                <AppTextInput control={control} name="format" label="Format" />
+                                <AppTextInput control={control} name="format" label="Formato" />
                             </Grid>
 
                             <Grid item xs={12} md={6}>
@@ -328,7 +335,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             type="number"
                             control={control}
                             name="price"
-                            label="Price"
+                            label="Preço"
                         />
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -336,7 +343,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             type="number"
                             control={control}
                             name="descontoPercentagem"
-                            label="Discount percentage"
+                            label="Desconto (%)"
                         />
                     </Grid>
 
@@ -357,7 +364,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             type="number"
                             control={control}
                             name="quantityInStock"
-                            label="Quantity in stock"
+                            label="Quantidade em Stock"
                         />
                     </Grid>
 
@@ -367,7 +374,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             multiline
                             rows={4}
                             name="description"
-                            label="Description"
+                            label="Descrição"
                         />
                     </Grid>
 
@@ -407,7 +414,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                                 })
                             }
                             renderInput={(params) => (
-                                <TextField {...params} label="Categories" placeholder="Select or type to create" />
+                                <TextField {...params} label="Categorias" placeholder="Select or type to create" />
                             )}
                         />
                     </Grid>
@@ -430,7 +437,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                                 ))
                             }
                             renderInput={(params) => (
-                                <TextField {...params} label="Campaigns" placeholder="Select campaigns" />
+                                <TextField {...params} label="Campanhas" placeholder="Select campaigns" />
                             )}
                         />
                     </Grid>

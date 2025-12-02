@@ -1,8 +1,10 @@
 import { FormGroup, FormControlLabel, Checkbox } from "@mui/material";
 import { useEffect, useState } from "react";
 
+type Item = string | { value: string; label: string };
+
 type Props = {
-    items: string[];
+    items: Item[];
     checked: string[];
     onChange: (items: string[]) => void;
 }
@@ -25,18 +27,22 @@ export default function CheckboxButtons({items, checked, onChange}: Props) {
 
     return (
         <FormGroup>
-            {items.map(item => (
-                <FormControlLabel
-                    key={item}
-                    control={<Checkbox 
-                        checked={checkedItems.includes(item)}
-                        onClick={() => handleToggle(item)}
-                        color='secondary' 
-                        sx={{ py: 0.7, fontSize: 40 }} 
-                    />}
-                    label={item}
-                />
-            ))}
+            {items.map((item) => {
+                const value = typeof item === 'string' ? item : item.value;
+                const label = typeof item === 'string' ? item : item.label;
+                return (
+                    <FormControlLabel
+                        key={value}
+                        control={<Checkbox 
+                            checked={checkedItems.includes(value)}
+                            onClick={() => handleToggle(value)}
+                            color='secondary' 
+                            sx={{ py: 0.7, fontSize: 40 }} 
+                        />}
+                        label={label}
+                    />
+                )
+            })}
         </FormGroup>
     )
 }

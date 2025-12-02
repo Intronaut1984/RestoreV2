@@ -2,7 +2,7 @@ import { Box, Button, Card, CardContent, Grid, IconButton, TextField, Typography
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useState } from "react";
 import { useGetHeroBlocksQuery, useCreateHeroBlockMutation, useUpdateHeroBlockMutation, useDeleteHeroBlockMutation, useUploadHeroImageMutation, useDeleteHeroImageMutation } from "./heroBlocksApi";
-import { useCreateCampaignMutation } from "./adminApi";
+import { useCreateCampaignMutation, useGetCampaignsQuery, useDeleteCampaignMutation } from "./adminApi";
 
 // Local types for hero blocks/images returned by the API
 type HeroImage = { id: number; url: string; publicId?: string; order?: number };
@@ -19,6 +19,8 @@ export default function HeroBlocksAdmin() {
 
     const [newTitle, setNewTitle] = useState('');
     const [createCampaign] = useCreateCampaignMutation();
+    const { data: campaigns } = useGetCampaignsQuery();
+    const [deleteCampaign] = useDeleteCampaignMutation();
 
     const handleCreate = async () => {
         try {
@@ -61,11 +63,30 @@ export default function HeroBlocksAdmin() {
 
     return (
         <Box>
-            <Typography variant="h5">Hero Blocks Admin</Typography>
+            <Typography variant="h5">Gerir Campanhas</Typography>
             <Box sx={{ my: 2, display: 'flex', gap: 1 }}>
-                <TextField label="Title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-                <Button variant="contained" onClick={handleCreate}>Create Block</Button>
+                <TextField label="Título" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+                <Button variant="contained" onClick={handleCreate}>Criar Campanha</Button>
             </Box>
+
+                {/* Existing campaigns list with delete support */}
+                <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle1">Campanhas existentes</Typography>
+                    {(!campaigns || campaigns.length === 0) && <Typography color="text.secondary">Nenhuma campanha</Typography>}
+                    {campaigns?.map(c => (
+                        <Box key={c.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, my: 0.5 }}>
+                            <Typography sx={{ flex: 1 }}>{c.name}</Typography>
+                            <IconButton onClick={async () => {
+                                if (!window.confirm(`Apagar campanha "${c.name}"?`)) return;
+                                try {
+                                    await deleteCampaign(c.id).unwrap();
+                                } catch (err) {
+                                    console.error('Failed deleting campaign', err);
+                                }
+                            }} title="Delete campaign"><DeleteIcon /></IconButton>
+                        </Box>
+                    ))}
+                </Box>
 
             <Grid container spacing={2}>
                 {blocksTyped?.map((b: HeroBlock) => (
