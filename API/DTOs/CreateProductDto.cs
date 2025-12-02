@@ -74,6 +74,18 @@ public class CreateProductDto
     [JsonPropertyName("tags")]
     public List<string>? Tags { get; set; }
 
+    [JsonPropertyName("cor")]
+    public string? Cor { get; set; }
+
+    [JsonPropertyName("material")]
+    public string? Material { get; set; }
+
+    [JsonPropertyName("tamanho")]
+    public string? Tamanho { get; set; }
+
+    [JsonPropertyName("marca")]
+    public string? Marca { get; set; }
+
     [JsonPropertyName("activo")]
     public bool Active { get; set; } = true;
 
@@ -82,4 +94,10 @@ public class CreateProductDto
 
     [JsonPropertyName("secondaryFiles")]
     public List<IFormFile>? SecondaryFiles { get; set; }
+
+    [JsonPropertyName("campaignIds")]
+    public List<int>? CampaignIds { get; set; }
+
+    [JsonPropertyName("categoryIds")]
+    public List<int>? CategoryIds { get; set; }
 }

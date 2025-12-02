@@ -1,16 +1,18 @@
 import { FieldValues, useForm } from "react-hook-form";
 import { createProductSchema, CreateProductSchema } from "../../lib/schemas/createProductSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Box, Button, Grid, Paper, Typography } from "@mui/material";
+import { Box, Button, Grid, Paper, Typography, Autocomplete, TextField, Chip } from "@mui/material";
 import AppTextInput from "../../app/shared/components/AppTextInput";
 import AppSelectInput from "../../app/shared/components/AppSelectInput";
 import AppDropzone from "../../app/shared/components/AppDropzone";
 import { Product } from "../../app/models/product";
+import { Category } from "../../app/models/category";
+import { Campaign } from "../../app/models/campaign";
 import { useEffect, useState } from "react";
 import { LoadingButton } from "@mui/lab";
 import { computeFinalPrice, currencyFormat } from '../../lib/util';
 import { handleApiError } from "../../lib/util";
-import { useCreateProductMutation, useUpdateProductMutation } from "./adminApi";
+import { useCreateProductMutation, useUpdateProductMutation, useGetCampaignsQuery, useGetCategoriesQuery, useCreateCategoryMutation } from "./adminApi";
 
 // --- Tipagem segura para ficheiros com preview ---
 type PreviewFile = File & { preview: string };
@@ -40,6 +42,27 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
     ];
     const [createProduct] = useCreateProductMutation();
     const [updateProduct] = useUpdateProductMutation();
+    const [createCategory] = useCreateCategoryMutation();
+    const { data: campaigns } = useGetCampaignsQuery();
+    const { data: categories } = useGetCategoriesQuery();
+
+    const [selectedCategories, setSelectedCategories] = useState<Array<Category | string>>(product?.categories ?? []);
+    const [categoryInput, setCategoryInput] = useState<string>('');
+    const [selectedCampaigns, setSelectedCampaigns] = useState<{ id: number; name: string }[]>(product?.campaigns ?? []);
+    
+    const isBook = (cats: Array<Category | string> | null | undefined) => {
+        return (cats ?? []).some(c => {
+            const n = (typeof c === 'string' ? c : c.name ?? '').toLowerCase();
+            return n.includes('livro') || n.includes('livros');
+        });
+    }
+
+    const isClothingOrToy = (cats: Array<Category | string> | null | undefined) => {
+        return (cats ?? []).some(c => {
+            const n = (typeof c === 'string' ? c : c.name ?? '').toLowerCase();
+            return ['vestuario', 'vestuário', 'roupa', 'roupas', 'brinquedo', 'brinquedos'].some(k => n.includes(k));
+        });
+    }
 
     // 1) Atualizar valores quando "product" muda (evitar reset do file)
     useEffect(() => {
@@ -48,18 +71,40 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
             const mapped: Partial<CreateProductSchema> = {
                 name: product.name,
                 description: product.description ?? '',
+                author: product.author ?? undefined,
+                secondaryAuthors: product.secondaryAuthors ?? undefined,
                 price: product.price,
                 subtitle: product.subtitle ?? undefined,
                 genero: product.genero ?? undefined,
                 anoPublicacao: product.anoPublicacao ?? undefined,
+                isbn: product.isbn ?? undefined,
+                publisher: product.publisher ?? undefined,
+                edition: product.edition != null ? String(product.edition) : undefined,
+                precoPromocional: product.promotionalPrice ?? undefined,
+                synopsis: product.synopsis ?? undefined,
+                index: product.index ?? undefined,
+                pageCount: product.pageCount ?? undefined,
+                language: product.language ?? undefined,
+                format: product.format ?? undefined,
+                dimensoes: product.dimensoes ?? undefined,
+                weight: product.weight ?? undefined,
                 quantityInStock: product.quantityInStock,
                 pictureUrl: product.pictureUrl ?? undefined,
                 descontoPercentagem: product.discountPercentage ?? undefined,
             };
             reset(mapped as Partial<CreateProductSchema>);
             setRemovedSecondaryImages([]);
+            // initialise selected categories/campaigns in form
+            if (product.categories && product.categories.length) {
+                setSelectedCategories(product.categories as { id: number; name: string }[]);
+                setValue('categoryIds', product.categories.map(c => c.id));
+            }
+            if (product.campaigns && product.campaigns.length) {
+                setSelectedCampaigns(product.campaigns as { id: number; name: string }[]);
+                setValue('campaignIds', product.campaigns.map(c => c.id));
+            }
         }
-    }, [product, reset]);
+    }, [product, reset, setValue]);
 
     // 2) Revogar preview anterior quando watchFile muda
     useEffect(() => {
@@ -95,7 +140,35 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
 
     const onSubmit = async (data: CreateProductSchema) => {
         try {
-            const formData = createFormData(data);
+            // Ensure any pending (typed) categories are created on the server before submitting
+            const pendingCategories = selectedCategories.filter(c => typeof c === 'string').map(s => s as string);
+            // include any typed-but-not-confirmed category from the input box
+            const typed = categoryInput?.trim();
+            if (typed && !pendingCategories.includes(typed) && !selectedCategories.some(c => typeof c !== 'string' && (c as Category).name === typed)) {
+                pendingCategories.push(typed);
+            }
+            const existingCategoryIds = selectedCategories.filter(c => typeof c !== 'string').map(c => (c as Category).id);
+            const finalCategoryIds: number[] = [...existingCategoryIds];
+            if (pendingCategories && pendingCategories.length) {
+                for (const name of pendingCategories) {
+                    try {
+                        const created = await createCategory({ name }).unwrap();
+                        finalCategoryIds.push(created.id);
+                        // replace the pending string in selectedCategories with the created object
+                        setSelectedCategories(prev => prev.map(p => p === name ? created : p));
+                        // clear typed input if matched
+                        if (categoryInput && categoryInput === name) setCategoryInput('');
+                    } catch (err) {
+                        console.error('Failed to create category', err);
+                        setError('categoryIds', { type: 'manual', message: 'Failed to create category. Check permissions.' });
+                        return; // abort submit
+                    }
+                }
+            }
+
+            // build submission payload ensuring categoryIds contains the created/existing ids
+            const submissionData = { ...data, categoryIds: finalCategoryIds } as unknown as FieldValues;
+            const formData = createFormData(submissionData);
 
             if (watchFile) {
                 formData.append("file", watchFile);
@@ -154,23 +227,101 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                     </Grid>
 
                     <Grid item xs={12} md={6}>
-                        <AppSelectInput
-                            items={genres}
-                            control={control}
-                            name="genero"
-                            label="Género"
-                            searchable
-                        />
+                        {/* show genero only when at least one selected category is 'Livro(s)' */}
+                        {isBook(selectedCategories) && (
+                            <AppSelectInput
+                                items={genres}
+                                control={control}
+                                name="genero"
+                                label="Género"
+                                searchable
+                            />
+                        )}
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
-                        <AppTextInput
-                            type="number"
-                            control={control}
-                            name="anoPublicacao"
-                            label="Ano de Publicação"
-                        />
-                    </Grid>
+                    {/* Book-specific fields */}
+                    {isBook(selectedCategories) && (
+                        <>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="author" label="Author" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="secondaryAuthors" label="Secondary authors" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput
+                                    type="number"
+                                    control={control}
+                                    name="anoPublicacao"
+                                    label="Ano de Publicação"
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="isbn" label="ISBN" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="publisher" label="Publisher" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="edition" label="Edition" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="precoPromocional" label="Promotional price" type="number" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="synopsis" label="Synopsis" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="index" label="Index" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="pageCount" label="Page count" type="number" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="language" label="Language" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="format" label="Format" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="dimensoes" label="Dimensões" />
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="weight" label="Weight" type="number" />
+                            </Grid>
+                        </>
+                    )}
+
+                    {/* Clothing / Toy fields: show when category looks like clothing or toy */}
+                    {isClothingOrToy(selectedCategories) && (
+                        <>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="cor" label="Cor / Color" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="material" label="Material" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="tamanho" label="Tamanho / Size" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="marca" label="Marca / Brand" />
+                            </Grid>
+                        </>
+                    )}
 
                     <Grid item xs={12} md={6}>
                         <AppTextInput
@@ -217,6 +368,70 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             rows={4}
                             name="description"
                             label="Description"
+                        />
+                    </Grid>
+
+                    {/* Categories multi-select */}
+                    <Grid item xs={12}>
+                        <Autocomplete
+                            inputValue={categoryInput}
+                            onInputChange={(_e, v) => setCategoryInput(v)}
+                            multiple
+                            freeSolo
+                            options={(categories ?? []) as Category[]}
+                            getOptionLabel={(option: Category | string) => typeof option === 'string' ? option : option.name}
+                            value={selectedCategories}
+                            onChange={(_event, value) => {
+                                // value can contain Category objects or strings (freeSolo)
+                                const vals = value ?? [];
+                                const resolved: Array<Category | string> = [];
+                                for (const v of vals) {
+                                    if (typeof v === 'string') {
+                                        // keep as pending (no id yet) — will create on submit
+                                        resolved.push(v);
+                                    } else {
+                                        resolved.push(v as Category);
+                                    }
+                                }
+                                setSelectedCategories(resolved);
+                                // clear the input field when selection changes
+                                setCategoryInput('');
+                                // update form categoryIds only with existing numeric ids
+                                setValue('categoryIds', resolved.filter(r => typeof r !== 'string').map(r => (r as Category).id));
+                            }}
+                            renderTags={(value: (Category | string)[], getTagProps) =>
+                                value.map((option, index) => {
+                                    const label = typeof option === 'string' ? option : option.name;
+                                    const key = typeof option === 'string' ? label + index : option.id;
+                                    return <Chip label={label} {...getTagProps({ index })} key={key} />
+                                })
+                            }
+                            renderInput={(params) => (
+                                <TextField {...params} label="Categories" placeholder="Select or type to create" />
+                            )}
+                        />
+                    </Grid>
+
+                    {/* Campaigns multi-select */}
+                    <Grid item xs={12}>
+                        <Autocomplete
+                            multiple
+                            options={(campaigns ?? []) as Campaign[]}
+                            getOptionLabel={(option: Campaign) => option.name}
+                            value={selectedCampaigns}
+                            onChange={(_, value: Campaign[] | null) => {
+                                const vals = (value ?? []) as Campaign[];
+                                setSelectedCampaigns(vals);
+                                setValue('campaignIds', vals.map(v => v.id));
+                            }}
+                            renderTags={(value: Campaign[], getTagProps) =>
+                                value.map((option, index) => (
+                                    <Chip label={option.name} {...getTagProps({ index })} key={option.id} />
+                                ))
+                            }
+                            renderInput={(params) => (
+                                <TextField {...params} label="Campaigns" placeholder="Select campaigns" />
+                            )}
                         />
                     </Grid>
 

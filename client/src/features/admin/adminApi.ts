@@ -2,6 +2,8 @@ import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQueryWithErrorHandling } from "../../app/api/baseApi";
 import { Product } from "../../app/models/product";
 import { User } from "../../app/models/user";
+import { Campaign } from "../../app/models/campaign";
+import { Category } from "../../app/models/category";
 
 export const adminApi = createApi({
     reducerPath: 'adminApi',
@@ -66,6 +68,24 @@ export const adminApi = createApi({
         ,
             invalidatesTags: (_result, _error, id) => [{ type: 'Products', id }, { type: 'Products', id: 'LIST' }, 'Filters']
         })
+        ,
+        getCampaigns: builder.query<Campaign[], void>({
+            query: () => ({ url: 'campaigns' }),
+            providesTags: ['Filters']
+        }),
+        createCampaign: builder.mutation<Campaign, { name: string }>({
+            query: (payload) => ({ url: 'campaigns', method: 'POST', body: payload }),
+            invalidatesTags: ['Filters']
+        }),
+        getCategories: builder.query<Category[], void>({
+            query: () => ({ url: 'categories' }),
+            providesTags: ['Filters']
+        })
+        ,
+        createCategory: builder.mutation<Category, { name: string }>({
+            query: (payload) => ({ url: 'categories', method: 'POST', body: payload }),
+            invalidatesTags: ['Filters']
+        })
     })
 });
 
@@ -73,6 +93,10 @@ export const {
     useCreateProductMutation,
     useUpdateProductMutation,
     useDeleteProductMutation,
+    useGetCampaignsQuery,
+    useGetCategoriesQuery,
+    useCreateCampaignMutation,
+    useCreateCategoryMutation,
     useGetUsersQuery,
     useGetPromoQuery,
     useUpdatePromoMutation,

@@ -2,6 +2,7 @@ import { Box, Button, Card, CardContent, Grid, IconButton, TextField, Typography
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useState } from "react";
 import { useGetHeroBlocksQuery, useCreateHeroBlockMutation, useUpdateHeroBlockMutation, useDeleteHeroBlockMutation, useUploadHeroImageMutation, useDeleteHeroImageMutation } from "./heroBlocksApi";
+import { useCreateCampaignMutation } from "./adminApi";
 
 // Local types for hero blocks/images returned by the API
 type HeroImage = { id: number; url: string; publicId?: string; order?: number };
@@ -17,10 +18,18 @@ export default function HeroBlocksAdmin() {
     const [deleteHeroImage] = useDeleteHeroImageMutation();
 
     const [newTitle, setNewTitle] = useState('');
+    const [createCampaign] = useCreateCampaignMutation();
 
     const handleCreate = async () => {
         try {
             await createHeroBlock({ title: newTitle, visible: true, order: (blocks?.length ?? 0) }).unwrap();
+            // also create a campaign with the same name so admin can assign products
+            try {
+                await createCampaign({ name: newTitle }).unwrap();
+            } catch (err) {
+                // non-fatal: log but continue
+                console.error('Failed creating campaign for hero block', err);
+            }
             setNewTitle('');
         } catch (error) {
             console.error(error);

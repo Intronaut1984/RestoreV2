@@ -12,41 +12,21 @@ public class MappingProfiles : Profile
         CreateMap<DimensionsDto, Dimensions>();
 
         CreateMap<CreateProductDto, Product>()
-            .ForMember(dest => dest.Genero, opt => opt.MapFrom(src => ParseGenero(src.Genero)))
-            .ForMember(dest => dest.Dimensoes, opt => opt.MapFrom(src => src.Dimensoes));
+            .ForMember(dest => dest.Genero, opt => opt.MapFrom(src => src.Genero))
+            .ForMember(dest => dest.Dimensoes, opt => opt.MapFrom(src => src.Dimensoes))
+            .ForMember(dest => dest.Cor, opt => opt.MapFrom(src => src.Cor))
+            .ForMember(dest => dest.Material, opt => opt.MapFrom(src => src.Material))
+            .ForMember(dest => dest.Tamanho, opt => opt.MapFrom(src => src.Tamanho))
+            .ForMember(dest => dest.Marca, opt => opt.MapFrom(src => src.Marca));
 
         CreateMap<UpdateProductDto, Product>()
-            .ForMember(dest => dest.Genero, opt => opt.MapFrom(src => ParseGenero(src.Genero)))
-            .ForMember(dest => dest.Dimensoes, opt => opt.MapFrom(src => src.Dimensoes));
+            .ForMember(dest => dest.Genero, opt => opt.MapFrom(src => src.Genero))
+            .ForMember(dest => dest.Dimensoes, opt => opt.MapFrom(src => src.Dimensoes))
+            .ForMember(dest => dest.Cor, opt => opt.MapFrom(src => src.Cor))
+            .ForMember(dest => dest.Material, opt => opt.MapFrom(src => src.Material))
+            .ForMember(dest => dest.Tamanho, opt => opt.MapFrom(src => src.Tamanho))
+            .ForMember(dest => dest.Marca, opt => opt.MapFrom(src => src.Marca));
     }
 
-    private static Genero? ParseGenero(string? genero)
-    {
-        if (string.IsNullOrEmpty(genero)) return null;
-
-        // Normalize by removing diacritics and spaces so Portuguese values like "Ciências" match enum "Ciencias"
-        var normalized = RemoveDiacritics(genero).Replace(" ", "");
-
-        if (Enum.TryParse<Genero>(normalized, true, out var g)) return g;
-
-        // fallback: try parse original value (case-insensitive)
-        if (Enum.TryParse<Genero>(genero, true, out g)) return g;
-
-        return null;
-    }
-
-    private static string RemoveDiacritics(string text)
-    {
-        var formD = text.Normalize(System.Text.NormalizationForm.FormD);
-        var sb = new System.Text.StringBuilder();
-        foreach (var ch in formD)
-        {
-            var uc = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch);
-            if (uc != System.Globalization.UnicodeCategory.NonSpacingMark)
-            {
-                sb.Append(ch);
-            }
-        }
-        return sb.ToString().Normalize(System.Text.NormalizationForm.FormC);
-    }
+    // no ParseGenero needed anymore since Genero is stored as free-form string
 }

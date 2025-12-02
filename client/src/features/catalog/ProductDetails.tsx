@@ -47,11 +47,62 @@ export default function ProductDetails() {
 
   const productDetails = [
     { label: 'Nome', value: product.name },
-    { label: 'Descrição', value: product.description },
+    { label: 'Descrição', value: product.description ?? '—' },
+    { label: 'Subtítulo', value: product.subtitle ?? '—' },
+    { label: 'Autor', value: product.author ?? '—' },
+    { label: 'Autores Secundários', value: product.secondaryAuthors ?? '—' },
+    { label: 'ISBN', value: product.isbn ?? '—' },
+    { label: 'Editora', value: product.publisher ?? '—' },
+    { label: 'Edição', value: product.edition ?? '—' },
     { label: 'Género', value: product.genero ?? '—' },
     { label: 'Ano de Publicação', value: product.anoPublicacao ?? '—' },
+    { label: 'Preço', value: currencyFormat(product.price) },
+    { label: 'Preço Promocional', value: product.promotionalPrice ? currencyFormat(product.promotionalPrice) : '—' },
+    { label: 'Desconto (%)', value: product.discountPercentage ?? '—' },
     { label: 'Quantidade em estoque', value: product.quantityInStock },
+    { label: 'Sinopse', value: product.synopsis ?? '—' },
+    { label: 'Índice', value: product.index ?? '—' },
+    { label: 'Número de páginas', value: product.pageCount ?? '—' },
+    { label: 'Idioma', value: product.language ?? '—' },
+    { label: 'Formato', value: product.format ?? '—' },
+    { label: 'Dimensões', value: product.dimensoes ?? '—' },
+    { label: 'Peso (g)', value: product.weight ?? '—' },
   ]
+
+  const isBook = (p: typeof product) => {
+    return (p.categories ?? []).some(c => (c?.name ?? '').toLowerCase().includes('livro'))
+  }
+
+  const isClothingOrToy = (p: typeof product) => {
+    return (p.categories ?? []).some(c => {
+      const n = (c?.name ?? '').toLowerCase();
+      return ['vestuario','vestuário','roupa','roupas','brinquedo','brinquedos'].some(k => n.includes(k));
+    })
+  }
+
+  if (isBook(product)) {
+    // book-specific fields are already mostly included above; nothing extra here
+  }
+
+  if (isClothingOrToy(product)) {
+    productDetails.push({ label: 'Cor / Color', value: product.cor ?? '—' });
+    productDetails.push({ label: 'Material', value: product.material ?? '—' });
+    productDetails.push({ label: 'Tamanho / Size', value: product.tamanho ?? '—' });
+    productDetails.push({ label: 'Marca / Brand', value: product.marca ?? '—' });
+  }
+
+  // always include categories and campaigns if present
+  if (product.categories && product.categories.length) {
+    productDetails.push({ label: 'Categorias', value: product.categories.map(c => c.name).join(', ') });
+  }
+
+  if (product.campaigns && product.campaigns.length) {
+    productDetails.push({ label: 'Campaigns', value: product.campaigns.map(c => c.name).join(', ') });
+  }
+
+  // metadata
+  productDetails.push({ label: 'Criado em', value: product.createdAt ?? '—' });
+  productDetails.push({ label: 'Atualizado em', value: product.updatedAt ?? '—' });
 
   return (
     <Grid2 container spacing={4} sx={{ mx: 'auto', px: { xs: 2, md: 3 }, maxWidth: 1200, justifyContent: 'center' }}>

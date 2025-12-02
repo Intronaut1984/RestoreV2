@@ -18,13 +18,13 @@ public static class BasketExtensions
             Items = basket.Items.Select(x => new BasketItemDto
             {
                 ProductId = x.ProductId,
-                Name = x.Product.Name,
+                Name = x.Product?.Name ?? string.Empty,
                 // expose price as euros (decimal) to the client
-                Price = x.Product.Price,
-                Genero = x.Product.Genero?.ToString(),
-                PictureUrl = x.Product.PictureUrl,
+                Price = x.Product?.Price ?? 0m,
+                Genero = x.Product?.Genero,
+                PictureUrl = x.Product?.PictureUrl ?? string.Empty,
                 Quantity = x.Quantity,
-                DiscountPercentage = x.Product.DiscountPercentage
+                DiscountPercentage = x.Product?.DiscountPercentage
             }).ToList()
         };
     }
