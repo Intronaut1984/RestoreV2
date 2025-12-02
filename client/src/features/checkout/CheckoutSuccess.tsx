@@ -1,7 +1,7 @@
 import { Box, Button, Container, Divider, Typography } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
 import { Order } from "../../app/models/order";
-import { currencyFormat, formatAddressString, formatPaymentString } from "../../lib/util";
+import { currencyFormat, formatAddressString, formatPaymentString, formatOrderAmount } from "../../lib/util";
 import { format } from 'date-fns';
 
 export default function CheckoutSuccess() {
@@ -43,8 +43,15 @@ export default function CheckoutSuccess() {
         <Divider />
 
         <Box display='flex' justifyContent='space-between' alignItems='center'>
+          <Typography variant='body2' color='textSecondary'>Discount</Typography>
+          <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block', maxWidth: '60%', textAlign: 'right' }}>{currencyFormat(order.discount)}</Box>
+        </Box>
+
+        <Divider />
+
+        <Box display='flex' justifyContent='space-between' alignItems='center'>
           <Typography variant='body2' color='textSecondary'>Amount</Typography>
-          <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{currencyFormat(order.total)}</Box>
+          <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{formatOrderAmount(order.total)}</Box>
         </Box>
       </Box>
 

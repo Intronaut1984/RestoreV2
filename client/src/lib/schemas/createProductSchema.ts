@@ -14,6 +14,12 @@ export const createProductSchema = z.object({
     }),
     price: z.coerce.number({required_error: 'Price is required'})
         .min(100, 'Price must be at least €1.00'),
+    subtitle: z.string().optional(),
+    author: z.string().optional(),
+    secondaryAuthors: z.string().optional(),
+    isbn: z.string().optional(),
+    publisher: z.string().optional(),
+    edition: z.string().optional(),
     anoPublicacao: z.coerce.number().optional(),
     genero: z.string().optional(),
     precoPromocional: z.coerce.number().optional(),
@@ -21,7 +27,17 @@ export const createProductSchema = z.object({
     quantityInStock: z.coerce.number({required_error: 'Quantity is required'})
         .min(1, 'Quantity must be at least 1'),
     pictureUrl: z.string().optional(),
-    file: fileSchema.optional()
+    file: fileSchema.optional(),
+    // allow multiple secondary files to be attached at creation
+    secondaryFiles: z.array(z.instanceof(File)).optional(),
+    synopsis: z.string().optional(),
+    index: z.string().optional(),
+    pageCount: z.coerce.number().optional(),
+    language: z.string().optional(),
+    format: z.string().optional(),
+    dimensoes: z.string().optional(),
+    weight: z.coerce.number().optional(),
+    tags: z.array(z.string()).optional()
 }).refine((data) => data.pictureUrl || data.file, {
     message: 'Please provide an image',
     path: ['file']

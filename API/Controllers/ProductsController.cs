@@ -83,6 +83,22 @@ namespace API.Controllers
                 product.PublicId = imageResult.PublicId;
             }
 
+            // handle multiple secondary image uploads
+            if (productDto.SecondaryFiles != null && productDto.SecondaryFiles.Any())
+            {
+                product.SecondaryImages = product.SecondaryImages ?? new List<string>();
+                product.SecondaryImagePublicIds = product.SecondaryImagePublicIds ?? new List<string>();
+                foreach (var file in productDto.SecondaryFiles)
+                {
+                    var secResult = await imageService.AddImageAsync(file);
+                    if (secResult.Error != null)
+                        return BadRequest(secResult.Error.Message);
+
+                    product.SecondaryImages.Add(secResult.SecureUrl.AbsoluteUri);
+                    product.SecondaryImagePublicIds.Add(secResult.PublicId);
+                }
+            }
+
             // Ensure publication year from form ('anoPublicacao') is applied in case model binding missed it
             if (Request.HasFormContentType)
             {
@@ -130,6 +146,71 @@ namespace API.Controllers
                 product.PublicId = imageResult.PublicId;
             }
 
+            // handle newly uploaded secondary images
+            if (updateProductDto.SecondaryFiles != null && updateProductDto.SecondaryFiles.Any())
+            {
+                product.SecondaryImages = product.SecondaryImages ?? new List<string>();
+                product.SecondaryImagePublicIds = product.SecondaryImagePublicIds ?? new List<string>();
+                foreach (var file in updateProductDto.SecondaryFiles)
+                {
+                    var secResult = await imageService.AddImageAsync(file);
+                    if (secResult.Error != null)
+                        return BadRequest(secResult.Error.Message);
+
+                    product.SecondaryImages.Add(secResult.SecureUrl.AbsoluteUri);
+                    product.SecondaryImagePublicIds.Add(secResult.PublicId);
+                }
+            }
+
+            // handle removal of existing secondary images (by publicId or URL)
+            if (updateProductDto.RemovedSecondaryImages != null && updateProductDto.RemovedSecondaryImages.Any())
+            {
+                product.SecondaryImages = product.SecondaryImages ?? new List<string>();
+                product.SecondaryImagePublicIds = product.SecondaryImagePublicIds ?? new List<string>();
+
+                // copy to avoid mutation during iteration
+                var toRemove = updateProductDto.RemovedSecondaryImages.ToList();
+
+                foreach (var identifier in toRemove)
+                {
+                    // if identifier matches a publicId we have stored, delete via Cloudinary
+                    if (product.SecondaryImagePublicIds.Contains(identifier))
+                    {
+                        try
+                        {
+                            await imageService.DeleteImageAsync(identifier);
+                        }
+                        catch { /* swallow deletion errors, proceed to remove from lists */ }
+
+                        var idx = product.SecondaryImagePublicIds.IndexOf(identifier);
+                        if (idx >= 0 && idx < product.SecondaryImages.Count)
+                        {
+                            product.SecondaryImages.RemoveAt(idx);
+                        }
+                        product.SecondaryImagePublicIds.Remove(identifier);
+                    }
+                    else
+                    {
+                        // treat identifier as URL - remove URL and any matching publicId at same index
+                        if (product.SecondaryImages.Contains(identifier))
+                        {
+                            var idx = product.SecondaryImages.IndexOf(identifier);
+                            // if there's a publicId at same index, attempt deletion
+                            if (product.SecondaryImagePublicIds != null && idx >= 0 && idx < product.SecondaryImagePublicIds.Count)
+                            {
+                                var pid = product.SecondaryImagePublicIds[idx];
+                                if (!string.IsNullOrEmpty(pid))
+                                {
+                                    try { await imageService.DeleteImageAsync(pid); } catch { }
+                                }
+                                product.SecondaryImagePublicIds.RemoveAt(idx);
+                            }
+                            product.SecondaryImages.Remove(identifier);
+                        }
+                    }
+                }
+            }
+
             // Ensure publication year from form ('anoPublicacao') is applied in case model binding missed it
             if (Request.HasFormContentType)
             {
@@ -160,6 +241,15 @@ namespace API.Controllers
 
             if (!string.IsNullOrEmpty(product.PublicId))
                     await imageService.DeleteImageAsync(product.PublicId);
+
+            // delete any secondary images from Cloudinary
+            if (product.SecondaryImagePublicIds != null && product.SecondaryImagePublicIds.Any())
+            {
+                foreach (var pid in product.SecondaryImagePublicIds.ToList())
+                {
+                    try { await imageService.DeleteImageAsync(pid); } catch { }
+                }
+            }
 
             context.Products.Remove(product);
 

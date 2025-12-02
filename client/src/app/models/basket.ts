@@ -14,6 +14,8 @@ export type Item = {
   genero?: string
   anoPublicacao?: number
   quantity: number
+  // optional discount from product (percentage, e.g. 10 for 10%)
+  discountPercentage?: number | null
 }
 
 export type Coupon = {

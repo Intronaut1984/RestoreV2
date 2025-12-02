@@ -101,6 +101,8 @@ public class Product
 
     public List<string>? SecondaryImages { get; set; }
 
+    public List<string>? SecondaryImagePublicIds { get; set; }
+
     public List<string>? Tags { get; set; }
 
     public double? AverageRating { get; set; }

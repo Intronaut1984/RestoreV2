@@ -2,7 +2,7 @@ import { Box, IconButton, Paper, Typography } from "@mui/material"
 import { Item } from "../../app/models/basket"
 import { Add, Close, Remove } from "@mui/icons-material"
 import { useAddBasketItemMutation, useRemoveBasketItemMutation } from "./basketApi"
-import { currencyFormat } from "../../lib/util"
+import { currencyFormat, computeFinalPrice } from "../../lib/util"
 
 type Props = {
     item: Item
@@ -43,12 +43,32 @@ export default function BasketItem({ item }: Props) {
                     <Typography variant="h6" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</Typography>
 
                     <Box sx={{display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap'}}>
-                        <Typography sx={{fontSize: { xs: '0.95rem', sm: '1.1rem' }}}>
-                            {currencyFormat(item.price)} x {item.quantity}
-                        </Typography>
-                        <Typography sx={{fontSize: { xs: '0.95rem', sm: '1.1rem' }}} color='primary'>
-                            {currencyFormat(item.price * item.quantity)}
-                        </Typography>
+                        {item.discountPercentage ? (
+                            <>
+                                <Typography sx={{fontSize: { xs: '0.95rem', sm: '1.1rem' }, textDecoration: 'line-through', color: 'text.secondary'}}>
+                                    {currencyFormat(item.price)} x {item.quantity}
+                                </Typography>
+                                <Typography sx={{fontSize: { xs: '0.95rem', sm: '1.1rem' }}} color='error'>
+                                    {currencyFormat(computeFinalPrice(item.price, item.discountPercentage) * item.quantity)}
+                                </Typography>
+                            </>
+                        ) : (
+                            <>
+                                <Typography sx={{fontSize: { xs: '0.95rem', sm: '1.1rem' }}}>
+                                    {currencyFormat(item.price)} x {item.quantity}
+                                </Typography>
+                                <Typography sx={{fontSize: { xs: '0.95rem', sm: '1.1rem' }}} color='primary'>
+                                    {currencyFormat(item.price * item.quantity)}
+                                </Typography>
+                            </>
+                        )}
+                        
+                        {/* If discount present, also show per-unit red final price next to quantity for clarity */}
+                        {item.discountPercentage && (
+                            <Typography sx={{fontSize: { xs: '0.9rem', sm: '1rem' }}} color='error'>
+                                {currencyFormat(computeFinalPrice(item.price, item.discountPercentage))} / unidade
+                            </Typography>
+                        )}
                     </Box>
 
                     <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>

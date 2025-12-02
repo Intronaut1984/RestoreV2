@@ -36,8 +36,25 @@ export const basketApi = createApi({
                         if (!isNewBasket) {
                             const existingItem = draft.items.find(item => item.productId === productId);
                             if (existingItem) existingItem.quantity += quantity;
-                            else draft.items.push(isBasketItem(product) 
-                                ? product : {...product, productId: product.id, quantity});
+                            else {
+                                if (isBasketItem(product)) {
+                                    draft.items.push(product);
+                                } else {
+                                    // Explicitly construct the optimistic Item including discountPercentage
+                                    const newItem: Item = {
+                                        productId: product.id,
+                                        name: product.name,
+                                        price: product.price,
+                                        pictureUrl: product.pictureUrl,
+                                        genero: product.genero,
+                                        anoPublicacao: product.anoPublicacao,
+                                        quantity,
+                                        discountPercentage: product.discountPercentage ?? null
+                                    };
+
+                                    draft.items.push(newItem);
+                                }
+                            }
                         }
                     })
                 )

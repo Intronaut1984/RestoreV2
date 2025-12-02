@@ -5,6 +5,29 @@ export function currencyFormat(amount: number) {
     return '€' + (amount / 100).toFixed(2)
 }
 
+// Format order amounts defensively: API should return cents, but legacy orders
+// may be double-scaled or stored in euros. If the value is implausibly large
+// (greater than €1,000 in cents -> 100000), assume it's accidentally scaled
+// by 100 and divide once more.
+export function formatOrderAmount(amount: number) {
+    if (amount === null || amount === undefined) return currencyFormat(0);
+    // if amount is huge (e.g. > 1000 euros expressed in cents), try to correct
+    if (Math.abs(amount) > 100000) {
+        return currencyFormat(Math.round(amount / 100));
+    }
+    return currencyFormat(amount);
+}
+
+export function computeFinalPrice(price: number, discountPercentage?: number | null, promotionalPrice?: number | null) {
+    // price and promotionalPrice are expected in cents
+    if (promotionalPrice !== undefined && promotionalPrice !== null) return promotionalPrice;
+    if (discountPercentage !== undefined && discountPercentage !== null) {
+        const d = Math.max(0, Math.min(100, Number(discountPercentage)));
+        return Math.round(price * (1 - d / 100));
+    }
+    return price;
+}
+
 export function filterEmptyValues(values: object) {
     return Object.fromEntries(
         Object.entries(values).filter(

@@ -15,7 +15,7 @@ import Search from '../../features/catalog/Search';
 const midLinks = [
     { title: 'catalog', path: '/catalog' },
     { title: 'about', path: '/about' },
-    { title: 'exemplo', path: '/contact' },
+    { title: 'promoções', path: '/contact' },
     { title: 'exemplo', path: '/contact' },
     { title: 'exemlplo', path: '/contact' },
     { title: 'exemplo', path: '/contact' },
@@ -64,7 +64,7 @@ export default function NavBar() {
         if (isMobile && filtersOpen) {
             setFiltersOpen(false);
         }
-    }, [generos, anos, orderBy, searchTerm]);
+    }, [generos, anos, orderBy, searchTerm, isMobile, filtersOpen]);
 
     return (
         <AppBar

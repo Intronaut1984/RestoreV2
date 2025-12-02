@@ -1,7 +1,7 @@
 import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, Grid } from "@mui/material";
 import { useAppDispatch, useAppSelector } from "../../app/store/store"
 import { useFetchProductsQuery } from "../catalog/catalogApi";
-import { currencyFormat } from "../../lib/util";
+import { currencyFormat, computeFinalPrice } from "../../lib/util";
 import { Delete, Edit } from "@mui/icons-material";
 import AppPagination from "../../app/shared/components/AppPagination";
 import { setPageNumber } from "../catalog/catalogSlice";
@@ -84,7 +84,19 @@ export default function InventoryPage() {
                                         </Box>
                                     </Box>
                                 </TableCell>
-                                <TableCell align="right"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{currencyFormat(product.price)}</Box></TableCell>
+                                <TableCell align="right">
+                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                                        {product.discountPercentage && product.discountPercentage > 0 ? (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                                                <span style={{ textDecoration: 'line-through', color: 'gray' }}>{currencyFormat(product.price)}</span>
+                                                <span style={{ color: 'crimson', fontWeight: 700 }}>{currencyFormat(computeFinalPrice(product.price, product.discountPercentage))}</span>
+                                                <span style={{ fontSize: 12, background: 'crimson', color: 'white', padding: '2px 6px', borderRadius: 4 }}>{`-${product.discountPercentage}%`}</span>
+                                            </Box>
+                                        ) : (
+                                            <Box sx={{ textAlign: 'right' }}>{currencyFormat(product.price)}</Box>
+                                        )}
+                                    </Box>
+                                </TableCell>
                                 <TableCell align="center"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{product.genero ?? '—'}</Box></TableCell>
                                 <TableCell align="center"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{product.anoPublicacao ?? '—'}</Box></TableCell>
                                 <TableCell align="center"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{product.quantityInStock}</Box></TableCell>
@@ -130,7 +142,14 @@ export default function InventoryPage() {
                                             </Typography>
                                         </Box>
                                         <Box sx={{ mt: 1, textAlign: 'center' }}>
-                                            <Typography variant='subtitle2' sx={{color: 'secondary.main'}}>{currencyFormat(product.price)}</Typography>
+                                            {product.discountPercentage && product.discountPercentage > 0 ? (
+                                                <>
+                                                    <Typography variant='body2' sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>{currencyFormat(product.price)}</Typography>
+                                                    <Typography variant='subtitle2' sx={{color: 'crimson', fontWeight: 700}}>{currencyFormat(computeFinalPrice(product.price, product.discountPercentage))}</Typography>
+                                                </>
+                                            ) : (
+                                                <Typography variant='subtitle2' sx={{color: 'secondary.main'}}>{currencyFormat(product.price)}</Typography>
+                                            )}
                                         </Box>
                                         <Box sx={{display: 'flex', gap:1, mt:1, justifyContent: 'center'}}>
                                             <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary'>Edit</Button>
