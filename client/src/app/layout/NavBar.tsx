@@ -215,7 +215,7 @@ export default function NavBar() {
             )}
             <Drawer anchor="left" open={filtersOpen} onClose={closeFilters} sx={{ zIndex: (theme) => theme.zIndex.appBar + 20 }}>
                 <Box sx={{ width: 300, p: 2 }}>
-                    {filtersData && <Filters filtersData={filtersData} />}
+                    {filtersData && <Filters filtersData={filtersData} onChangeComplete={closeFilters} />}
                 </Box>
             </Drawer>
         </AppBar>

@@ -20,9 +20,10 @@ const sortOptions = [
 
 type Props = {
     filtersData?: { generos: string[], anos: number[], categories?: { id: number; name: string }[], campaigns?: { id: number; name: string }[] }
+    onChangeComplete?: () => void
 }
 
-export default function Filters({filtersData: data}: Props) {
+export default function Filters({filtersData: data, onChangeComplete}: Props) {
     const { orderBy, anos, generos, categoryIds, campaignIds } = useAppSelector(state => state.catalog);
     const dispatch = useAppDispatch();
     const theme = useTheme();
@@ -50,6 +51,11 @@ export default function Filters({filtersData: data}: Props) {
     const generoItems = (data?.generos ?? []).map(g => ({ value: g, label: mapGeneroLabel(g) }));
     const categoryItems = (data?.categories ?? []).map(c => ({ value: String(c.id), label: c.name }));
     const campaignItems = (data?.campaigns ?? []).map(c => ({ value: String(c.id), label: c.name }));
+    // Show the genero (genre) filter only when the user has selected a category
+    // that indicates books (contains 'livro' in its name). This keeps the UI
+    // simpler for non-book categories.
+    const selectedCategoryNames = (data?.categories ?? []).filter(c => (categoryIds ?? []).includes(c.id)).map(c => c.name.toLowerCase());
+    const showGenero = selectedCategoryNames.some(n => n.includes('livro'));
 
     return (
         <Box sx={{ width: '100%' }}>
@@ -78,26 +84,30 @@ export default function Filters({filtersData: data}: Props) {
                         </Box>
                         <Collapse in={openSort} timeout={160}>
                             <Box sx={{ p: 2 }}>
-                                <RadioButtonGroup selectedValue={orderBy} options={sortOptions} onChange={e => dispatch(setOrderBy(e.target.value))} />
+                                <RadioButtonGroup selectedValue={orderBy} options={sortOptions} onChange={e => { dispatch(setOrderBy(e.target.value)); onChangeComplete?.(); }} />
                             </Box>
                         </Collapse>
 
-                        {/* Generos */}
-                        <Box
-                            onClick={() => setOpenGenres(s => !s)}
-                            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
-                        >
-                            <Typography sx={{ fontWeight: 700 }}>Género</Typography>
-                            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                                <Typography color='text.secondary'>{selectedCount(generos) > 0 ? `${selectedCount(generos)} selecionados` : 'Todos'}</Typography>
-                                <Box component='span' sx={{ transform: openGenres ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
-                            </Box>
-                        </Box>
-                        <Collapse in={openGenres} timeout={160}>
-                            <Box sx={{ p: 2 }}>
-                                <CheckboxButtons items={generoItems} checked={(generos ?? [])} onChange={(items: string[]) => dispatch(setGeneros(items))} />
-                            </Box>
-                        </Collapse>
+                        {/* Generos (only shown when user selects a Books category) */}
+                        {showGenero && (
+                            <>
+                                <Box
+                                    onClick={() => setOpenGenres(s => !s)}
+                                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
+                                >
+                                    <Typography sx={{ fontWeight: 700 }}>Género</Typography>
+                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                        <Typography color='text.secondary'>{selectedCount(generos) > 0 ? `${selectedCount(generos)} selecionados` : 'Todos'}</Typography>
+                                        <Box component='span' sx={{ transform: openGenres ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
+                                    </Box>
+                                </Box>
+                                <Collapse in={openGenres} timeout={160}>
+                                    <Box sx={{ p: 2 }}>
+                                        <CheckboxButtons items={generoItems} checked={(generos ?? [])} onChange={(items: string[]) => { dispatch(setGeneros(items)); onChangeComplete?.(); }} />
+                                    </Box>
+                                </Collapse>
+                            </>
+                        )}
 
                         {/* Categories */}
                         <Box
@@ -112,7 +122,7 @@ export default function Filters({filtersData: data}: Props) {
                         </Box>
                         <Collapse in={openCategories} timeout={160}>
                             <Box sx={{ p: 2 }}>
-                                <CheckboxButtons items={categoryItems} checked={(categoryIds ?? []).map(String)} onChange={(items: string[]) => dispatch(setCategories(items.map(Number)))} />
+                                <CheckboxButtons items={categoryItems} checked={(categoryIds ?? []).map(String)} onChange={(items: string[]) => { dispatch(setCategories(items.map(Number))); onChangeComplete?.(); }} />
                             </Box>
                         </Collapse>
 
@@ -129,13 +139,11 @@ export default function Filters({filtersData: data}: Props) {
                         </Box>
                         <Collapse in={openCampaigns} timeout={160}>
                             <Box sx={{ p: 2 }}>
-                                <CheckboxButtons items={campaignItems} checked={(campaignIds ?? []).map(String)} onChange={(items: string[]) => dispatch(setCampaigns(items.map(Number)))} />
+                                <CheckboxButtons items={campaignItems} checked={(campaignIds ?? []).map(String)} onChange={(items: string[]) => { dispatch(setCampaigns(items.map(Number))); onChangeComplete?.(); }} />
                             </Box>
                         </Collapse>
 
                         {/* Ano de Lançamento */}
-
-                        {/* Types */}
                         <Box
                             onClick={() => setOpenTypes(s => !s)}
                             sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
@@ -148,13 +156,13 @@ export default function Filters({filtersData: data}: Props) {
                         </Box>
                         <Collapse in={openTypes} timeout={160}>
                             <Box sx={{ p: 2 }}>
-                                <CheckboxButtons items={(data?.anos ?? []).map(String)} checked={(anos ?? []).map(String)} onChange={(items: string[]) => dispatch(setAnos(items.map(Number)))} />
+                                <CheckboxButtons items={(data?.anos ?? []).map(String)} checked={(anos ?? []).map(String)} onChange={(items: string[]) => { dispatch(setAnos(items.map(Number))); onChangeComplete?.(); }} />
                             </Box>
                         </Collapse>
                     </Box>
                 </Paper>
-                <Box sx={{ mt: 1 }}>
-                    <Button onClick={() => dispatch(resetParams())} variant='outlined'>Repor filtros</Button>
+                    <Box sx={{ mt: 1 }}>
+                    <Button onClick={() => { dispatch(resetParams()); onChangeComplete?.(); }} variant='outlined'>Repor filtros</Button>
                 </Box>
             </Box>
 
@@ -163,31 +171,33 @@ export default function Filters({filtersData: data}: Props) {
                 <Box display='flex' flexDirection='column' gap={2}>
                     <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
                         <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Ordenar</Typography>
-                        <RadioButtonGroup selectedValue={orderBy} options={sortOptions} onChange={e => dispatch(setOrderBy(e.target.value))} />
+                            <RadioButtonGroup selectedValue={orderBy} options={sortOptions} onChange={e => { dispatch(setOrderBy(e.target.value)); onChangeComplete?.(); }} />
                     </Paper>
 
-                    <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
-                        <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Género</Typography>
-                        <CheckboxButtons items={generoItems} checked={(generos ?? [])} onChange={(items: string[]) => dispatch(setGeneros(items))} />
-                    </Paper>
+                                        <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                                        <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Campaigns</Typography>
+                                        <CheckboxButtons items={campaignItems} checked={(campaignIds ?? []).map(String)} onChange={(items: string[]) => { dispatch(setCampaigns(items.map(Number))); onChangeComplete?.(); }} />
+                                    </Paper>
 
-                    <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                        <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
                         <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Categorias</Typography>
-                        <CheckboxButtons items={categoryItems} checked={(categoryIds ?? []).map(String)} onChange={(items: string[]) => dispatch(setCategories(items.map(Number)))} />
+                        <CheckboxButtons items={categoryItems} checked={(categoryIds ?? []).map(String)} onChange={(items: string[]) => { dispatch(setCategories(items.map(Number))); onChangeComplete?.(); }} />
                     </Paper>
 
-                    <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
-                        <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Campaigns</Typography>
-                        <CheckboxButtons items={campaignItems} checked={(campaignIds ?? []).map(String)} onChange={(items: string[]) => dispatch(setCampaigns(items.map(Number)))} />
-                    </Paper>
+                    {showGenero && (
+                        <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                            <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Género</Typography>
+                            <CheckboxButtons items={generoItems} checked={(generos ?? [])} onChange={(items: string[]) => { dispatch(setGeneros(items)); onChangeComplete?.(); }} />
+                        </Paper>
+                    )}
 
-                    <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                        <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
                         <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Ano de Lançamento</Typography>
-                        <CheckboxButtons items={(data?.anos ?? []).map(String)} checked={(anos ?? []).map(String)} onChange={(items: string[]) => dispatch(setAnos(items.map(Number)))} />
+                        <CheckboxButtons items={(data?.anos ?? []).map(String)} checked={(anos ?? []).map(String)} onChange={(items: string[]) => { dispatch(setAnos(items.map(Number))); onChangeComplete?.(); }} />
                     </Paper>
 
                     <Box>
-                        <Button onClick={() => dispatch(resetParams())} variant='outlined'>Repor filtros</Button>
+                        <Button onClick={() => { dispatch(resetParams()); onChangeComplete?.(); }} variant='outlined'>Repor filtros</Button>
                     </Box>
                 </Box>
             </Box>

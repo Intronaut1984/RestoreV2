@@ -1,4 +1,5 @@
-import { Grid, Typography, Box, CircularProgress, Skeleton } from "@mui/material";
+import { Grid, Typography, Box, CircularProgress, Skeleton, Button } from "@mui/material";
+import { Link } from 'react-router-dom';
 import ProductList from "./ProductList";
 import { useFetchFiltersQuery, useFetchProductsQuery } from "./catalogApi";
 import Filters from "./Filters";
@@ -6,7 +7,7 @@ import { useAppDispatch, useAppSelector } from "../../app/store/store";
 import AppPagination from "../../app/shared/components/AppPagination";
 import { setPageNumber } from "./catalogSlice";
 import { useLocation } from 'react-router-dom';
-import { setHasDiscount, setCampaigns, setCategories } from './catalogSlice';
+import { setHasDiscount, setCampaigns, setCategories, resetParams } from './catalogSlice';
 import { useEffect } from 'react';
 
 export default function Catalog() {
@@ -15,6 +16,12 @@ export default function Catalog() {
   const {data: filtersData, isLoading: filtersLoading} = useFetchFiltersQuery();
   const dispatch = useAppDispatch();
   const location = useLocation();
+
+  const handleResetFilters = () => {
+    dispatch(resetParams());
+    dispatch(setPageNumber(1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   // Read query params on mount so links like /catalog?hasDiscount=true work
   useEffect(() => {
@@ -86,7 +93,29 @@ export default function Catalog() {
             />
           </>
         ) : (
-          <Typography variant="h5">There are no results for this filter</Typography>
+          <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', py: { xs: 6, md: 8 } }}>
+            <Box sx={{ textAlign: 'center', maxWidth: 640, px: 2 }}>
+              <Box sx={{ width: 140, height: 140, mx: 'auto', mb: 2 }}>
+                <Box sx={{ width: '100%', height: '100%', borderRadius: 2, border: '2px dashed', borderColor: 'grey.400', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'transparent' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M55.146 51.887L41.588 38.329a16 16 0 10-3.259 3.259l13.558 13.558a2.3 2.3 0 003.259-3.259zM14 26a12 12 0 1124 0 12 12 0 01-24 0z"/>
+                  </svg>
+                </Box>
+              </Box>
+
+              <Typography variant="h5" component="h2" fontWeight={700} gutterBottom>
+                Nenhum produto encontrado
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                Ajuste ou limpe os filtros para ver mais produtos. Experimente repor os filtros ou navegar pela loja.
+              </Typography>
+
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+                <Button onClick={handleResetFilters} variant="outlined">Repor filtros</Button>
+                <Button component={Link} to="/catalog" onClick={handleResetFilters} variant="contained">Ver todos os produtos</Button>
+              </Box>
+            </Box>
+          </Box>
         )}
       </Grid>
     </Grid>
