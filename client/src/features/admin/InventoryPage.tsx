@@ -46,7 +46,7 @@ export default function InventoryPage() {
         <>
             <Box display='flex' justifyContent='space-between' alignItems='center'>
                 <Typography sx={{p: 2}} variant='h4'>Inventário</Typography>
-                <Button onClick={() => setEditMode(true)} sx={{m: 2}} size='large' variant='contained'>Create</Button>
+                <Button onClick={() => setEditMode(true)} sx={{m: 2}} size='large' variant='contained'>Criar Produto</Button>
             </Box>
 
             <Grid container spacing={4}>
@@ -60,11 +60,11 @@ export default function InventoryPage() {
                     <TableHead>
                         <TableRow>
                             <TableCell>#</TableCell>
-                            <TableCell align="left">Product</TableCell>
-                            <TableCell align="right">Price</TableCell>
+                            <TableCell align="left">Produto</TableCell>
+                            <TableCell align="right">Preço</TableCell>
                             <TableCell align="center">Género</TableCell>
                             <TableCell align="center">Ano</TableCell>
-                            <TableCell align="center">Quantity</TableCell>
+                            <TableCell align="center">Quantidade</TableCell>
                             <TableCell align="right"></TableCell>
                         </TableRow>
                     </TableHead>
@@ -161,8 +161,8 @@ export default function InventoryPage() {
                                             )}
                                         </Box>
                                         <Box sx={{display: 'flex', gap:1, mt:1, justifyContent: 'center'}}>
-                                            <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary'>Edit</Button>
-                                            <Button size='small' color='error' onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />}>Del</Button>
+                                            <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary'>Editar</Button>
+                                            <Button size='small' color='error' onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />}>Excluir</Button>
                                         </Box>
                                     </Box>
                                 </Box>

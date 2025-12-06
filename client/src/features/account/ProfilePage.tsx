@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Container, Typography, Grid, Box, Divider, TextField, Button, Stack, IconButton, InputAdornment } from '@mui/material';
+import { Container, Typography, Grid, Box, Divider, TextField, Button, Stack, IconButton, InputAdornment, Paper, useTheme } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useUserInfoQuery, useFetchAddressQuery, useUpdateUserInfoMutation, useUpdateUserAddressMutation } from './accountApi';
 import { useChangePasswordMutation } from './accountApi';
@@ -23,6 +23,9 @@ export default function ProfilePage() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
 
   const { control, handleSubmit, reset } = useForm({
     defaultValues: {
@@ -176,7 +179,17 @@ export default function ProfilePage() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4 }}>
+    <Container
+      component={Paper}
+      maxWidth="md"
+      sx={{
+        mt: { xs: 8, md: 10 },
+        borderRadius: 3,
+        p: { xs: 2, sm: 4 },
+        boxSizing: 'border-box',
+        backgroundColor: isLight ? 'rgba(255,255,255,0.6)' : undefined
+      }}
+    >
       <Box sx={{ px: 0 }}>
         <Typography variant="h5" sx={{ mb: 1 }}>
           {user?.userName && !user.userName.includes('@') ? `Olá, ${user.userName}` : 'Olá, User'}
@@ -224,9 +237,9 @@ export default function ProfilePage() {
 
               <Grid item xs={12}>
                 <Divider sx={{ my: 2 }} />
-                <Typography variant="h6">Saved Address</Typography>
+                <Typography variant="h6">Endereço Guardado</Typography>
                 {addressLoading ? (
-                  <Typography>Loading address...</Typography>
+                  <Typography>A Carregar Endereço...</Typography>
                 ) : address ? (
                   <Grid container spacing={1}>
                     <Grid item xs={12} sm={6}>
@@ -260,14 +273,14 @@ export default function ProfilePage() {
                     </Grid>
                   </Grid>
                 ) : (
-                  <Typography>No saved address</Typography>
+                  <Typography>Sem endereço guardado</Typography>
                 )}
               </Grid>
             </Grid>
 
             <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-              <Button variant="contained" onClick={() => setEditing(true)}>Edit</Button>
-              <Button variant="outlined" onClick={() => setChangingPassword(s => !s)}>Change password</Button>
+              <Button variant="contained" onClick={() => setEditing(true)}>Editar</Button>
+              <Button variant="outlined" onClick={() => setChangingPassword(s => !s)}>Alterar Password</Button>
             </Stack>
           </>
         ) : (
@@ -296,7 +309,7 @@ export default function ProfilePage() {
 
               <Grid item xs={12}>
                 <Divider sx={{ my: 2 }} />
-                <Typography variant="h6">Saved Address</Typography>
+                <Typography variant="h6">Endereço Guardado</Typography>
               </Grid>
 
               <Grid item xs={12} sm={6}>
@@ -323,8 +336,8 @@ export default function ProfilePage() {
 
               <Grid item xs={12} sx={{ mt: 1 }}>
                 <Stack direction="row" spacing={2}>
-                  <Button type="submit" variant="contained" disabled={updatingAddress}>Save</Button>
-                  <Button variant="outlined" onClick={() => setEditing(false)}>Cancel</Button>
+                  <Button type="submit" variant="contained" disabled={updatingAddress}>Guardar</Button>
+                  <Button variant="outlined" onClick={() => setEditing(false)}>Cancelar</Button>
                 </Stack>
               </Grid>
             </Grid>
@@ -333,10 +346,10 @@ export default function ProfilePage() {
 
         {changingPassword && (
           <Box sx={{ mt: 3 }}>
-            <Typography variant="h6">Change Password</Typography>
+            <Typography variant="h6">Alterar Password</Typography>
             <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column', maxWidth: 480, mt: 1 }}>
                 <TextField
-                  label="Current password"
+                  label="Password atual"
                   type={showCurrent ? 'text' : 'password'}
                   value={currentPassword}
                   onChange={e => setCurrentPassword(e.target.value)}
@@ -353,7 +366,7 @@ export default function ProfilePage() {
                 />
 
                 <TextField
-                  label="New password"
+                  label="Nova password"
                   type={showNew ? 'text' : 'password'}
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
@@ -369,7 +382,7 @@ export default function ProfilePage() {
                   }}
                 />
                 <TextField
-                  label="Confirm new password"
+                  label="Confirmar nova password"
                   type={showConfirm ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
@@ -391,9 +404,9 @@ export default function ProfilePage() {
                     onClick={handleChangePassword}
                     disabled={isChanging || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword || newPassword === currentPassword}
                   >
-                    Save password
+                    Guardar password
                   </Button>
-                  <Button variant="text" onClick={() => setChangingPassword(false)}>Cancel</Button>
+                  <Button variant="text" onClick={() => setChangingPassword(false)}>Cancelar</Button>
                 </Box>
             </Box>
           </Box>

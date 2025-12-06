@@ -1,9 +1,12 @@
-import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, Paper, useTheme } from "@mui/material";
 import { useGetUsersQuery, useUpdateUserRoleMutation } from "./adminApi";
 
 export default function AdminPanel() {
     const { data: users, isLoading, refetch } = useGetUsersQuery();
     const [updateRole] = useUpdateUserRoleMutation();
+
+    const theme = useTheme();
+    const isLight = theme.palette.mode === 'light';
 
     const handleToggleAdmin = async (email: string, isAdmin: boolean) => {
         try {
@@ -17,7 +20,7 @@ export default function AdminPanel() {
     if (isLoading) return <div>Loading...</div>
 
     return (
-        <Box sx={{p:2}}>
+        <Box component={Paper} sx={{p:2, backgroundColor: isLight ? 'rgba(255,255,255,0.5)' : undefined, borderRadius: 2}}>
             <Typography variant="h4" sx={{mb:2}}>Admin - Usuários</Typography>
             <TableContainer>
                 <Table>
