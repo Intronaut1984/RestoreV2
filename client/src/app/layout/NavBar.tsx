@@ -51,7 +51,26 @@ export default function NavBar() {
     const handleProfileClose = () => setAnchorProfileEl(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const openFilters = () => setFiltersOpen(true);
-    const closeFilters = () => setFiltersOpen(false);
+    const closeFilters = () => {
+        setFiltersOpen(false);
+        // Allow the drawer close animation/layout to settle, then scroll the
+        // catalog into view. This addresses a production-only layout issue
+        // where filtered items render far below the fold.
+        setTimeout(() => {
+            try {
+                const el = document.getElementById('catalog-root');
+                const toolbarOffset = isMobile ? 56 : 64;
+                if (el) {
+                    const top = el.getBoundingClientRect().top + window.pageYOffset - toolbarOffset;
+                    window.scrollTo({ top, behavior: 'smooth' });
+                } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            } catch (e) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }, 180);
+    };
     const [searchOpen, setSearchOpen] = useState(false);
     const openSearch = () => setSearchOpen(true);
     const closeSearch = () => setSearchOpen(false);
@@ -64,7 +83,8 @@ export default function NavBar() {
     // the drawer to immediately close after being opened on mobile.
     useEffect(() => {
         if (isMobile && filtersOpen) {
-            setFiltersOpen(false);
+            // Use closeFilters to ensure we also scroll the catalog into view
+            closeFilters();
         }
     }, [generos, anos, orderBy, searchTerm, isMobile]);
 
