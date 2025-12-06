@@ -60,11 +60,13 @@ export default function NavBar() {
     const { generos, anos, orderBy, searchTerm } = useAppSelector(state => state.catalog);
 
     // Close the filters drawer automatically on mobile when any catalog param changes
+    // NOTE: do not include `filtersOpen` in the dependency list — that caused
+    // the drawer to immediately close after being opened on mobile.
     useEffect(() => {
         if (isMobile && filtersOpen) {
             setFiltersOpen(false);
         }
-    }, [generos, anos, orderBy, searchTerm, isMobile, filtersOpen]);
+    }, [generos, anos, orderBy, searchTerm, isMobile]);
 
     return (
         <AppBar
@@ -144,7 +146,7 @@ export default function NavBar() {
                         <SearchIcon />
                     </IconButton>
 
-                    <Drawer anchor="top" open={searchOpen} onClose={closeSearch}>
+                    <Drawer anchor="top" open={searchOpen} onClose={closeSearch} sx={{ zIndex: (theme) => theme.zIndex.appBar + 20 }}>
                         <Box sx={{ p: 2 }}>
                             <Search />
                         </Box>
@@ -211,7 +213,7 @@ export default function NavBar() {
                     </Box>
                 </Box>
             )}
-            <Drawer anchor="left" open={filtersOpen} onClose={closeFilters}>
+            <Drawer anchor="left" open={filtersOpen} onClose={closeFilters} sx={{ zIndex: (theme) => theme.zIndex.appBar + 20 }}>
                 <Box sx={{ width: 300, p: 2 }}>
                     {filtersData && <Filters filtersData={filtersData} />}
                 </Box>

@@ -27,7 +27,7 @@ export default function AppPagination({ metadata, onPageChange }: Props) {
             }}
         >
             <Typography>
-                {isSmall ? `Showing ${startItem}-${endItem} of ${totalCount}` : `Displaying ${startItem}-${endItem} of ${totalCount} items`}
+                {isSmall ? `Mostrar ${startItem}-${endItem} de ${totalCount}` : `Displaying ${startItem}-${endItem} of ${totalCount} items`}
             </Typography>
             <Pagination
                 color="secondary"
