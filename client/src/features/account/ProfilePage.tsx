@@ -13,6 +13,9 @@ export default function ProfilePage() {
   const [updateUserAddress, { isLoading: updatingAddress }] = useUpdateUserAddressMutation();
   const [changePassword, { isLoading: isChanging }] = useChangePasswordMutation();
   const [editing, setEditing] = useState(false);
+  const [showUserNameEditor, setShowUserNameEditor] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [savingUserName, setSavingUserName] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -47,6 +50,16 @@ export default function ProfilePage() {
       postal_code: address?.postal_code ?? '',
       country: address?.country ?? ''
     });
+    // If the current username looks like an email (contains @), show the quick username editor
+    if (user?.userName && user.userName.includes('@')) {
+      setShowUserNameEditor(true);
+      // Suggest a default value without the email domain
+      const beforeAt = user.userName.split('@')[0];
+      setNewUserName(beforeAt);
+    } else {
+      setShowUserNameEditor(false);
+      setNewUserName('');
+    }
   }, [user, address, reset]);
 
   if (userLoading) return <div>Loading profile...</div>;
@@ -138,14 +151,57 @@ export default function ProfilePage() {
     }
   };
 
+  const handleSaveUserName = async () => {
+    if (!newUserName || newUserName.trim().length === 0) {
+      toast.error('Please enter a valid username');
+      return;
+    }
+    if (newUserName.includes('@')) {
+      toast.error('Username must not contain @');
+      return;
+    }
+
+    try {
+      setSavingUserName(true);
+      await updateUserInfo({ userName: newUserName.trim() }).unwrap();
+      toast.success('Username atualizado');
+      setShowUserNameEditor(false);
+      setNewUserName('');
+    } catch (err) {
+      toast.error('Problema ao atualizar username');
+      console.error(err);
+    } finally {
+      setSavingUserName(false);
+    }
+  };
+
   return (
     <Container maxWidth="md" sx={{ mt: 4 }}>
       <Box sx={{ px: 0 }}>
-        <Typography variant="h5" sx={{ mb: 1 }}>My Profile</Typography>
+        <Typography variant="h5" sx={{ mb: 1 }}>
+          {user?.userName && !user.userName.includes('@') ? `Olá, ${user.userName}` : 'Olá, User'}
+        </Typography>
         <Divider sx={{ my: 1 }} />
 
         {!editing ? (
           <>
+            {/* Quick username editor shown when account username still looks like an email */}
+            {showUserNameEditor && (
+              <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+                <TextField
+                  label="Escolha um nome de utilizador"
+                  value={newUserName}
+                  onChange={e => setNewUserName(e.target.value)}
+                  size="small"
+                />
+                <Button variant="contained" onClick={handleSaveUserName} disabled={savingUserName}>
+                  Guardar
+                </Button>
+                <Button variant="text" onClick={() => { setShowUserNameEditor(false); setNewUserName(''); }}>
+                  Cancelar
+                </Button>
+              </Box>
+            )}
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
