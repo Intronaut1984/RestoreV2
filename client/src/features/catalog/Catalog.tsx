@@ -76,7 +76,7 @@ export default function Catalog() {
   )
 
   return (
-    <Grid container spacing={4} sx={{ pt: { xs: 8, md: 10 } }}>
+    <Grid container spacing={4} sx={{ pt: { xs: 8, md: 10 } }} id="catalog-root">
       <Grid item xs={12} md={3} sx={{ display: { xs: 'none', md: 'block' } }}>
         <Filters filtersData={filtersData} />
       </Grid>
