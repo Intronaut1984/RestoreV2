@@ -1,4 +1,4 @@
-import { Grid, Typography } from "@mui/material";
+import { Grid, Typography, Box, CircularProgress, Skeleton } from "@mui/material";
 import ProductList from "./ProductList";
 import { useFetchFiltersQuery, useFetchProductsQuery } from "./catalogApi";
 import Filters from "./Filters";
@@ -44,10 +44,32 @@ export default function Catalog() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
-  if (isLoading || !data || filtersLoading || !filtersData) return <div>Loading...</div>
+  if (isLoading || !data || filtersLoading || !filtersData) return (
+    <Box sx={{ width: '100%', py: { xs: 6, md: 8 } }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+        <CircularProgress size={48} />
+      </Box>
+
+      <Grid container spacing={3} sx={{ px: { xs: 2, md: 0 } }}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Grid item xs={6} sm={6} md={3} display='flex' justifyContent='center' key={`skeleton-${i}`}>
+            <Box sx={{ width: '100%', maxWidth: { xs: '100%', sm: 260 } }}>
+              <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 2 }} />
+              <Skeleton width="60%" height={24} sx={{ mt: 1 }} />
+              <Skeleton width="40%" height={28} sx={{ mt: 0.5 }} />
+              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                <Skeleton variant="rectangular" width="60%" height={36} sx={{ borderRadius: 1 }} />
+                <Skeleton variant="rectangular" width="35%" height={36} sx={{ borderRadius: 1 }} />
+              </Box>
+            </Box>
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  )
 
   return (
-    <Grid container spacing={4}>
+    <Grid container spacing={4} sx={{ pt: { xs: 8, md: 10 } }}>
       <Grid item xs={12} md={3} sx={{ display: { xs: 'none', md: 'block' } }}>
         <Filters filtersData={filtersData} />
       </Grid>

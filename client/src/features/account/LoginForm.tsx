@@ -1,5 +1,6 @@
 import { LockOutlined, Visibility, VisibilityOff } from "@mui/icons-material";
-import { Box, Button, Container, Paper, TextField, Typography, IconButton, InputAdornment } from "@mui/material";
+import { Box, Container, Paper, TextField, Typography, IconButton, InputAdornment, useTheme } from "@mui/material";
+import { LoadingButton } from '@mui/lab';
 import { useForm } from "react-hook-form";
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -10,6 +11,8 @@ import { useLazyUserInfoQuery, useLoginMutation } from "./accountApi";
 export default function LoginForm() {
     const [login, {isLoading}] = useLoginMutation();
     const [fetchUserInfo] = useLazyUserInfoQuery();
+    const theme = useTheme();
+    const isLight = theme.palette.mode === 'light';
     const location = useLocation();
     const {register, handleSubmit, formState: {errors}} = useForm<LoginSchema>({
         mode: 'onTouched',
@@ -25,11 +28,21 @@ export default function LoginForm() {
     } 
 
     return (
-        <Container component={Paper} maxWidth='sm' sx={{ borderRadius: 3 }}>
-            <Box display='flex' flexDirection='column' alignItems='center' marginTop='8'>
-                <LockOutlined sx={{ mt: 3, color: 'secondary.main', fontSize: 40 }} />
+        <Container
+            component={Paper}
+            maxWidth='sm'
+            sx={{
+                mt: { xs: 8, md: 10 },
+                borderRadius: 3,
+                p: { xs: 2, sm: 4 },
+                boxSizing: 'border-box',
+                backgroundColor: isLight ? 'rgba(255,255,255,0.6)' : undefined
+            }}
+        >
+            <Box display='flex' flexDirection='column' alignItems='center' mt={3}>
+                <LockOutlined sx={{ mt: 1, color: isLight ? 'text.primary' : 'secondary.main', fontSize: 40 }} />
                 <Typography variant="h5">
-                    Sign in
+                    Inicio de Sessão
                 </Typography>
                 <Box
                     component='form'
@@ -42,14 +55,23 @@ export default function LoginForm() {
                 >
                     <TextField
                         fullWidth
+                        variant="outlined"
                         label='Username or email'
-                        autoFocus
                         {...register('identifier')}
                         error={!!errors.identifier}
                         helperText={errors.identifier?.message}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                backgroundColor: 'transparent',
+                                '& fieldset': { borderColor: 'divider !important' },
+                                '&:hover fieldset': { borderColor: 'text.primary !important' },
+                                '&.Mui-focused fieldset': { borderColor: 'primary.main !important' }
+                            }
+                        }}
                     />
                     <TextField
                         fullWidth
+                        variant="outlined"
                         label='Password'
                         type={showPassword ? 'text' : 'password'}
                         {...register('password')}
@@ -64,17 +86,37 @@ export default function LoginForm() {
                                 </InputAdornment>
                             )
                         }}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                backgroundColor: 'transparent',
+                                '& fieldset': { borderColor: 'divider !important' },
+                                '&:hover fieldset': { borderColor: 'text.primary !important' },
+                                '&.Mui-focused fieldset': { borderColor: 'primary.main !important' }
+                            }
+                        }}
                     />
-                    <Typography sx={{ textAlign: 'right' }}>
+                    <Typography sx={{ textAlign: 'right' }} >
                         <Link to='/forgot-password'>Esqueci-me da password</Link>
                     </Typography>
-                    <Button disabled={isLoading} variant="contained" type="submit">
-                        Sign in
-                    </Button>
+                    <LoadingButton
+                        loading={isLoading}
+                        type="submit"
+                        variant="contained"
+                        disableElevation={isLight}
+                        fullWidth
+                        sx={isLight ? { '&:hover': { backgroundColor: 'grey.800 !important' } } : {}}
+                        style={isLight ? { backgroundColor: theme.palette.grey[900], color: theme.palette.common.white } : undefined}
+                    >
+                        Login
+                    </LoadingButton>
                     <Typography sx={{ textAlign: 'center' }}>
-                        Don't have an account?
-                        <Typography sx={{ ml: 2 }} component={Link} to='/register' color='primary'>
-                            Sign up
+                        Ainda não tem uma conta?
+                        <Typography
+                            sx={{ ml: 2, color: isLight ? 'text.primary' : 'secondary.main', textDecoration: 'none' }}
+                            component={Link}
+                            to='/register'
+                        >
+                            Registar-se
                         </Typography>
                     </Typography>
                 </Box>

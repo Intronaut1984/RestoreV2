@@ -72,7 +72,7 @@ public class AdminController(UserManager<User> userManager) : BaseApiController
         var promo = context.Promos.FirstOrDefault();
         if (promo == null)
         {
-            return Ok(new PromoDto { Message = "Promoção: Entrega grátis em compras acima de €50 — Aproveite!", Color = "#050505" });
+            return Ok(new PromoDto { Message = "Entrega grátis em compras acima de €50 — Aproveite!", Color = "#050505" });
         }
 
         return Ok(new PromoDto { Message = promo.Message, Color = promo.Color });
