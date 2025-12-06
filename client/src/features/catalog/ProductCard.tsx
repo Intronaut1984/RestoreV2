@@ -1,5 +1,6 @@
 import { Button, Card, CardActions, CardContent, CardMedia, Typography, Box } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { LoadingButton } from '@mui/lab';
 import { Product } from "../../app/models/product";
 import { Link } from "react-router-dom";
 import { useAddBasketItemMutation } from "../basket/basketApi";
@@ -74,16 +75,23 @@ export default function ProductCard({ product }: Props) {
             </CardContent>
 
             <CardActions sx={{ justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
-                <Button
-                    disabled={isLoading}
+                <LoadingButton
+                    loading={isLoading}
                     onClick={() => addBasketItem({ product, quantity: 1 })}
-                    sx={{ color: isLight ? 'text.primary' : undefined, width: { xs: '100%', sm: 'auto' } }}
+                    variant={isLight ? 'contained' : 'contained'}
+                    disableElevation={isLight}
+                    sx={isLight ? { backgroundColor: 'grey.900', color: 'common.white', '&:hover': { backgroundColor: 'grey.800' }, width: { xs: '100%', sm: 'auto' } } : { width: { xs: '100%', sm: 'auto' } }}
                 >
-                    Add to cart
-                </Button>
+                    Comprar
+                </LoadingButton>
 
-                <Button component={Link} to={`/catalog/${product.id}`} sx={{ color: isLight ? 'text.primary' : undefined, width: { xs: '100%', sm: 'auto' } }}>
-                    View
+                <Button
+                    component={Link}
+                    to={`/catalog/${product.id}`}
+                    variant={isLight ? 'outlined' : 'text'}
+                    sx={isLight ? { borderColor: 'divider', color: 'text.primary', width: { xs: '100%', sm: 'auto' } } : { color: 'inherit', width: { xs: '100%', sm: 'auto' } }}
+                >
+                    Ver Detalhes
                 </Button>
             </CardActions>
         </Card>

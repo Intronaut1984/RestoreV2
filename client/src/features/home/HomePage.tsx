@@ -13,7 +13,7 @@ type HeroBlock = { id: number; title?: string; visible: boolean; order?: number;
 
 export default function HomePage() {
   const { data: blocks } = useGetHeroBlocksQuery();
-  const [pullUp, setPullUp] = useState<number>(-10);
+  const [pullUp, setPullUp] = useState<number>(0);
 
   // each block handles its own slideshow interval via local state
 
@@ -23,7 +23,8 @@ export default function HomePage() {
       const promoEl = document.querySelector('.promo-bar') as HTMLElement | null;
       const appBarHeight = appBarEl ? appBarEl.offsetHeight : 64;
       const promoHeight = promoEl ? promoEl.offsetHeight : 0;
-      setPullUp(-(appBarHeight + promoHeight));
+
+      setPullUp(appBarHeight + promoHeight );
     };
 
     measure();
@@ -37,10 +38,12 @@ export default function HomePage() {
     .slice(0, 3);
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: { xs: 1, md: 1 } }}>
       {/* Render up to 3 hero blocks configured in the backend. If none exist, show nothing. */}
-      {visibleBlocks.map((b: HeroBlock) => (
-        <HeroBlockView key={b.id} block={b} pullUp={pullUp} />
+      {visibleBlocks.map((b: HeroBlock, i: number) => (
+        // Only apply the pullUp offset to the first hero block; subtract a small lift so
+        // the first block sits slightly higher on the page.
+        <HeroBlockView key={b.id} block={b} pullUp={i === 0 ? Math.max(0, pullUp - 70) : 0} />
       ))}
 
       {/* static features row removed — slides are shown per-hero block */}
@@ -76,7 +79,7 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
   }, [features.length]);
 
   return (
-    <Box sx={{ width: '100%', p: 0, m: 0 }}>
+    <Box sx={{ width: '100%', p: 0, m: 0, mb: { xs: 1, md: 0.1 } }}>
       {/* hero image area (fixed px height for predictability) */}
       <Box
         ref={heroRef}

@@ -1,4 +1,4 @@
-import { Container, Table, TableBody, TableCell, TableHead, TableRow, Typography, Box } from "@mui/material";
+import { Container, Table, TableBody, TableCell, TableHead, TableRow, Typography, Box, CircularProgress, Skeleton } from "@mui/material";
 import { useFetchOrdersQuery } from "./orderApi"
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -8,24 +8,55 @@ export default function OrdersPage() {
     const {data: orders, isLoading} = useFetchOrdersQuery();
     const navigate = useNavigate();
 
-    if (isLoading) return <Typography variant="h5">Loading orders...</Typography>
+    if (isLoading) return (
+        <Container maxWidth='md'>
+            <Box sx={{ width: '100%', py: { xs: 6, md: 8 } }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                    <CircularProgress size={48} />
+                </Box>
+
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell align="center">Encomenda</TableCell>
+                            <TableCell>Data</TableCell>
+                            <TableCell>Desconto</TableCell>
+                            <TableCell>Total</TableCell>
+                            <TableCell>Estado</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <TableRow key={`skeleton-${i}`}>
+                                <TableCell align="center"><Skeleton variant="rectangular" width={64} height={32} /></TableCell>
+                                <TableCell><Skeleton width="60%" /></TableCell>
+                                <TableCell><Skeleton width="40%" /></TableCell>
+                                <TableCell><Skeleton width="40%" /></TableCell>
+                                <TableCell><Skeleton width="40%" /></TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </Box>
+        </Container>
+    )
 
     if (!orders) return <Typography variant="h5">No orders available</Typography>
 
     return (
         <Container maxWidth='md'>
             <Typography variant="h6" align="center" gutterBottom sx={{ mb: 1 }}>
-                My orders
+                As minhas Encomendas
             </Typography>
             <Box>
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell align="center">Order</TableCell>
-                            <TableCell>Date</TableCell>
-                            <TableCell>Discount</TableCell>
+                            <TableCell align="center">Encomenda</TableCell>
+                            <TableCell>Data</TableCell>
+                            <TableCell>Desconto</TableCell>
                             <TableCell>Total</TableCell>
-                            <TableCell>Status</TableCell>
+                            <TableCell>Estado</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
