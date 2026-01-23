@@ -12,6 +12,8 @@ public class MappingProfiles : Profile
         CreateMap<DimensionsDto, Dimensions>();
         CreateMap<Contact, ContactDto>();
         CreateMap<ContactDto, Contact>();
+        CreateMap<ShippingRate, ShippingRateDto>();
+        CreateMap<ShippingRateDto, ShippingRate>();
 
         CreateMap<CreateProductDto, Product>()
             .ForMember(dest => dest.Genero, opt => opt.MapFrom(src => src.Genero))

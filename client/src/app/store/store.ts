@@ -14,6 +14,7 @@ import { adminApi } from "../../features/admin/adminApi";
 import { heroBlocksApi } from "../../features/admin/heroBlocksApi";
 import { logoApi } from "../../features/admin/logoApi";
 import { contactApi } from "../../features/admin/contactApi";
+import { shippingRateApi } from "../../features/admin/shippingRateApi";
 
 export function configureTheStore() {
     return legacy_createStore(counterReducer)
@@ -32,6 +33,7 @@ export const store = configureStore({
         [heroBlocksApi.reducerPath]: heroBlocksApi.reducer,
         [logoApi.reducerPath]: logoApi.reducer,
         [contactApi.reducerPath]: contactApi.reducer,
+        [shippingRateApi.reducerPath]: shippingRateApi.reducer,
         counter: counterSlice.reducer,
         ui: uiSlice.reducer,
         catalog: catalogSlice.reducer
@@ -48,7 +50,8 @@ export const store = configureStore({
             adminApi.middleware,
             heroBlocksApi.middleware,
             logoApi.middleware,
-            contactApi.middleware
+            contactApi.middleware,
+            shippingRateApi.middleware
         )
 });
 

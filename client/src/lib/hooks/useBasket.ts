@@ -1,14 +1,19 @@
 import { Item } from "../../app/models/basket";
 import { useClearBasketMutation, useFetchBasketQuery } from "../../features/basket/basketApi";
 import { computeFinalPrice } from "../util";
+import { useGetShippingRateQuery } from "../../features/admin/shippingRateApi";
 
 export const useBasket = () => {
     const {data: basket} = useFetchBasketQuery();
+    const {data: shippingRateData} = useGetShippingRateQuery();
     const [clearBasket] = useClearBasketMutation();
 
     // subtotal before product-level discounts
     const subtotal = basket?.items.reduce((sum: number, item: Item) => sum + item.quantity * item.price, 0) ?? 0;
-    const deliveryFee = subtotal > 10000 ? 0 : 500;
+    
+    // Get shipping rate from API (convert from euros to cents: rate * 100)
+    const shippingRate = shippingRateData?.rate ? Math.round(shippingRateData.rate * 100) : 500;
+    const deliveryFee = subtotal > 10000 ? 0 : shippingRate;
 
     // product-level discounts (sum of original - discounted price for each item)
     const productDiscount = basket?.items.reduce((sum: number, item: Item) => {
