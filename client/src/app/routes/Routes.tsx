@@ -7,6 +7,9 @@ import AboutPage from "../../features/about/AboutPage";
 import ContactPage from "../../features/contact/ContactPage";
 import ServerError from "../errors/ServerError";
 import NotFound from "../errors/NotFound";
+import PrivacyPolicy from "../errors/PrivacyPolicy";
+import Terms from "../errors/Terms";
+import ReturnPolicy from "../errors/ReturnPolicy";
 import BasketPage from "../../features/basket/BasketPage";
 import CheckoutPage from "../../features/checkout/CheckoutPage";
 import LoginForm from "../../features/account/LoginForm";
@@ -19,6 +22,7 @@ import InventoryPage from "../../features/admin/InventoryPage";
 import AdminPanel from "../../features/admin/AdminPanel";
 import AdminPromo from "../../features/admin/AdminPromo";
 import AdminLogo from "../../features/admin/AdminLogo";
+import AdminContact from "../../features/admin/AdminContact";
 import HeroBlocksAdmin from "../../features/admin/HeroBlocksAdmin";
 import ProfilePage from "../../features/account/ProfilePage";
 import ForgotPassword from "../../features/account/ForgotPassword";
@@ -40,12 +44,16 @@ export const router = createBrowserRouter([
                 {path: 'admin/heroblocks', element: <HeroBlocksAdmin />},
                 {path: 'admin/promo', element: <AdminPromo />},
                 {path: 'admin/logo', element: <AdminLogo />},
+                {path: 'admin/contact', element: <AdminContact />},
             ]},
             {path: '', element: <HomePage />},
             {path: 'catalog', element: <Catalog />},
             {path: 'catalog/:id', element: <ProductDetails />},
             {path: 'about', element: <AboutPage />},
             {path: 'contact', element: <ContactPage />},
+            {path: 'privacy-policy', element: <PrivacyPolicy />},
+            {path: 'terms', element: <Terms />},
+            {path: 'return-policy', element: <ReturnPolicy />},
             {path: 'basket', element: <BasketPage />},
             {path: 'server-error', element: <ServerError />},
             {path: 'login', element: <LoginForm />},

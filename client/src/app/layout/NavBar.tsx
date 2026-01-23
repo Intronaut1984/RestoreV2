@@ -15,14 +15,9 @@ import { useFetchFiltersQuery } from '../../features/catalog/catalogApi';
 import Search from '../../features/catalog/Search';
 import { useGetLogoQuery } from '../../features/admin/logoApi';
 
-const midLinks = [
-    { title: 'Loja', path: '/catalog' },
-    { title: 'sobre', path: '/about' },
-    { title: 'promoções', path: '/catalog?hasDiscount=true' },
-    { title: 'contactos', path: '/contact' },
-    { title: 'exemplo', path: '/contact' },
-    { title: 'exemplo', path: '/contact' },
-    { title: 'exemplo', path: '/contact' },
+const midLinks: { title: string; path: string }[] = [
+    // Removed navigation links (Loja, Sobre, Promoções, etc.)
+    // Users can access these through the catalog and footer
 ]
 
 const rightLinks = [
@@ -109,7 +104,7 @@ export default function NavBar() {
                 zIndex: (theme) => theme.zIndex.appBar + 10
             }}
         >
-            <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
                 <Box display='flex' alignItems='center'>
                     {isCatalogRoute && (
                         <IconButton color="inherit" onClick={openFilters} sx={{ display: { xs: 'inline-flex', md: 'none' } }}>
@@ -133,34 +128,15 @@ export default function NavBar() {
                     </IconButton>
                 </Box>
 
-                {isMobile ? (
-                    // On mobile we show links under the toolbar (below icons)
-                    <></>
-                ) : (
-                    <List sx={{ display: 'flex' }}>
-                        {midLinks.map(({ title, path }, index) => (
-                            <ListItem
-                                component={NavLink}
-                                to={path}
-                                key={`${path}-${title}-${index}`}
-                                sx={{
-                                    ...navStyles,
-                                    color: darkMode ? 'white' : 'black',
-                                    fontWeight: 'normal',
-                                    '&.active': {
-                                        color: darkMode ? 'white' : 'black',
-                                        fontWeight: 700,
-                                        fontSize: '1.05rem'
-                                    }
-                                }}
-                            >
-                                {title.toUpperCase()}
-                            </ListItem>
-                        ))}
-                    </List>
-                )}
+                {/* Desktop search field - Centered */}
+                <Box sx={{ display: { xs: 'none', md: 'flex' }, flex: 1, justifyContent: 'center', alignItems: 'center', gap: 1, maxWidth: 500 }}>
+                    <SearchIcon sx={{ color: 'inherit' }} />
+                    <Box sx={{ flex: 1 }}>
+                        <Search />
+                    </Box>
+                </Box>
 
-                <Box display='flex' alignItems='center'>
+                <Box display='flex' alignItems='center' gap={1}>
                     <IconButton size="large" sx={{ color: 'inherit' }} onClick={() => setFavoritesOpen(true)}>
                         <Badge badgeContent={favorites?.length ?? 0} color="secondary">
                             <FavoriteBorder />
@@ -172,11 +148,6 @@ export default function NavBar() {
                             <ShoppingCart />
                         </Badge>
                     </IconButton>
-
-                    {/* Desktop search field */}
-                    <Box sx={{ display: { xs: 'none', md: 'block' }, width: 280, ml: 2, mr: 1 }}>
-                        <Search />
-                    </Box>
 
                     {/* Mobile search icon opens top drawer */}
                     <IconButton color="inherit" onClick={openSearch} sx={{ display: { xs: 'inline-flex', md: 'none' } }}>
