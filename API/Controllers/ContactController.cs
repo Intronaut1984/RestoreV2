@@ -36,6 +36,8 @@ public class ContactController(StoreContext context, IMapper mapper) : Controlle
             await context.SaveChangesAsync();
             // Reload to get the generated Id
             contact = await context.Contacts.FirstOrDefaultAsync();
+            if (contact == null)
+                return BadRequest("Failed to create contact");
         }
 
         // Manually map properties to avoid mapping the Id (primary key)
