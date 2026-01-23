@@ -13,6 +13,7 @@ import { useUserInfoQuery } from "../../features/account/accountApi";
 import Filters from '../../features/catalog/Filters';
 import { useFetchFiltersQuery } from '../../features/catalog/catalogApi';
 import Search from '../../features/catalog/Search';
+import { useGetLogoQuery } from '../../features/admin/logoApi';
 
 const midLinks = [
     { title: 'Loja', path: '/catalog' },
@@ -43,6 +44,7 @@ export default function NavBar() {
     const dispatch = useAppDispatch();
     const { data: basket } = useFetchBasketQuery();
     const { data: favorites } = useFetchFavoritesQuery();
+    const { data: logoData } = useGetLogoQuery();
     const [removeFavorite] = useRemoveFavoriteMutation();
     const [favoritesOpen, setFavoritesOpen] = useState(false);
     const { data: filtersData } = useFetchFiltersQuery();
@@ -121,9 +123,9 @@ export default function NavBar() {
                     >
                         <Box
                             component='img'
-                            src='/images/logo.png'
+                            src={logoData?.url || '/images/logo.png'}
                             alt='Logo'
-                            sx={{ height: { xs: 28, md: 40 }, display: 'block' }}
+                            sx={{ height: { xs: 28, md: 40 }, maxWidth: '100%', objectFit: 'contain', display: 'block' }}
                         />
                     </Box>
                     <IconButton onClick={() => dispatch(setDarkMode())}>

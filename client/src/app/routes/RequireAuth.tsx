@@ -16,6 +16,7 @@ export default function RequireAuth() {
         '/admin-dashboard',
         '/admin/users',
         '/admin/promo',
+        '/admin/logo',
         '/admin/heroblocks'
     ]
 

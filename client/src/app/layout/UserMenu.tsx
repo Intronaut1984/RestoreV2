@@ -88,6 +88,14 @@ export default function UserMenu({ user }: Props) {
                 </MenuItem>}
 
                 {user.roles.includes('Admin') &&
+                <MenuItem component={Link} to='/admin/logo' onClick={handleClose}>
+                    <ListItemIcon>
+                        <Inventory />
+                    </ListItemIcon>
+                    <ListItemText>Gerir Logo</ListItemText>
+                </MenuItem>}
+
+                {user.roles.includes('Admin') &&
                 <MenuItem component={Link} to='/admin/heroblocks' onClick={handleClose}>
                     <ListItemIcon>
                         <Inventory />
