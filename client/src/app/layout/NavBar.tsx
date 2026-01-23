@@ -1,7 +1,9 @@
 import { AppBar, Badge, Box, IconButton, LinearProgress, List, ListItem, Toolbar, Typography, Menu, MenuItem, useTheme, useMediaQuery, Drawer } from "@mui/material";
-import { DarkMode, LightMode, ShoppingCart, AccountCircle, FilterList as FilterListIcon, Search as SearchIcon } from '@mui/icons-material';
+import { DarkMode, LightMode, ShoppingCart, AccountCircle, FilterList as FilterListIcon, Search as SearchIcon, FavoriteBorder } from '@mui/icons-material';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import { useFetchFavoritesQuery, useRemoveFavoriteMutation } from '../../features/catalog/favoritesApi';
 import { useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, NavLink } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../store/store";
 import { setDarkMode } from "./uiSlice";
@@ -40,6 +42,9 @@ export default function NavBar() {
     const { isLoading, darkMode } = useAppSelector(state => state.ui);
     const dispatch = useAppDispatch();
     const { data: basket } = useFetchBasketQuery();
+    const { data: favorites } = useFetchFavoritesQuery();
+    const [removeFavorite] = useRemoveFavoriteMutation();
+    const [favoritesOpen, setFavoritesOpen] = useState(false);
     const { data: filtersData } = useFetchFiltersQuery();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -51,7 +56,7 @@ export default function NavBar() {
     const handleProfileClose = () => setAnchorProfileEl(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const openFilters = () => setFiltersOpen(true);
-    const closeFilters = () => {
+    const closeFilters = useCallback(() => {
         setFiltersOpen(false);
         // Allow the drawer close animation/layout to settle, then scroll the
         // catalog into view. This addresses a production-only layout issue
@@ -66,11 +71,11 @@ export default function NavBar() {
                 } else {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
-            } catch (e) {
+            } catch {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }, 180);
-    };
+    }, [isMobile]);
     const [searchOpen, setSearchOpen] = useState(false);
     const openSearch = () => setSearchOpen(true);
     const closeSearch = () => setSearchOpen(false);
@@ -81,12 +86,16 @@ export default function NavBar() {
     // Close the filters drawer automatically on mobile when any catalog param changes
     // NOTE: do not include `filtersOpen` in the dependency list — that caused
     // the drawer to immediately close after being opened on mobile.
+    const filtersOpenRef = useRef(filtersOpen);
+    useEffect(() => { filtersOpenRef.current = filtersOpen; }, [filtersOpen]);
+
+    // Close the filters drawer automatically on mobile when any catalog param changes
     useEffect(() => {
-        if (isMobile && filtersOpen) {
+        if (isMobile && filtersOpenRef.current) {
             // Use closeFilters to ensure we also scroll the catalog into view
             closeFilters();
         }
-    }, [generos, anos, orderBy, searchTerm, isMobile]);
+    }, [generos, anos, orderBy, searchTerm, isMobile, closeFilters]);
 
     return (
         <AppBar
@@ -150,6 +159,12 @@ export default function NavBar() {
                 )}
 
                 <Box display='flex' alignItems='center'>
+                    <IconButton size="large" sx={{ color: 'inherit' }} onClick={() => setFavoritesOpen(true)}>
+                        <Badge badgeContent={favorites?.length ?? 0} color="secondary">
+                            <FavoriteBorder />
+                        </Badge>
+                    </IconButton>
+
                     <IconButton component={Link} to='/basket' size="large" sx={{ color: 'inherit' }}>
                         <Badge badgeContent={itemCount} color="secondary">
                             <ShoppingCart />
@@ -236,6 +251,31 @@ export default function NavBar() {
             <Drawer anchor="left" open={filtersOpen} onClose={closeFilters} sx={{ zIndex: (theme) => theme.zIndex.appBar + 20 }}>
                 <Box sx={{ width: 300, p: 2 }}>
                     {filtersData && <Filters filtersData={filtersData} onChangeComplete={closeFilters} />}
+                </Box>
+            </Drawer>
+            <Drawer anchor="right" open={favoritesOpen} onClose={() => setFavoritesOpen(false)} sx={{ zIndex: (theme) => theme.zIndex.appBar + 20 }}>
+                <Box sx={{ width: 360, p: 2 }}>
+                    <Typography variant="h6" sx={{ mb: 1 }}>Favoritos</Typography>
+                    <List>
+                        {favorites && favorites.length > 0 ? favorites.map(p => (
+                            <ListItem key={p.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <Box component={Link} to={`/catalog/${p.id}`} onClick={() => setFavoritesOpen(false)} sx={{ display: 'flex', gap: 1, alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+                                    <Box component="img" src={p.pictureUrl} alt={p.name} sx={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 1 }} />
+                                    <Box>
+                                        <Typography variant="subtitle2">{p.name}</Typography>
+                                        <Typography variant="body2" color="text.secondary">{p.price.toLocaleString(undefined, { style: 'currency', currency: 'BRL' })}</Typography>
+                                    </Box>
+                                </Box>
+                                <IconButton onClick={async () => { try { await removeFavorite(p.id).unwrap(); } catch (err) { console.error(err); } }} edge="end" aria-label="remove-favorite">
+                                    <FavoriteIcon color="error" />
+                                </IconButton>
+                            </ListItem>
+                        )) : (
+                            <ListItem>
+                                <Typography variant="body2">Sem favoritos ainda.</Typography>
+                            </ListItem>
+                        )}
+                    </List>
                 </Box>
             </Drawer>
         </AppBar>

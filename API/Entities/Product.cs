@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace API.Entities;
 
@@ -94,4 +95,7 @@ public class Product
     // relations
     public List<Campaign>? Campaigns { get; set; }
     public List<Category>? Categories { get; set; }
+
+    [NotMapped]
+    public bool IsFavorite { get; set; } = false;
 }
