@@ -2,6 +2,7 @@ import { configureStore, legacy_createStore } from "@reduxjs/toolkit";
 import counterReducer, { counterSlice } from "../../features/contact/counterReducer";
 import { useDispatch, useSelector } from "react-redux";
 import { catalogApi } from "../../features/catalog/catalogApi";
+import { favoritesApi } from "../../features/catalog/favoritesApi";
 import { uiSlice } from "../layout/uiSlice";
 import { errorApi } from "../../features/about/errorApi";
 import { basketApi } from "../../features/basket/basketApi";
@@ -19,6 +20,7 @@ export function configureTheStore() {
 export const store = configureStore({
     reducer: {
         [catalogApi.reducerPath]: catalogApi.reducer,
+        [favoritesApi.reducerPath]: favoritesApi.reducer,
         [errorApi.reducerPath]: errorApi.reducer,
         [basketApi.reducerPath]: basketApi.reducer,
         [accountApi.reducerPath]: accountApi.reducer,
@@ -33,6 +35,7 @@ export const store = configureStore({
     middleware: (getDefaultMiddleware) => 
         getDefaultMiddleware().concat(
             catalogApi.middleware, 
+            favoritesApi.middleware,
             errorApi.middleware,
             basketApi.middleware,
             accountApi.middleware,

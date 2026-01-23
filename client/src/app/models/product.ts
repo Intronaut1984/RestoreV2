@@ -41,4 +41,5 @@ export type Product = {
     publicId?: string | null
     categories?: { id: number; name: string }[] | null
     campaigns?: { id: number; name: string }[] | null
+    isFavorite?: boolean | null
 }

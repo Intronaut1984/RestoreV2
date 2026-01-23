@@ -75,6 +75,24 @@ namespace API.Controllers
 
             Response.AddPaginationHeader(products.Metadata);
 
+            // if user is authenticated, mark products that are in their favorites
+            if (User?.Identity?.IsAuthenticated ?? false)
+            {
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    var favIds = await context.Favorites
+                        .Where(f => f.UserId == userId)
+                        .Select(f => f.ProductId)
+                        .ToListAsync();
+
+                    foreach (var p in products)
+                    {
+                        p.IsFavorite = favIds.Contains(p.Id);
+                    }
+                }
+            }
+
             return products;
         }
 
@@ -88,6 +106,16 @@ namespace API.Controllers
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null) return NotFound();
+
+            if (User?.Identity?.IsAuthenticated ?? false)
+            {
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    var exists = await context.Favorites.AnyAsync(f => f.UserId == userId && f.ProductId == product.Id);
+                    product.IsFavorite = exists;
+                }
+            }
 
             return product;
         }
