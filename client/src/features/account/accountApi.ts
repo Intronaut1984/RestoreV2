@@ -4,6 +4,7 @@ import { Address, User } from "../../app/models/user";
 import { LoginSchema } from "../../lib/schemas/loginSchema";
 import { router } from "../../app/routes/Routes";
 import { toast } from "react-toastify";
+import { favoritesApi } from "../catalog/favoritesApi";
 
 export const accountApi = createApi({
     reducerPath: 'accountApi',
@@ -21,7 +22,9 @@ export const accountApi = createApi({
             async onQueryStarted(_, {dispatch, queryFulfilled}) {
                 try {
                     await queryFulfilled;
-                    dispatch(accountApi.util.invalidateTags(['UserInfo']))
+                    dispatch(accountApi.util.invalidateTags(['UserInfo']));
+                    // Invalidate favorites so it refetches with new auth context
+                    dispatch(favoritesApi.util.invalidateTags(['Favorites']));
                 } catch (error) {
                     console.log(error);
                 }
@@ -56,6 +59,9 @@ export const accountApi = createApi({
                 method: 'POST'
             }),
             async onQueryStarted(_, {dispatch, queryFulfilled}) {
+                // Optimistically clear favorites cache before logout completes
+                dispatch(favoritesApi.util.updateQueryData('fetchFavorites', undefined, () => []));
+                
                 await queryFulfilled;
                 dispatch(accountApi.util.invalidateTags(['UserInfo']));
                 router.navigate('/');

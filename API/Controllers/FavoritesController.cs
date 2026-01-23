@@ -10,7 +10,9 @@ using Microsoft.EntityFrameworkCore;
 namespace API.Controllers;
 
 [Authorize]
-public class FavoritesController(StoreContext context) : BaseApiController
+[ApiController]
+[Route("api/[controller]")]
+public class FavoritesController(StoreContext context) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Product>>> GetFavorites()
