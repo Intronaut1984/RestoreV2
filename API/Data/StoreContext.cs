@@ -17,6 +17,7 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<Order> Orders { get; set; }
     public required DbSet<Promo> Promos { get; set; }
     public required DbSet<Logo> Logos { get; set; }
+    public required DbSet<Contact> Contacts { get; set; }
     public required DbSet<HeroBlock> HeroBlocks { get; set; }
     public required DbSet<HeroBlockImage> HeroBlockImages { get; set; }
 

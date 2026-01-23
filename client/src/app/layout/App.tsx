@@ -1,6 +1,7 @@
 import { Box, Container, createTheme, CssBaseline, ThemeProvider } from "@mui/material";
 import NavBar from "./NavBar";
 import PromoBar from "./PromoBar";
+import Footer from "./Footer";
 import { Outlet, ScrollRestoration } from "react-router-dom";
 import { useAppSelector } from "../store/store";
 
@@ -25,22 +26,24 @@ function App() {
     <ThemeProvider theme={theme}>
       <ScrollRestoration />
       <CssBaseline />
-      <NavBar />
-      <PromoBar />
-      <Box
-        sx={{
-          minHeight: '100vh',
-          background: darkMode 
-            ? 'radial-gradient(circle, #1d0d03ff, #111B27)'
-            : 'radial-gradient(circle, #c9bfacff, #ffffffff)',
-          py: 0
-        }}
-      >
-        <Container maxWidth='xl' sx={{ mt: 0 }}>
-          <Outlet />
-        </Container>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <NavBar />
+        <PromoBar />
+        <Box
+          sx={{
+            flex: 1,
+            background: darkMode 
+              ? 'radial-gradient(circle, #1d0d03ff, #111B27)'
+              : 'radial-gradient(circle, #c9bfacff, #ffffffff)',
+            py: 0
+          }}
+        >
+          <Container maxWidth='xl' sx={{ mt: 0 }}>
+            <Outlet />
+          </Container>
+        </Box>
+        <Footer />
       </Box>
-
     </ThemeProvider>
 
   )

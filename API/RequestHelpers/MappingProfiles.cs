@@ -10,6 +10,8 @@ public class MappingProfiles : Profile
     public MappingProfiles()
     {
         CreateMap<DimensionsDto, Dimensions>();
+        CreateMap<Contact, ContactDto>();
+        CreateMap<ContactDto, Contact>();
 
         CreateMap<CreateProductDto, Product>()
             .ForMember(dest => dest.Genero, opt => opt.MapFrom(src => src.Genero))
