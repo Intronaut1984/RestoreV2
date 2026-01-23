@@ -128,24 +128,25 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
               navigate('/catalog');
             }}
             sx={{
-              bgcolor: 'transparent',
+              bgcolor: 'rgba(0, 0, 0, 0.4)',
               color: 'common.white',
-              border: '1px solid rgba(255,255,255,0.12)',
+              border: '2px solid rgba(255,255,255,0.5)',
               px: { xs: 16, md: 24 },
               py: { xs: 0.75, md: 1 },
               borderRadius: 6,
-              boxShadow: 'none',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
               textTransform: 'none',
               fontWeight: 700,
               fontSize: { xs: '0.9rem', md: '0.7rem' },
               display: 'inline-flex',
               alignItems: 'center',
               gap: 1,
-              backdropFilter: 'blur(4px)',
+              backdropFilter: 'blur(8px)',
               '&:hover': {
                 transform: 'translateY(-2px)',
-                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.24)',
-                bgcolor: 'rgba(255,255,255,0.06)'
+                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
+                bgcolor: 'rgba(0, 0, 0, 0.5)',
+                borderColor: 'rgba(255,255,255,0.7)'
               },
               transition: 'all 180ms ease',
             }}

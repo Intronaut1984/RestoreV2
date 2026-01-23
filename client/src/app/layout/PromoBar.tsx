@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { Box, Typography, useTheme, useMediaQuery } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 
 export default function PromoBar() {
+  const navigate = useNavigate();
   const [visible, setVisible] = useState(false);
   const [topOffset, setTopOffset] = useState<number | string>(0);
   const theme = useTheme();
@@ -114,28 +116,29 @@ export default function PromoBar() {
         if (!mounted) return;
         if (data?.message) setMessage(data.message);
         if (data?.color) setColor(data.color);
-      } catch (e) {
+      } catch {
         // ignore network errors
       }
     }
 
     fetchPromo();
 
-    function onPromoUpdated(e: any) {
-      if (e?.detail) {
-        if (e.detail.message) setMessage(e.detail.message);
-        if (e.detail.color) setColor(e.detail.color);
+    const onPromoUpdated = (_e: Event) => {
+      const customEvent = _e as CustomEvent;
+      if (customEvent?.detail) {
+        if (customEvent.detail.message) setMessage(customEvent.detail.message);
+        if (customEvent.detail.color) setColor(customEvent.detail.color);
       } else {
         // fallback: refetch
         fetchPromo();
       }
     }
 
-    window.addEventListener('promoUpdated', onPromoUpdated as EventListener);
+    window.addEventListener('promoUpdated', onPromoUpdated);
 
     return () => {
       mounted = false;
-      window.removeEventListener('promoUpdated', onPromoUpdated as EventListener);
+      window.removeEventListener('promoUpdated', onPromoUpdated);
     }
   }, []);
 
@@ -143,6 +146,7 @@ export default function PromoBar() {
     <Box
       component="section"
       ref={rootRef}
+      onClick={() => navigate('/catalog')}
       sx={{
         position: 'fixed',
         top: topOffset,
@@ -157,11 +161,15 @@ export default function PromoBar() {
         justifyContent: 'center',
         alignItems: 'center',
         textAlign: 'center',
+        cursor: 'pointer',
         transition: 'opacity 500ms ease, transform 500ms ease, top 200ms ease',
         opacity: visible ? 1 : 0,
         transform: visible ? 'translateY(0)' : 'translateY(-6px)',
         boxShadow: 1,
-        zIndex: theme.zIndex.appBar - 1
+        zIndex: theme.zIndex.appBar - 1,
+        '&:hover': {
+          opacity: visible ? 0.9 : 0
+        }
       }}
     >
       <Typography variant={isSm ? 'body2' : 'body1'} sx={{ fontWeight: 600, lineHeight: 1 }}>
