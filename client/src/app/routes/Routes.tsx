@@ -23,6 +23,7 @@ import AdminPanel from "../../features/admin/AdminPanel";
 import AdminPromo from "../../features/admin/AdminPromo";
 import AdminLogo from "../../features/admin/AdminLogo";
 import AdminContact from "../../features/admin/AdminContact";
+import AdminShippingRate from "../../features/admin/AdminShippingRate";
 import HeroBlocksAdmin from "../../features/admin/HeroBlocksAdmin";
 import ProfilePage from "../../features/account/ProfilePage";
 import ForgotPassword from "../../features/account/ForgotPassword";
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
                 {path: 'admin/promo', element: <AdminPromo />},
                 {path: 'admin/logo', element: <AdminLogo />},
                 {path: 'admin/contact', element: <AdminContact />},
+                {path: 'admin/shipping-rate', element: <AdminShippingRate />},
             ]},
             {path: '', element: <HomePage />},
             {path: 'catalog', element: <Catalog />},
