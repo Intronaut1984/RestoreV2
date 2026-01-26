@@ -48,7 +48,7 @@ app.UseStaticFiles();
 // Add COOP header to allow Google popup communication
 app.Use(async (context, next) =>
 {
-    context.Response.Headers.Add("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+    context.Response.Headers.Append("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
     await next();
 });
 
