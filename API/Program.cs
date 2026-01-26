@@ -9,9 +9,8 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Force console output to appear in Azure logs
-Console.Out.Flush();
-Console.Error.Flush();
+Console.WriteLine("[STARTUP] Creating application builder...");
+Console.WriteLine($"[STARTUP] Environment: {builder.Environment.EnvironmentName}");
 
 // Add services to the container.
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
@@ -80,11 +79,16 @@ app.MapFallbackToController("Index", "Fallback");
 try
 {
     await DbInitializer.InitDb(app);
+    Console.WriteLine("[STARTUP] Database initialization completed successfully");
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"Database initialization error: {ex}");
-    throw;
+    Console.WriteLine($"[STARTUP ERROR] Database initialization failed: {ex.Message}");
+    Console.WriteLine($"[STARTUP ERROR] Stack trace: {ex.StackTrace}");
+    if (ex.InnerException != null)
+        Console.WriteLine($"[STARTUP ERROR] Inner exception: {ex.InnerException.Message}");
+    // Continue anyway - don't crash the app
 }
 
+Console.WriteLine("[STARTUP] Application is starting...");
 app.Run();
