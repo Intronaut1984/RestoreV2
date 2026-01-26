@@ -24,30 +24,46 @@ public class DbInitializer
 
     private static async Task SeedData(StoreContext context, UserManager<User> userManager)
     {
-        await context.Database.MigrateAsync();
-
-        if (!userManager.Users.Any())
+        try
         {
-            var user = new User
-            {
-                UserName = "bob@test.com",
-                Email = "bob@test.com"
-            };
-
-            await userManager.CreateAsync(user, "Pa$$w0rd");
-            await userManager.AddToRoleAsync(user, "Member");
-
-            var admin = new User
-            {
-                UserName = "admin@test.com",
-                Email = "admin@test.com"
-            };
-
-            await userManager.CreateAsync(admin, "Pa$$w0rd");
-            await userManager.AddToRolesAsync(admin, new[] { "Member", "Admin" });
+            await context.Database.MigrateAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Migration error: {ex.Message}");
+            throw;
         }
 
-        if (context.Products.Any()) return;
+        try
+        {
+            if (!userManager.Users.Any())
+            {
+                var user = new User
+                {
+                    UserName = "bob@test.com",
+                    Email = "bob@test.com"
+                };
+
+                await userManager.CreateAsync(user, "Pa$$w0rd");
+                await userManager.AddToRoleAsync(user, "Member");
+
+                var admin = new User
+                {
+                    UserName = "admin@test.com",
+                    Email = "admin@test.com"
+                };
+
+                await userManager.CreateAsync(admin, "Pa$$w0rd");
+                await userManager.AddToRolesAsync(admin, new[] { "Member", "Admin" });
+            }
+
+            if (context.Products.Any()) return;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Seeding error: {ex.Message}");
+            throw;
+        }
 
         var products = new List<Product>
         {

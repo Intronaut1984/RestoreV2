@@ -9,6 +9,10 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Force console output to appear in Azure logs
+Console.Out.Flush();
+Console.Error.Flush();
+
 // Add services to the container.
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
@@ -42,17 +46,6 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionMiddleware>();
 
-try
-{
-    await DbInitializer.InitDb(app);
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"Database initialization failed: {ex.Message}");
-    Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    throw;
-}
-
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
@@ -83,5 +76,15 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapGroup("api").MapIdentityApi<User>(); // api/login
 app.MapFallbackToController("Index", "Fallback");
+
+try
+{
+    await DbInitializer.InitDb(app);
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Database initialization error: {ex}");
+    throw;
+}
 
 app.Run();
