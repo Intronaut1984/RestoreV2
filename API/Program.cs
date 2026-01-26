@@ -55,6 +55,11 @@ if (string.IsNullOrWhiteSpace(defaultConnection))
     app.Logger.LogCritical("[DB] Connection string 'DefaultConnection' is missing. Configure it in App Service (Connection strings) or via env var ConnectionStrings__DefaultConnection / SQLCONNSTR_DefaultConnection.");
 }
 
+// Controls whether the app should crash on DB init failure.
+// Default: false (keep the site up even if DB is temporarily unreachable).
+// Configure via App Service setting: DbInit__FailFast=true
+var dbInitFailFast = app.Configuration.GetValue("DbInit:FailFast", false);
+
 // Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionMiddleware>();
 
@@ -92,25 +97,35 @@ app.MapGroup("api").MapIdentityApi<User>(); // api/login
 app.MapFallbackToController("Index", "Fallback");
 
 // Apply migrations + seed on startup (with retry) so production has required tables and roles.
-for (var attempt = 1; attempt <= 5; attempt++)
+if (!string.IsNullOrWhiteSpace(defaultConnection))
 {
-    try
+    for (var attempt = 1; attempt <= 5; attempt++)
     {
-        await DbInitializer.InitDb(app);
-        break;
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "[DB] Init failed (attempt {Attempt}/5)", attempt);
-        if (attempt == 5)
+        try
         {
-            // In production it's better to fail startup loudly than run half-broken and return opaque 500s.
-            if (app.Environment.IsProduction())
-                throw;
+            await DbInitializer.InitDb(app);
             break;
         }
-        await Task.Delay(TimeSpan.FromSeconds(2 * attempt));
+        catch (Exception ex)
+        {
+            app.Logger.LogError(ex, "[DB] Init failed (attempt {Attempt}/5)", attempt);
+            if (attempt == 5)
+            {
+                if (dbInitFailFast)
+                {
+                    throw;
+                }
+
+                app.Logger.LogError("[DB] Init failed after max retries. Continuing startup (DbInit:FailFast=false).");
+                break;
+            }
+            await Task.Delay(TimeSpan.FromSeconds(2 * attempt));
+        }
     }
+}
+else
+{
+    app.Logger.LogError("[DB] Skipping DB init because connection string is missing.");
 }
 
 app.Run();
