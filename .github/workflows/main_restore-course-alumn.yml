@@ -23,10 +23,21 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install deps and build client app
+      - name: Validate Vite env
+        shell: pwsh
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: |
-          cd client
-          npm install
+          if (-not $env:VITE_GOOGLE_CLIENT_ID) {
+            throw "Missing GitHub Secret: VITE_GOOGLE_CLIENT_ID"
+          }
+
+      - name: Install deps and build client app
+        working-directory: client
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+        run: |
+          npm ci
           npm run build
 
       - name: Set up .NET Core
