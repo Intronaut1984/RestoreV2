@@ -5,22 +5,32 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ContactController(StoreContext context, IMapper mapper) : ControllerBase
+public class ContactController(StoreContext context, IMapper mapper, ILogger<ContactController> logger) : ControllerBase
 {
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<ContactDto>> GetContact()
     {
-        var contact = await context.Contacts.FirstOrDefaultAsync();
-        if (contact == null)
+        try
+        {
+            var contact = await context.Contacts.FirstOrDefaultAsync();
+            if (contact == null)
+                return Ok(new ContactDto());
+
+            return Ok(mapper.Map<ContactDto>(contact));
+        }
+        catch (Exception ex)
+        {
+            // In production, DB schema might not be migrated yet. Don't break the whole site.
+            logger.LogError(ex, "Failed to load Contact from database");
             return Ok(new ContactDto());
-        
-        return Ok(mapper.Map<ContactDto>(contact));
+        }
     }
 
     [HttpPut]
