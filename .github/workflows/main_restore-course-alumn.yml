@@ -26,16 +26,16 @@ jobs:
       - name: Validate Vite env
         shell: pwsh
         env:
-          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || secrets.VITE_GOOGLE_CLIENT_ID }}
         run: |
           if (-not $env:VITE_GOOGLE_CLIENT_ID) {
-            throw "Missing GitHub Secret: VITE_GOOGLE_CLIENT_ID"
+            throw "Missing GitHub Actions config: set VITE_GOOGLE_CLIENT_ID as a Repository Variable (recommended) or as a Secret."
           }
 
       - name: Install deps and build client app
         working-directory: client
         env:
-          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || secrets.VITE_GOOGLE_CLIENT_ID }}
         run: |
           npm ci
           npm run build
