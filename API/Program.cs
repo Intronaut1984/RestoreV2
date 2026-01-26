@@ -9,9 +9,6 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-Console.WriteLine("[STARTUP] Creating application builder...");
-Console.WriteLine($"[STARTUP] Environment: {builder.Environment.EnvironmentName}");
-
 // Add services to the container.
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
@@ -76,19 +73,15 @@ app.MapControllers();
 app.MapGroup("api").MapIdentityApi<User>(); // api/login
 app.MapFallbackToController("Index", "Fallback");
 
-try
-{
-    await DbInitializer.InitDb(app);
-    Console.WriteLine("[STARTUP] Database initialization completed successfully");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"[STARTUP ERROR] Database initialization failed: {ex.Message}");
-    Console.WriteLine($"[STARTUP ERROR] Stack trace: {ex.StackTrace}");
-    if (ex.InnerException != null)
-        Console.WriteLine($"[STARTUP ERROR] Inner exception: {ex.InnerException.Message}");
-    // Continue anyway - don't crash the app
-}
+// Skip database initialization on startup for now - causes 500 errors
+// We'll handle migrations manually or through a separate endpoint
+// try
+// {
+//     await DbInitializer.InitDb(app);
+// }
+// catch (Exception ex)
+// {
+//     Console.WriteLine($"[ERROR] DB Init failed: {ex.Message}");
+// }
 
-Console.WriteLine("[STARTUP] Application is starting...");
 app.Run();
