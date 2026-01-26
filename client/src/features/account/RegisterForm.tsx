@@ -1,15 +1,18 @@
 import { useForm } from "react-hook-form";
-import { useRegisterMutation } from "./accountApi"
+import { useRegisterMutation, useLazyUserInfoQuery } from "./accountApi"
 import { registerSchema, RegisterSchema } from "../../lib/schemas/registerSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LockOutlined, Visibility, VisibilityOff } from "@mui/icons-material";
-import { Container, Paper, Box, Typography, TextField, IconButton, InputAdornment, useTheme } from "@mui/material";
+import { Container, Paper, Box, Typography, TextField, IconButton, InputAdornment, useTheme, Alert, Divider } from "@mui/material";
 import { LoadingButton } from '@mui/lab';
 import { useState } from 'react';
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function RegisterForm() {
     const [registerUser, { isLoading }] = useRegisterMutation();
+    const [fetchUserInfo] = useLazyUserInfoQuery();
+    const navigate = useNavigate();
     const {register, handleSubmit, setError, formState: {errors, isValid}} = useForm<RegisterSchema>({
         mode: 'onTouched',
         resolver: zodResolver(registerSchema)
@@ -19,10 +22,14 @@ export default function RegisterForm() {
     const isLight = theme.palette.mode === 'light';
 
     const [showPassword, setShowPassword] = useState(false);
+    const [registerError, setRegisterError] = useState<string | null>(null);
 
     const onSubmit = async (data: RegisterSchema) => {
+        setRegisterError(null);
         try {
             await registerUser(data).unwrap();
+            await fetchUserInfo();
+            navigate('/catalog');
         } catch (error) {
             const apiError = error as {message: string};
             if (apiError.message && typeof apiError.message === 'string') {
@@ -38,6 +45,34 @@ export default function RegisterForm() {
             }
         }
 
+    }
+
+    const handleGoogleSuccess = async (credentialResponse: any) => {
+        setRegisterError(null);
+        try {
+            // Send the Google token to your backend for verification
+            const response = await fetch('/api/account/google-register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token: credentialResponse.credential }),
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                await fetchUserInfo();
+                navigate('/catalog');
+            } else {
+                setRegisterError('Erro ao registar com Google');
+            }
+        } catch (error) {
+            setRegisterError('Erro ao registar com Google');
+        }
+    }
+
+    const handleGoogleError = () => {
+        setRegisterError('Erro ao registar com Google');
     }
 
     return (
@@ -57,6 +92,13 @@ export default function RegisterForm() {
                 <Typography variant="h5">
                     Registar
                 </Typography>
+                
+                {registerError && (
+                    <Alert severity="error" sx={{ width: '100%', mt: 2 }}>
+                        {registerError}
+                    </Alert>
+                )}
+                
                 <Box
                     component='form'
                     onSubmit={handleSubmit(onSubmit)}
@@ -120,6 +162,17 @@ export default function RegisterForm() {
                     >
                         Registar
                     </LoadingButton>
+
+                    <Divider sx={{ my: 2 }}>ou</Divider>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={handleGoogleError}
+                            size="large"
+                        />
+                    </Box>
+
                     <Typography sx={{ textAlign: 'center' }}>
                         Já tem uma conta?
                         <Typography sx={{ ml: 2, color: isLight ? 'text.primary' : 'primary.main', textDecoration: 'none' }} component={Link} to='/login'>

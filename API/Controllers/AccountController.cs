@@ -2,6 +2,8 @@ using System;
 using API.DTOs;
 using API.Entities;
 using Microsoft.AspNetCore.Authorization;
+using System.Net.Http;
+using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using System.Net;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +12,8 @@ using API.RequestHelpers;
 using API.Services;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Hosting;
+using Google.Apis.Auth;
+using Google.Apis.Auth.OAuth2;
 
 namespace API.Controllers;
 
@@ -209,10 +213,87 @@ public class AccountController(SignInManager<User> signInManager, IOptions<Email
         return Ok();
     }
 
-    [HttpPost("forgot-password")]
-    public async Task<ActionResult> ForgotPassword(ForgotPasswordDto dto)
-    {
-        if (dto == null || string.IsNullOrWhiteSpace(dto.Email)) return BadRequest();
+     [HttpPost("google-login")]
+     public async Task<ActionResult> GoogleLogin([FromBody] GoogleLoginDto dto)
+     {
+         if (dto == null || string.IsNullOrWhiteSpace(dto.Token))
+             return BadRequest("Invalid Google token");
+
+         try
+         {
+             // Verify the Google ID token using Google Auth library
+             var payload = await GoogleJsonWebSignature.ValidateAsync(dto.Token);
+             
+             if (payload == null)
+                 return Unauthorized("Invalid Google token");
+
+             var email = payload.Email;
+             if (string.IsNullOrWhiteSpace(email))
+                 return Unauthorized("Google token did not contain an email");
+
+             // Find user
+             var user = await signInManager.UserManager.FindByEmailAsync(email);
+             if (user == null)
+                 return Unauthorized("User not found. Please register first.");
+
+             // Sign in the user (cookie-based)
+             await signInManager.SignInAsync(user, isPersistent: false);
+
+             return Ok();
+         }
+         catch (Exception ex)
+         {
+             return Unauthorized($"Token validation failed: {ex.Message}");
+         }
+     }
+
+     [HttpPost("google-register")]
+     public async Task<ActionResult> GoogleRegister([FromBody] GoogleLoginDto dto)
+     {
+         if (dto == null || string.IsNullOrWhiteSpace(dto.Token))
+             return BadRequest("Invalid Google token");
+
+         try
+         {
+             // Verify the Google ID token using Google Auth library
+             var payload = await GoogleJsonWebSignature.ValidateAsync(dto.Token);
+             
+             if (payload == null)
+                 return Unauthorized("Invalid Google token");
+
+             var email = payload.Email;
+             if (string.IsNullOrWhiteSpace(email))
+                 return Unauthorized("Google token did not contain an email");
+
+             // Find or create user
+             var user = await signInManager.UserManager.FindByEmailAsync(email);
+             if (user == null)
+             {
+                 user = new User { UserName = email, Email = email };
+                 var createResult = await signInManager.UserManager.CreateAsync(user);
+                 if (!createResult.Succeeded)
+                 {
+                     foreach (var error in createResult.Errors)
+                         ModelState.AddModelError(error.Code, error.Description);
+                     return ValidationProblem();
+                 }
+             }
+
+             // Sign in the user (cookie-based)
+             await signInManager.SignInAsync(user, isPersistent: false);
+
+             return Ok();
+         }
+         catch (Exception ex)
+         {
+             return Unauthorized($"Token validation failed: {ex.Message}");
+         }
+     }
+
+     [HttpPost("forgot-password")]
+     public async Task<ActionResult> ForgotPassword(ForgotPasswordDto dto)
+     {
+         if (dto == null || string.IsNullOrWhiteSpace(dto.Email)) return BadRequest();
 
         var user = await signInManager.UserManager.FindByEmailAsync(dto.Email);
 
