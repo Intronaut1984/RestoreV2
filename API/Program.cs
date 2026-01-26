@@ -6,6 +6,7 @@ using API.RequestHelpers;
 using API.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,10 +38,20 @@ builder.Services.AddIdentityApiEndpoints<User>(opt =>
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<StoreContext>();
 
+// Ensure correct scheme/remote IP behind reverse proxies (Azure App Service).
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionMiddleware>();
+
+app.UseForwardedHeaders();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();

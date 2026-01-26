@@ -8,12 +8,13 @@ const customBaseQuery = fetchBaseQuery({
     credentials: 'include'
 });
 
-type ErrorResponse = | string | { title: string } | { errors: string[] };
+type ValidationErrors = Record<string, string[]>;
+type ErrorResponse = string | { title?: string; errors?: ValidationErrors };
 
 const sleep = () => new Promise(resolve => setTimeout(resolve, 1000));
 
 export const baseQueryWithErrorHandling = async (args: string | FetchArgs, api: BaseQueryApi,
-    extraOptions: object) => {
+    extraOptions: Record<string, unknown>) => {
     api.dispatch(startLoading());
     if (import.meta.env.DEV) await sleep();
     const result = await customBaseQuery(args, api, extraOptions);
@@ -31,17 +32,17 @@ export const baseQueryWithErrorHandling = async (args: string | FetchArgs, api: 
             case 400:
                 if (typeof responseData === 'string') {
                     toast.error(responseData);
-                } else if (responseData && typeof responseData === 'object' && 'errors' in responseData) {
-                    throw Object.values((responseData as any).errors).flat().join(', ')
-                } else if (responseData && typeof responseData === 'object' && 'title' in responseData) {
-                    toast.error((responseData as any).title);
+                } else if (responseData && typeof responseData === 'object' && responseData.errors) {
+                    throw Object.values(responseData.errors).flat().join(', ');
+                } else if (responseData && typeof responseData === 'object' && responseData.title) {
+                    toast.error(responseData.title);
                 } else {
                     toast.error('Bad Request');
                 }
                 break;
             case 401:
-                if (responseData && typeof responseData === 'object' && 'title' in responseData) {
-                    toast.error((responseData as any).title);
+                if (responseData && typeof responseData === 'object' && responseData.title) {
+                    toast.error(responseData.title);
                 } else {
                     toast.error('Unauthorized. Please sign in.');
                 }

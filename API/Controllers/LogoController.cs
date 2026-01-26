@@ -3,22 +3,32 @@ using API.DTOs;
 using API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class LogoController(API.Data.StoreContext context, ImageService imageService) : ControllerBase
+public class LogoController(API.Data.StoreContext context, ImageService imageService, ILogger<LogoController> logger) : ControllerBase
 {
     [HttpGet]
     public ActionResult<LogoDto> GetLogo()
     {
-        var logo = context.Logos.FirstOrDefault();
-        if (logo == null)
+        try
         {
+            var logo = context.Logos.FirstOrDefault();
+            if (logo == null)
+            {
+                return Ok(new LogoDto { Url = "/images/logo.png" });
+            }
+
+            return Ok(new LogoDto { Url = logo.Url });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load Logo from database");
             return Ok(new LogoDto { Url = "/images/logo.png" });
         }
-        return Ok(new LogoDto { Url = logo.Url });
     }
 
     [Authorize(Roles = "Admin")]

@@ -5,22 +5,31 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ShippingRateController(StoreContext context, IMapper mapper) : ControllerBase
+public class ShippingRateController(StoreContext context, IMapper mapper, ILogger<ShippingRateController> logger) : ControllerBase
 {
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<ShippingRateDto>> GetShippingRate()
     {
-        var shippingRate = await context.ShippingRates.FirstOrDefaultAsync();
-        if (shippingRate == null)
+        try
+        {
+            var shippingRate = await context.ShippingRates.FirstOrDefaultAsync();
+            if (shippingRate == null)
+                return Ok(new ShippingRateDto { Rate = 0 });
+
+            return Ok(mapper.Map<ShippingRateDto>(shippingRate));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load ShippingRate from database");
             return Ok(new ShippingRateDto { Rate = 0 });
-        
-        return Ok(mapper.Map<ShippingRateDto>(shippingRate));
+        }
     }
 
     [HttpPut]
