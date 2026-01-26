@@ -1,5 +1,5 @@
 import { LockOutlined, Visibility, VisibilityOff } from "@mui/icons-material";
-import { Box, Container, Paper, TextField, Typography, IconButton, InputAdornment, useTheme } from "@mui/material";
+import { Box, Container, Paper, TextField, Typography, IconButton, InputAdornment, useTheme, Alert, Divider } from "@mui/material";
 import { LoadingButton } from '@mui/lab';
 import { useForm } from "react-hook-form";
 import { useState } from 'react';
@@ -7,6 +7,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { loginSchema, LoginSchema } from "../../lib/schemas/loginSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLazyUserInfoQuery, useLoginMutation } from "./accountApi";
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function LoginForm() {
     const [login, {isLoading}] = useLoginMutation();
@@ -20,11 +21,45 @@ export default function LoginForm() {
     });
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
+    const [loginError, setLoginError] = useState<string | null>(null);
 
     const onSubmit = async (data: LoginSchema) => {
-        await login(data);
-        await fetchUserInfo();
-        navigate(location.state?.from || '/catalog');
+        setLoginError(null);
+        try {
+            await login(data).unwrap();
+            await fetchUserInfo();
+            navigate(location.state?.from || '/catalog');
+        } catch (error: any) {
+            setLoginError(error?.data?.message || 'Erro ao fazer login. Verifique as credenciais.');
+        }
+    }
+
+    const handleGoogleSuccess = async (credentialResponse: any) => {
+        setLoginError(null);
+        try {
+            // Send the Google token to your backend for verification
+            const response = await fetch('/api/account/google-login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token: credentialResponse.credential }),
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                await fetchUserInfo();
+                navigate(location.state?.from || '/catalog');
+            } else {
+                setLoginError('Erro ao fazer login com Google');
+            }
+        } catch (error) {
+            setLoginError('Erro ao fazer login com Google');
+        }
+    }
+
+    const handleGoogleError = () => {
+        setLoginError('Erro ao fazer login com Google');
     } 
 
     return (
@@ -44,6 +79,13 @@ export default function LoginForm() {
                 <Typography variant="h5">
                     Inicio de Sessão
                 </Typography>
+                
+                {loginError && (
+                    <Alert severity="error" sx={{ width: '100%', mt: 2 }}>
+                        {loginError}
+                    </Alert>
+                )}
+
                 <Box
                     component='form'
                     onSubmit={handleSubmit(onSubmit)}
@@ -109,6 +151,17 @@ export default function LoginForm() {
                     >
                         Login
                     </LoadingButton>
+
+                    <Divider sx={{ my: 2 }}>ou</Divider>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={handleGoogleError}
+                            size="large"
+                        />
+                    </Box>
+
                     <Typography sx={{ textAlign: 'center' }}>
                         Ainda não tem uma conta?
                         <Typography
