@@ -73,15 +73,20 @@ app.MapControllers();
 app.MapGroup("api").MapIdentityApi<User>(); // api/login
 app.MapFallbackToController("Index", "Fallback");
 
-// Skip database initialization on startup for now - causes 500 errors
-// We'll handle migrations manually or through a separate endpoint
-// try
-// {
-//     await DbInitializer.InitDb(app);
-// }
-// catch (Exception ex)
-// {
-//     Console.WriteLine($"[ERROR] DB Init failed: {ex.Message}");
-// }
+// Apply migrations + seed on startup (with retry) so production has required tables and roles.
+for (var attempt = 1; attempt <= 5; attempt++)
+{
+    try
+    {
+        await DbInitializer.InitDb(app);
+        break;
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "[DB] Init failed (attempt {Attempt}/5)", attempt);
+        if (attempt == 5) break;
+        await Task.Delay(TimeSpan.FromSeconds(2 * attempt));
+    }
+}
 
 app.Run();
