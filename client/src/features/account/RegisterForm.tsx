@@ -8,6 +8,7 @@ import { LoadingButton } from '@mui/lab';
 import { useState } from 'react';
 import { Link, useNavigate } from "react-router-dom";
 import { GoogleLogin } from '@react-oauth/google';
+import { hasGoogleClientId } from "../../app/config/env";
 
 export default function RegisterForm() {
     const [registerUser, { isLoading }] = useRegisterMutation();
@@ -166,11 +167,17 @@ export default function RegisterForm() {
                     <Divider sx={{ my: 2 }}>ou</Divider>
 
                     <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-                        <GoogleLogin
-                            onSuccess={handleGoogleSuccess}
-                            onError={handleGoogleError}
-                            size="large"
-                        />
+                        {hasGoogleClientId ? (
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={handleGoogleError}
+                                size="large"
+                            />
+                        ) : (
+                            <Alert severity="warning" sx={{ width: '100%' }}>
+                                Registo com Google não está configurado (VITE_GOOGLE_CLIENT_ID em falta).
+                            </Alert>
+                        )}
                     </Box>
 
                     <Typography sx={{ textAlign: 'center' }}>

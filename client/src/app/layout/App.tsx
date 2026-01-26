@@ -5,6 +5,7 @@ import Footer from "./Footer";
 import { Outlet, ScrollRestoration } from "react-router-dom";
 import { useAppSelector } from "../store/store";
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { googleClientId, hasGoogleClientId } from "../config/env";
 
 
 function App() {
@@ -23,33 +24,38 @@ function App() {
     }
   });
 
-  return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-      <ThemeProvider theme={theme}>
-        <ScrollRestoration />
-        <CssBaseline />
-        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-          <NavBar />
-          <PromoBar />
-          <Box
-            sx={{
-              flex: 1,
-              background: darkMode 
-                ? 'radial-gradient(circle, #1d0d03ff, #111B27)'
-                : 'radial-gradient(circle, #c9bfacff, #ffffffff)',
-              py: 0
-            }}
-          >
-            <Container maxWidth='xl' sx={{ mt: 0 }}>
-              <Outlet />
-            </Container>
-          </Box>
-          <Footer />
+  const appShell = (
+    <ThemeProvider theme={theme}>
+      <ScrollRestoration />
+      <CssBaseline />
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <NavBar />
+        <PromoBar />
+        <Box
+          sx={{
+            flex: 1,
+            background: darkMode
+              ? 'radial-gradient(circle, #1d0d03ff, #111B27)'
+              : 'radial-gradient(circle, #c9bfacff, #ffffffff)',
+            py: 0
+          }}
+        >
+          <Container maxWidth='xl' sx={{ mt: 0 }}>
+            <Outlet />
+          </Container>
         </Box>
-      </ThemeProvider>
-    </GoogleOAuthProvider>
+        <Footer />
+      </Box>
+    </ThemeProvider>
+  );
 
-  )
+  return hasGoogleClientId ? (
+    <GoogleOAuthProvider clientId={googleClientId!}>
+      {appShell}
+    </GoogleOAuthProvider>
+  ) : (
+    appShell
+  );
 }
 
 export default App

@@ -8,6 +8,7 @@ import { loginSchema, LoginSchema } from "../../lib/schemas/loginSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLazyUserInfoQuery, useLoginMutation } from "./accountApi";
 import { GoogleLogin } from '@react-oauth/google';
+import { hasGoogleClientId } from "../../app/config/env";
 
 export default function LoginForm() {
     const [login, {isLoading}] = useLoginMutation();
@@ -155,11 +156,17 @@ export default function LoginForm() {
                     <Divider sx={{ my: 2 }}>ou</Divider>
 
                     <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-                        <GoogleLogin
-                            onSuccess={handleGoogleSuccess}
-                            onError={handleGoogleError}
-                            size="large"
-                        />
+                        {hasGoogleClientId ? (
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={handleGoogleError}
+                                size="large"
+                            />
+                        ) : (
+                            <Alert severity="warning" sx={{ width: '100%' }}>
+                                Login com Google não está configurado (VITE_GOOGLE_CLIENT_ID em falta).
+                            </Alert>
+                        )}
                     </Box>
 
                     <Typography sx={{ textAlign: 'center' }}>
