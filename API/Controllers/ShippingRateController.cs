@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Data.SqlClient;
 
 namespace API.Controllers;
 
@@ -59,13 +60,26 @@ public class ShippingRateController(StoreContext context, IMapper mapper, ILogge
             await context.SaveChangesAsync();
             return Ok();
         }
+        catch (SqlException ex)
+        {
+            logger.LogError(ex, "Failed to update ShippingRate (SqlException)");
+
+            var detail = ex.Message.Contains("Invalid object name", StringComparison.OrdinalIgnoreCase)
+                ? "Database schema is missing required tables (e.g. ShippingRates). Apply EF Core migrations to the production database."
+                : "Database error while updating shipping rate.";
+
+            return Problem(
+                title: "Database error while updating shipping rate",
+                detail: detail,
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
         catch (DbUpdateException ex)
         {
             logger.LogError(ex, "Failed to update ShippingRate (DbUpdateException)");
             return Problem(
                 title: "Database error while updating shipping rate",
                 detail: "The database may be unavailable or not migrated yet.",
-                statusCode: StatusCodes.Status500InternalServerError);
+                statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (Exception ex)
         {
