@@ -19,10 +19,12 @@ public class DbInitializer
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>()
             ?? throw new InvalidOperationException("Failed to retrieve user manager");
 
-        await SeedData(context, userManager);
+        var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
+        await SeedData(app, config, context, userManager);
     }
 
-    private static async Task SeedData(StoreContext context, UserManager<User> userManager)
+    private static async Task SeedData(WebApplication app, IConfiguration config, StoreContext context, UserManager<User> userManager)
     {
         try
         {
@@ -39,27 +41,83 @@ public class DbInitializer
 
         try
         {
-            if (!userManager.Users.Any())
-            {
-                Console.WriteLine("[DB] Creating default users...");
-                var user = new User
-                {
-                    UserName = "bob@test.com",
-                    Email = "bob@test.com"
-                };
+            // Ensure there's always at least one admin in Production.
+            // Configure via App Service settings:
+            // - AdminSettings__Email (recommended) or ADMIN_EMAIL
+            // - AdminSettings__Password (optional) or ADMIN_PASSWORD
+            var adminEmail =
+                config["AdminSettings:Email"]
+                ?? config["ADMIN_EMAIL"];
 
+            var adminPassword =
+                config["AdminSettings:Password"]
+                ?? config["ADMIN_PASSWORD"];
+
+            if (!string.IsNullOrWhiteSpace(adminEmail))
+            {
+                var existingAdmin = await userManager.FindByEmailAsync(adminEmail);
+                if (existingAdmin == null)
+                {
+                    Console.WriteLine($"[DB] Creating configured admin user: {adminEmail}");
+                    existingAdmin = new User { UserName = adminEmail, Email = adminEmail };
+
+                    IdentityResult createResult;
+                    if (!string.IsNullOrWhiteSpace(adminPassword))
+                    {
+                        createResult = await userManager.CreateAsync(existingAdmin, adminPassword);
+                    }
+                    else
+                    {
+                        // No password required if you only plan to sign-in via Google.
+                        createResult = await userManager.CreateAsync(existingAdmin);
+                    }
+
+                    if (!createResult.Succeeded)
+                    {
+                        var msg = string.Join("; ", createResult.Errors.Select(e => e.Description));
+                        throw new InvalidOperationException($"Failed to create configured admin user: {msg}");
+                    }
+                }
+
+                // Ensure roles
+                var currentRoles = await userManager.GetRolesAsync(existingAdmin);
+                var desiredRoles = new List<string> { "Member", "Admin" };
+                var missing = desiredRoles.Where(r => !currentRoles.Contains(r)).ToArray();
+                if (missing.Length > 0)
+                {
+                    var roleResult = await userManager.AddToRolesAsync(existingAdmin, missing);
+                    if (!roleResult.Succeeded)
+                    {
+                        var msg = string.Join("; ", roleResult.Errors.Select(e => e.Description));
+                        throw new InvalidOperationException($"Failed to add roles to admin user: {msg}");
+                    }
+                }
+            }
+            else if (app.Environment.IsDevelopment() && !userManager.Users.Any())
+            {
+                // Dev convenience accounts
+                Console.WriteLine("[DB] Creating default dev users...");
+
+                var user = new User { UserName = "bob@test.com", Email = "bob@test.com" };
                 await userManager.CreateAsync(user, "Pa$$w0rd");
                 await userManager.AddToRoleAsync(user, "Member");
 
-                var admin = new User
-                {
-                    UserName = "admin@test.com",
-                    Email = "admin@test.com"
-                };
-
+                var admin = new User { UserName = "admin@test.com", Email = "admin@test.com" };
                 await userManager.CreateAsync(admin, "Pa$$w0rd");
                 await userManager.AddToRolesAsync(admin, new[] { "Member", "Admin" });
-                Console.WriteLine("[DB] Default users created");
+
+                Console.WriteLine("[DB] Default dev users created");
+            }
+
+            // Ensure every existing user has at least Member role (important for Google-register users).
+            // This is a safe best-effort operation.
+            foreach (var u in userManager.Users.ToList())
+            {
+                var roles = await userManager.GetRolesAsync(u);
+                if (!roles.Contains("Member"))
+                {
+                    await userManager.AddToRoleAsync(u, "Member");
+                }
             }
 
             if (context.Products.Any())

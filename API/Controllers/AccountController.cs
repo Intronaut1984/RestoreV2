@@ -17,10 +17,15 @@ using Google.Apis.Auth.OAuth2;
 
 namespace API.Controllers;
 
-public class AccountController(SignInManager<User> signInManager, IOptions<EmailSettings> emailSettings, IWebHostEnvironment env) : BaseApiController
+public class AccountController(
+    SignInManager<User> signInManager,
+    IOptions<EmailSettings> emailSettings,
+    IWebHostEnvironment env,
+    IConfiguration config) : BaseApiController
 {
     private readonly EmailSettings _emailSettings = emailSettings.Value;
     private readonly bool _isDevelopment = env.IsDevelopment();
+    private readonly IConfiguration _config = config;
 
     [HttpPost("register")]
     public async Task<ActionResult> RegisterUser(RegisterDto registerDto)
@@ -276,6 +281,23 @@ public class AccountController(SignInManager<User> signInManager, IOptions<Email
                      foreach (var error in createResult.Errors)
                          ModelState.AddModelError(error.Code, error.Description);
                      return ValidationProblem();
+                 }
+             }
+
+             // Ensure roles exist for Google users
+             var roles = await signInManager.UserManager.GetRolesAsync(user);
+             if (!roles.Contains("Member"))
+             {
+                 await signInManager.UserManager.AddToRoleAsync(user, "Member");
+             }
+
+             var adminEmail = _config["AdminSettings:Email"] ?? _config["ADMIN_EMAIL"];
+             if (!string.IsNullOrWhiteSpace(adminEmail)
+                 && string.Equals(adminEmail, user.Email, StringComparison.OrdinalIgnoreCase))
+             {
+                 if (!roles.Contains("Admin"))
+                 {
+                     await signInManager.UserManager.AddToRoleAsync(user, "Admin");
                  }
              }
 
