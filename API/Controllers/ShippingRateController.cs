@@ -3,6 +3,7 @@ using API.DTOs;
 using API.Entities;
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -36,24 +37,42 @@ public class ShippingRateController(StoreContext context, IMapper mapper, ILogge
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult> UpdateShippingRate([FromBody] ShippingRateDto dto)
     {
-        var shippingRate = await context.ShippingRates.FirstOrDefaultAsync();
-        
-        if (shippingRate == null)
+        try
         {
-            shippingRate = new ShippingRate();
-            context.ShippingRates.Add(shippingRate);
-            await context.SaveChangesAsync();
-            // Reload to get the generated Id
-            shippingRate = await context.ShippingRates.FirstOrDefaultAsync();
-            if (shippingRate == null)
-                return BadRequest("Failed to create shipping rate");
-        }
+            var shippingRate = await context.ShippingRates.FirstOrDefaultAsync();
 
-        // Manually map properties to avoid mapping the Id (primary key)
-        shippingRate.Rate = dto.Rate;
-        shippingRate.UpdatedAt = DateTime.UtcNow;
-        
-        await context.SaveChangesAsync();
-        return Ok();
+            if (shippingRate == null)
+            {
+                shippingRate = new ShippingRate
+                {
+                    Rate = dto.Rate,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                context.ShippingRates.Add(shippingRate);
+            }
+            else
+            {
+                shippingRate.Rate = dto.Rate;
+                shippingRate.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await context.SaveChangesAsync();
+            return Ok();
+        }
+        catch (DbUpdateException ex)
+        {
+            logger.LogError(ex, "Failed to update ShippingRate (DbUpdateException)");
+            return Problem(
+                title: "Database error while updating shipping rate",
+                detail: "The database may be unavailable or not migrated yet.",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to update ShippingRate");
+            return Problem(
+                title: "Error while updating shipping rate",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
     }
 }

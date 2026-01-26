@@ -19,12 +19,15 @@ public class DbInitializer
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>()
             ?? throw new InvalidOperationException("Failed to retrieve user manager");
 
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>()
+            ?? throw new InvalidOperationException("Failed to retrieve role manager");
+
         var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
-        await SeedData(app, config, context, userManager);
+        await SeedData(app, config, context, userManager, roleManager);
     }
 
-    private static async Task SeedData(WebApplication app, IConfiguration config, StoreContext context, UserManager<User> userManager)
+    private static async Task SeedData(WebApplication app, IConfiguration config, StoreContext context, UserManager<User> userManager, RoleManager<IdentityRole> roleManager)
     {
         try
         {
@@ -41,6 +44,10 @@ public class DbInitializer
 
         try
         {
+            // Ensure roles exist before assigning them.
+            await EnsureRole(roleManager, "Member");
+            await EnsureRole(roleManager, "Admin");
+
             // Ensure there's always at least one admin in Production.
             // Configure via App Service settings:
             // - AdminSettings__Email (recommended) or ADMIN_EMAIL
@@ -180,6 +187,17 @@ public class DbInitializer
         {
             Console.WriteLine($"[DB ERROR] Seeding error: {ex.Message}");
             throw;
+        }
+    }
+
+    private static async Task EnsureRole(RoleManager<IdentityRole> roleManager, string roleName)
+    {
+        if (await roleManager.RoleExistsAsync(roleName)) return;
+        var result = await roleManager.CreateAsync(new IdentityRole(roleName));
+        if (!result.Succeeded)
+        {
+            var msg = string.Join("; ", result.Errors.Select(e => e.Description));
+            throw new InvalidOperationException($"Failed to create role '{roleName}': {msg}");
         }
     }
 }

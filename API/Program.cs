@@ -48,6 +48,13 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var app = builder.Build();
 
+// Log a clear signal if the DB connection string is missing.
+var defaultConnection = app.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(defaultConnection))
+{
+    app.Logger.LogCritical("[DB] Connection string 'DefaultConnection' is missing. Configure it in App Service (Connection strings) or via env var ConnectionStrings__DefaultConnection / SQLCONNSTR_DefaultConnection.");
+}
+
 // Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionMiddleware>();
 
@@ -95,7 +102,13 @@ for (var attempt = 1; attempt <= 5; attempt++)
     catch (Exception ex)
     {
         app.Logger.LogError(ex, "[DB] Init failed (attempt {Attempt}/5)", attempt);
-        if (attempt == 5) break;
+        if (attempt == 5)
+        {
+            // In production it's better to fail startup loudly than run half-broken and return opaque 500s.
+            if (app.Environment.IsProduction())
+                throw;
+            break;
+        }
         await Task.Delay(TimeSpan.FromSeconds(2 * attempt));
     }
 }

@@ -26,16 +26,16 @@ jobs:
       - name: Validate Vite env
         shell: pwsh
         env:
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
         run: |
           if (-not $env:VITE_GOOGLE_CLIENT_ID) {
-            throw "Missing GitHub Actions config: set VITE_GOOGLE_CLIENT_ID as a Repository Variable (recommended) or as a Secret."
+            throw "Missing GitHub Actions config: set Repository Variable VITE_GOOGLE_CLIENT_ID"
           }
 
       - name: Install deps and build client app
         working-directory: client
         env:
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
         run: |
           npm ci
           npm run build
@@ -47,6 +47,24 @@ jobs:
 
       - name: Build with dotnet
         run: dotnet build --configuration Release
+
+      - name: Apply database migrations (optional)
+        shell: pwsh
+        env:
+          AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+        run: |
+          if (-not $env:AZURE_SQL_CONNECTION_STRING) {
+            Write-Host "AZURE_SQL_CONNECTION_STRING not set. Skipping migrations."
+            exit 0
+          }
+          # Ensure dotnet global tools are on PATH
+          $toolsPath = Join-Path $env:USERPROFILE ".dotnet\tools"
+          $toolsPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+          # Pin to EF tooling matching the app's target framework (.NET 8)
+          dotnet tool install --global dotnet-ef --version 8.*
+          if ($LASTEXITCODE -ne 0) { dotnet tool update --global dotnet-ef --version 8.* }
+          dotnet ef database update --project API/API.csproj --startup-project API/API.csproj --connection "$env:AZURE_SQL_CONNECTION_STRING"
 
       - name: dotnet publish
         run: dotnet publish -c Release -o ./publish
