@@ -17,6 +17,7 @@ export type Product = {
     edition?: string | null
     promotionalPrice?: number | null
     discountPercentage?: number | null
+    salesCount?: number | null
     synopsis?: string | null
     index?: string | null
     pageCount?: number | null

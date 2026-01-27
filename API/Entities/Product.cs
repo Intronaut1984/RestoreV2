@@ -50,6 +50,8 @@ public class Product
 
     public int? DiscountPercentage { get; set; }
 
+    public int SalesCount { get; set; } = 0;
+
     public int QuantityInStock { get; set; }
 
     public string? Synopsis { get; set; }

@@ -149,6 +149,9 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
 
                         logger.LogInformation("Payment received for order {OrderId} during creation: intent amount {Amount}", order.Id, intentAmount);
                         order.OrderStatus = OrderStatus.PaymentReceived;
+
+                        // Since payment is already confirmed, record sales counts now.
+                        await IncrementProductSalesCountsAsync(order);
                     }
                     else if (intent.Status == "requires_payment_method" || intent.Status == "requires_confirmation" || intent.Status == "requires_action")
                     {
@@ -168,6 +171,26 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
         if (!result) return BadRequest("Problem creating order");
 
         return CreatedAtAction(nameof(GetOrderDetails), new { id = order.Id }, order.ToDto());
+    }
+
+    private async Task IncrementProductSalesCountsAsync(Order order)
+    {
+        // Best-effort: don't block order creation if this fails.
+        try
+        {
+            foreach (var item in order.OrderItems)
+            {
+                var productId = item.ItemOrdered.ProductId;
+                var product = await context.Products.FindAsync(productId);
+                if (product == null) continue;
+
+                product.SalesCount += item.Quantity;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to increment SalesCount for order {OrderId}", order.Id);
+        }
     }
 
     private async Task<long> CalculateDeliveryFeeAsync(long subtotal)

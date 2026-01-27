@@ -114,7 +114,11 @@ public class PaymentsController(PaymentsService paymentsService,
         }
 
         logger.LogInformation("Payment received for order {OrderId}: intent amount {Amount}", order.Id, intentAmount);
-        order.OrderStatus = OrderStatus.PaymentReceived;
+        if (order.OrderStatus != OrderStatus.PaymentReceived)
+        {
+            await IncrementProductSalesCountsAsync(order);
+            order.OrderStatus = OrderStatus.PaymentReceived;
+        }
 
         var basket = await context.Baskets.FirstOrDefaultAsync(x => 
             x.PaymentIntentId == intent.Id);
@@ -122,6 +126,18 @@ public class PaymentsController(PaymentsService paymentsService,
         if (basket != null) context.Baskets.Remove(basket);
 
         await context.SaveChangesAsync();
+    }
+
+    private async Task IncrementProductSalesCountsAsync(Order order)
+    {
+        foreach (var item in order.OrderItems)
+        {
+            var productId = item.ItemOrdered.ProductId;
+            var product = await context.Products.FindAsync(productId)
+                ?? throw new Exception("Problem updating product sales count");
+
+            product.SalesCount += item.Quantity;
+        }
     }
 
     private Event ConstructStripeEvent(string json)
