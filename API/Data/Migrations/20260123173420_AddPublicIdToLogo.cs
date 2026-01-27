@@ -10,19 +10,26 @@ namespace API.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "PublicId",
-                table: "Logos",
-                type: "nvarchar(max)",
-                nullable: true);
+            // This migration became redundant because the previous migration that created
+            // the Logos table already included the PublicId column.
+            // Make it idempotent so it can run safely against existing databases.
+            migrationBuilder.Sql(@"
+IF COL_LENGTH(N'[dbo].[Logos]', N'PublicId') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Logos] ADD [PublicId] nvarchar(max) NULL;
+END
+");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "PublicId",
-                table: "Logos");
+            migrationBuilder.Sql(@"
+IF COL_LENGTH(N'[dbo].[Logos]', N'PublicId') IS NOT NULL
+BEGIN
+    ALTER TABLE [dbo].[Logos] DROP COLUMN [PublicId];
+END
+");
         }
     }
 }
