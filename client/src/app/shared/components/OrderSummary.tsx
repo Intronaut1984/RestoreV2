@@ -85,7 +85,7 @@ export default function OrderSummary() {
                         disableElevation={checkoutUsesDarkFill}
                         sx={checkoutSx}
                     >
-                        Adicionar ao Cesto
+                        Finalizar Compra
                     </Button>}
                     <Button
                         component={Link}

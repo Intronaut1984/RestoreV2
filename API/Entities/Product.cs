@@ -72,6 +72,15 @@ public class Product
     public string? Tamanho { get; set; }
     public string? Marca { get; set; }
 
+    // technology specific attributes
+    public string? Tipo { get; set; }
+    public string? Modelo { get; set; }
+    public string? Capacidade { get; set; }
+
+    // toy specific attributes
+    public int? IdadeMinima { get; set; }
+    public int? IdadeMaxima { get; set; }
+
     public string? PictureUrl { get; set; }
 
     public List<string>? SecondaryImages { get; set; }

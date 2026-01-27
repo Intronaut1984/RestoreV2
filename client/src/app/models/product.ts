@@ -31,6 +31,13 @@ export type Product = {
     material?: string | null
     tamanho?: string | null
     marca?: string | null
+    // technology specific
+    tipo?: string | null
+    modelo?: string | null
+    capacidade?: string | null
+    // toy specific
+    idadeMinima?: number | null
+    idadeMaxima?: number | null
     // metadata
     averageRating?: number | null
     ratingsCount?: number | null

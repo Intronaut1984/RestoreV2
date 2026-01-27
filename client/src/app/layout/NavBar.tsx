@@ -14,6 +14,7 @@ import Filters from '../../features/catalog/Filters';
 import { useFetchFiltersQuery } from '../../features/catalog/catalogApi';
 import Search from '../../features/catalog/Search';
 import { useGetLogoQuery } from '../../features/admin/logoApi';
+import { computeFinalPrice, currencyFormat } from "../../lib/util";
 
 const midLinks: { title: string; path: string }[] = [
     // Removed navigation links (Loja, Sobre, Promoções, etc.)
@@ -236,7 +237,18 @@ export default function NavBar() {
                                     <Box component="img" src={p.pictureUrl} alt={p.name} sx={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 1 }} />
                                     <Box>
                                         <Typography variant="subtitle2">{p.name}</Typography>
-                                        <Typography variant="body2" color="text.secondary">{p.price.toLocaleString(undefined, { style: 'currency', currency: 'BRL' })}</Typography>
+                                        {computeFinalPrice(p.price, p.discountPercentage, p.promotionalPrice) !== p.price ? (
+                                            <>
+                                                <Typography variant="body2" color="text.secondary" sx={{ textDecoration: 'line-through' }}>
+                                                    {currencyFormat(p.price)}
+                                                </Typography>
+                                                <Typography variant="body2" color="error" sx={{ fontWeight: 700 }}>
+                                                    {currencyFormat(computeFinalPrice(p.price, p.discountPercentage, p.promotionalPrice))}
+                                                </Typography>
+                                            </>
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">{currencyFormat(p.price)}</Typography>
+                                        )}
                                     </Box>
                                 </Box>
                                 <IconButton onClick={async () => { try { await removeFavorite(p.id).unwrap(); } catch (err) { console.error(err); } }} edge="end" aria-label="remove-favorite">

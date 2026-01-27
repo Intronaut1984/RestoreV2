@@ -59,6 +59,64 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
         });
     }
 
+    const isTechnology = (cats: Array<Category | string> | null | undefined) => {
+        return (cats ?? []).some(c => {
+            const n = (typeof c === 'string' ? c : c.name ?? '').toLowerCase();
+            return ['tecnologia', 'tecnológico', 'tecnologicos', 'tech', 'eletronica', 'eletrónica', 'eletronics', 'eletrónicos', 'electronica', 'eletrónicos'].some(k => n.includes(k));
+        });
+    }
+
+    const isToy = (cats: Array<Category | string> | null | undefined) => {
+        return (cats ?? []).some(c => {
+            const n = (typeof c === 'string' ? c : c.name ?? '').toLowerCase();
+            return ['brinquedo', 'brinquedos', 'toy', 'toys'].some(k => n.includes(k));
+        });
+    }
+
+    // When categories change, clear fields that are no longer applicable.
+    // Without this, hidden inputs can keep their previous values and get submitted.
+    useEffect(() => {
+        const book = isBook(selectedCategories);
+        const clothingOrToy = isClothingOrToy(selectedCategories);
+        const tech = isTechnology(selectedCategories);
+        const toy = isToy(selectedCategories);
+
+        if (!book) {
+            setValue('genero', undefined);
+            setValue('author', undefined);
+            setValue('secondaryAuthors', undefined);
+            setValue('anoPublicacao', undefined);
+            setValue('isbn', undefined);
+            setValue('publisher', undefined);
+            setValue('edition', undefined);
+            setValue('synopsis', undefined);
+            setValue('index', undefined);
+            setValue('pageCount', undefined);
+            setValue('language', undefined);
+            setValue('format', undefined);
+            setValue('dimensoes', undefined);
+            setValue('weight', undefined);
+        }
+
+        if (!clothingOrToy) {
+            setValue('cor', undefined);
+            setValue('material', undefined);
+            setValue('tamanho', undefined);
+            setValue('marca', undefined);
+        }
+
+        if (!tech) {
+            setValue('tipo', undefined);
+            setValue('modelo', undefined);
+            setValue('capacidade', undefined);
+        }
+
+        if (!toy) {
+            setValue('idadeMinima', undefined);
+            setValue('idadeMaxima', undefined);
+        }
+    }, [selectedCategories, setValue]);
+
     // 1) Atualizar valores quando "product" muda (evitar reset do file)
     useEffect(() => {
         if (product) {
@@ -86,6 +144,15 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                 quantityInStock: product.quantityInStock,
                 pictureUrl: product.pictureUrl ?? undefined,
                 descontoPercentagem: product.discountPercentage ?? undefined,
+                cor: product.cor ?? undefined,
+                material: product.material ?? undefined,
+                tamanho: product.tamanho ?? undefined,
+                marca: product.marca ?? undefined,
+                tipo: product.tipo ?? undefined,
+                modelo: product.modelo ?? undefined,
+                capacidade: product.capacidade ?? undefined,
+                idadeMinima: product.idadeMinima ?? undefined,
+                idadeMaxima: product.idadeMaxima ?? undefined,
             };
             reset(mapped as Partial<CreateProductSchema>);
             setRemovedSecondaryImages([]);
@@ -326,6 +393,51 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             </Grid>
                             <Grid item xs={12} md={6}>
                                 <AppTextInput control={control} name="marca" label="Marca / Brand" />
+                            </Grid>
+                        </>
+                    )}
+
+                    {/* Tecnologia fields */}
+                    {isTechnology(selectedCategories) && (
+                        <>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="tipo" label="Tipo (ex.: Telemóvel, Portátil, Consola)" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="marca" label="Marca / Brand" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="modelo" label="Modelo" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="cor" label="Cor / Color" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="capacidade" label="Capacidade (ex.: 128GB, 1TB)" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="material" label="Material (opcional)" />
+                            </Grid>
+                        </>
+                    )}
+
+                    {/* Brinquedos fields */}
+                    {isToy(selectedCategories) && (
+                        <>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="marca" label="Marca / Brand" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="cor" label="Cor / Color" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="material" label="Material" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="idadeMinima" label="Idade mínima" type="number" />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <AppTextInput control={control} name="idadeMaxima" label="Idade máxima" type="number" />
                             </Grid>
                         </>
                     )}

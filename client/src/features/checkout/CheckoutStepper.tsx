@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { LoadingButton } from "@mui/lab";
 import { useCreateOrderMutation } from "../orders/orderApi";
 
-const steps = ['Address', 'Payment', 'Review'];
+const steps = ['Morada', 'Pagamento', 'Revisão'];
 
 export default function CheckoutStepper() {
     const theme = useTheme();
@@ -143,7 +143,7 @@ export default function CheckoutStepper() {
         setPaymentComplete(event.complete)
     }
 
-    if (isLoading) return <Typography variant="h6">Loading checkout...</Typography>
+    if (isLoading) return <Typography variant="h6">A Carregar...</Typography>
 
     return (
         <Paper sx={{p: { xs: 2, sm: 3 }, borderRadius: 3, boxSizing: 'border-box' }}>
@@ -172,7 +172,7 @@ export default function CheckoutStepper() {
                         onChange={handleAddressChange}
                     />
                     <TextField
-                        label="Phone"
+                        label="Telemóvel"
                         fullWidth
                         value={phone}
                         onChange={e => setPhone(e.target.value)}
@@ -184,7 +184,7 @@ export default function CheckoutStepper() {
                             checked={saveAddressChecked}
                             onChange={e => setSaveAddressChecked(e.target.checked)}
                         />}
-                        label='Save as default address'
+                        label='Gravar para a próxima vez'
                     />
                 </Box>
                 <Box sx={{display: activeStep === 1 ? 'block' : 'none'}}>
@@ -196,7 +196,7 @@ export default function CheckoutStepper() {
             </Box>
 
             <Box sx={{ display: 'flex', pt: 2, justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
-                <Button onClick={handleBack} sx={{ width: { xs: '100%', sm: 'auto' } }}>Back</Button>
+                <Button onClick={handleBack} sx={{ width: { xs: '100%', sm: 'auto' } }}>Voltar</Button>
                 <LoadingButton 
                     onClick={handleNext}
                     disabled={
@@ -207,7 +207,7 @@ export default function CheckoutStepper() {
                     loading={submitting}
                     sx={{ width: { xs: '100%', sm: 'auto' } }}
                 >
-                    {activeStep === steps.length - 1 ? `Pay ${currencyFormat(total)}` : 'Next'}
+                    {activeStep === steps.length - 1 ? `Pagar ${currencyFormat(total)}` : 'Seguinte'}
                 </LoadingButton>
             </Box>
         </Paper>
