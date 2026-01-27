@@ -1,8 +1,8 @@
-import { AppBar, Badge, Box, IconButton, LinearProgress, List, ListItem, Toolbar, Typography, Menu, MenuItem, useTheme, useMediaQuery, Drawer } from "@mui/material";
+import { AppBar, Badge, Box, IconButton, LinearProgress, List, ListItem, Toolbar, Typography, Menu, MenuItem, useTheme, useMediaQuery, Drawer, Select, SelectChangeEvent } from "@mui/material";
 import { DarkMode, LightMode, ShoppingCart, AccountCircle, FilterList as FilterListIcon, Search as SearchIcon, FavoriteBorder } from '@mui/icons-material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import { useFetchFavoritesQuery, useRemoveFavoriteMutation } from '../../features/catalog/favoritesApi';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, NavLink } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../store/store";
@@ -15,6 +15,7 @@ import { useFetchFiltersQuery } from '../../features/catalog/catalogApi';
 import Search from '../../features/catalog/Search';
 import { useGetLogoQuery } from '../../features/admin/logoApi';
 import { computeFinalPrice, currencyFormat } from "../../lib/util";
+import { setHasDiscount, setOrderBy } from "../../features/catalog/catalogSlice";
 
 const midLinks: { title: string; path: string }[] = [
     // Removed navigation links (Loja, Sobre, Promoções, etc.)
@@ -47,6 +48,7 @@ export default function NavBar() {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const location = useLocation();
+    const navigate = useNavigate();
     const isCatalogRoute = location.pathname.startsWith('/catalog');
     // removed isHome (previously used to color text) since brand is now an image
     const [anchorProfileEl, setAnchorProfileEl] = useState<null | HTMLElement>(null);
@@ -79,7 +81,27 @@ export default function NavBar() {
     const closeSearch = () => setSearchOpen(false);
 
     const itemCount = basket?.items.reduce((sum, item) => sum + item.quantity, 0) || 0;
-    const { generos, anos, orderBy, searchTerm } = useAppSelector(state => state.catalog);
+    const { generos, anos, orderBy, searchTerm, hasDiscount } = useAppSelector(state => state.catalog);
+
+    const quickFilterValue: 'all' | 'promo' | 'bestsellers' =
+        orderBy === 'salesDesc' ? 'bestsellers' : (hasDiscount === true ? 'promo' : 'all');
+
+    const onQuickFilterChange = (e: SelectChangeEvent) => {
+        const value = e.target.value as 'all' | 'promo' | 'bestsellers';
+
+        if (value === 'promo') {
+            dispatch(setHasDiscount(true));
+            dispatch(setOrderBy('discountDesc'));
+        } else if (value === 'bestsellers') {
+            dispatch(setHasDiscount(undefined));
+            dispatch(setOrderBy('salesDesc'));
+        } else {
+            dispatch(setHasDiscount(undefined));
+            dispatch(setOrderBy('name'));
+        }
+
+        navigate('/catalog');
+    };
 
     // Close the filters drawer automatically on mobile when any catalog param changes
     // NOTE: do not include `filtersOpen` in the dependency list — that caused
@@ -130,10 +152,36 @@ export default function NavBar() {
                 </Box>
 
                 {/* Desktop search field - Centered */}
-                <Box sx={{ display: { xs: 'none', md: 'flex' }, flex: 1, justifyContent: 'center', alignItems: 'center', gap: 1, maxWidth: 500 }}>
-                    <SearchIcon sx={{ color: 'inherit' }} />
-                    <Box sx={{ flex: 1 }}>
-                        <Search />
+                <Box sx={{ display: { xs: 'none', md: 'flex' }, flex: 1, justifyContent: 'center', alignItems: 'center', maxWidth: 680 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'stretch', width: '100%' }}>
+                        <Select
+                            size="small"
+                            value={quickFilterValue}
+                            onChange={onQuickFilterChange}
+                            sx={{
+                                minWidth: 170,
+                                bgcolor: 'background.paper',
+                                '& .MuiOutlinedInput-root': {
+                                    borderTopRightRadius: 0,
+                                    borderBottomRightRadius: 0,
+                                },
+                            }}
+                        >
+                            <MenuItem value="all">Todos</MenuItem>
+                            <MenuItem value="promo">Promoção</MenuItem>
+                            <MenuItem value="bestsellers">Mais vendidos</MenuItem>
+                        </Select>
+                        <Box sx={{ flex: 1 }}>
+                            <Search
+                                sx={{
+                                    ml: '-1px',
+                                    '& .MuiOutlinedInput-root': {
+                                        borderTopLeftRadius: 0,
+                                        borderBottomLeftRadius: 0,
+                                    },
+                                }}
+                            />
+                        </Box>
                     </Box>
                 </Box>
 
@@ -157,6 +205,22 @@ export default function NavBar() {
 
                     <Drawer anchor="top" open={searchOpen} onClose={closeSearch} sx={{ zIndex: (theme) => theme.zIndex.appBar + 20 }}>
                         <Box sx={{ p: 2 }}>
+                            <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                                <Select
+                                    fullWidth
+                                    size="small"
+                                    value={quickFilterValue}
+                                    onChange={(e) => {
+                                        onQuickFilterChange(e);
+                                        closeSearch();
+                                    }}
+                                    sx={{ bgcolor: 'background.paper', borderRadius: 1 }}
+                                >
+                                    <MenuItem value="all">Todos</MenuItem>
+                                    <MenuItem value="promo">Promoção</MenuItem>
+                                    <MenuItem value="bestsellers">Mais vendidos</MenuItem>
+                                </Select>
+                            </Box>
                             <Search />
                         </Box>
                     </Drawer>

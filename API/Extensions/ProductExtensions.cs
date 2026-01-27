@@ -9,6 +9,18 @@ public static class ProductExtensions
     {
         if (string.IsNullOrEmpty(orderBy)) return query.OrderBy(x => x.Name);
 
+        if (orderBy == "salesDesc")
+        {
+            return query.OrderByDescending(x => x.SalesCount)
+                        .ThenBy(x => x.Name);
+        }
+
+        if (orderBy == "sales")
+        {
+            return query.OrderBy(x => x.SalesCount)
+                        .ThenBy(x => x.Name);
+        }
+
         // support discount-based sorting: prefer explicit DiscountPercentage, then fallback to absolute promotional amount
         if (orderBy == "discountDesc")
         {

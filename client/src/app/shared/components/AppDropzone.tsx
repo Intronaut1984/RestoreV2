@@ -52,7 +52,7 @@ export default function AppDropzone<T extends FieldValues>(props: Props<T>) {
         >
             <input {...getInputProps()} />
             <UploadFile sx={{fontSize: { xs: 48, sm: 80, md: 100 }, color: 'action.active'}} />
-            <Typography variant="h6" sx={{mt: 1}}>Drop image here</Typography>
+            <Typography variant="h6" sx={{mt: 1}}>Arrastar Imagem Aqui</Typography>
             <FormHelperText>{fieldState.error?.message}</FormHelperText>
         </FormControl>
        </div>

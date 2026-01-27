@@ -26,6 +26,9 @@ public class Product
 
     public string Name { get; set; } = string.Empty;
 
+    // General product description (used by the storefront + admin form)
+    public string? Description { get; set; }
+
     public string? Subtitle { get; set; }
 
     public string? Author { get; set; }
@@ -49,6 +52,8 @@ public class Product
     public decimal? PromotionalPrice { get; set; }
 
     public int? DiscountPercentage { get; set; }
+
+    public int SalesCount { get; set; } = 0;
 
     public int QuantityInStock { get; set; }
 

@@ -1,7 +1,7 @@
 export type Product = {
     id: number
     name: string
-    description: string
+    description?: string | null
     price: number
     pictureUrl: string
     // removed 'type' and 'brand' — replaced with book-specific fields
@@ -17,6 +17,7 @@ export type Product = {
     edition?: string | null
     promotionalPrice?: number | null
     discountPercentage?: number | null
+    salesCount?: number | null
     synopsis?: string | null
     index?: string | null
     pageCount?: number | null

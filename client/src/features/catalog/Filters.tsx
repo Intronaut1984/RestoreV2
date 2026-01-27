@@ -1,6 +1,6 @@
 import { Box, Button, Paper, Typography, Collapse } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 // Search moved to NavBar for global access
 import RadioButtonGroup from "../../app/shared/components/RadioButtonGroup";
 import { useAppDispatch, useAppSelector } from "../../app/store/store";
@@ -10,6 +10,7 @@ import genres from "../../lib/genres";
 
 const sortOptions = [
     { value: 'name', label: 'Alfabeticamente' },
+    { value: 'salesDesc', label: 'Mais vendidos' },
     { value: 'priceDesc', label: 'Preço: Maior para menor' },
     { value: 'price', label: 'Preço: Menor para maior' },
     { value: 'discountDesc', label: 'Desconto: Maior para menor' },
@@ -94,6 +95,15 @@ export default function Filters({filtersData: data, onChangeComplete}: Props) {
     const showMaterial = (showClothing || showToy) && (data?.materiais?.length ?? 0) > 0;
     const showTamanho = showClothing && (data?.tamanhos?.length ?? 0) > 0;
 
+    // Prevent hidden "book-only" filters from staying applied when user leaves Livros
+    useEffect(() => {
+        if (!showGenero) {
+            if ((generos?.length ?? 0) > 0) dispatch(setGeneros([]));
+            if ((anos?.length ?? 0) > 0) dispatch(setAnos([]));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showGenero]);
+
     return (
         <Box sx={{ width: '100%' }}>
             {/* Desktop: list of pill rows that expand */}
@@ -109,6 +119,7 @@ export default function Filters({filtersData: data, onChangeComplete}: Props) {
                             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                                 <Typography color='text.secondary' sx={{ whiteSpace: 'nowrap' }}>
                                     {orderBy === 'name' ? 'Alfabético'
+                                        : orderBy === 'salesDesc' ? 'Mais vendidos'
                                         : orderBy === 'price' ? 'Preço: Menor para maior'
                                         : orderBy === 'priceDesc' ? 'Preço: Maior para menor'
                                         : orderBy === 'discountDesc' ? 'Desconto: Maior para menor'
@@ -325,22 +336,26 @@ export default function Filters({filtersData: data, onChangeComplete}: Props) {
                             </Box>
                         </Collapse>
 
-                        {/* Ano de Lançamento */}
-                        <Box
-                            onClick={() => setOpenTypes(s => !s)}
-                            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
-                        >
-                            <Typography sx={{ fontWeight: 700 }}>Ano de Lançamento</Typography>
-                            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                                <Typography color='text.secondary'>{selectedCount(anos) > 0 ? `${selectedCount(anos)} selecionados` : 'Todos'}</Typography>
-                                <Box component='span' sx={{ transform: openTypes ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
-                            </Box>
-                        </Box>
-                        <Collapse in={openTypes} timeout={160}>
-                            <Box sx={{ p: 2 }}>
-                                <CheckboxButtons items={(data?.anos ?? []).map(String)} checked={(anos ?? []).map(String)} onChange={(items: string[]) => { dispatch(setAnos(items.map(Number))); onChangeComplete?.(); }} />
-                            </Box>
-                        </Collapse>
+                        {/* Ano de Lançamento (only shown when user selects a Books category) */}
+                        {showGenero && (
+                            <>
+                                <Box
+                                    onClick={() => setOpenTypes(s => !s)}
+                                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
+                                >
+                                    <Typography sx={{ fontWeight: 700 }}>Ano de Lançamento</Typography>
+                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                        <Typography color='text.secondary'>{selectedCount(anos) > 0 ? `${selectedCount(anos)} selecionados` : 'Todos'}</Typography>
+                                        <Box component='span' sx={{ transform: openTypes ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
+                                    </Box>
+                                </Box>
+                                <Collapse in={openTypes} timeout={160}>
+                                    <Box sx={{ p: 2 }}>
+                                        <CheckboxButtons items={(data?.anos ?? []).map(String)} checked={(anos ?? []).map(String)} onChange={(items: string[]) => { dispatch(setAnos(items.map(Number))); onChangeComplete?.(); }} />
+                                    </Box>
+                                </Collapse>
+                            </>
+                        )}
                     </Box>
                 </Paper>
                     <Box sx={{ mt: 1 }}>
@@ -422,10 +437,12 @@ export default function Filters({filtersData: data, onChangeComplete}: Props) {
                         </Paper>
                     )}
 
+                    {showGenero && (
                         <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
-                        <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Ano de Lançamento</Typography>
-                        <CheckboxButtons items={(data?.anos ?? []).map(String)} checked={(anos ?? []).map(String)} onChange={(items: string[]) => { dispatch(setAnos(items.map(Number))); onChangeComplete?.(); }} />
-                    </Paper>
+                            <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Ano de Lançamento</Typography>
+                            <CheckboxButtons items={(data?.anos ?? []).map(String)} checked={(anos ?? []).map(String)} onChange={(items: string[]) => { dispatch(setAnos(items.map(Number))); onChangeComplete?.(); }} />
+                        </Paper>
+                    )}
 
                     <Box>
                         <Button onClick={() => { dispatch(resetParams()); onChangeComplete?.(); }} variant='outlined'>Repor filtros</Button>

@@ -6,10 +6,15 @@ import { currencyFormat, computeFinalPrice } from "../../lib/util";
 import { Delete, Edit } from "@mui/icons-material";
 import AppPagination from "../../app/shared/components/AppPagination";
 import { setPageNumber } from "../catalog/catalogSlice";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import ProductForm from "./ProductForm";
 import { Product } from "../../app/models/product";
 import { useDeleteProductMutation } from "./adminApi";
+
+const getCategoryKey = (product: Product) => {
+    const first = product.categories?.[0]?.name?.trim();
+    return first && first.length > 0 ? first : 'Sem categoria';
+}
 
 export default function InventoryPage() {
     const productParams = useAppSelector(state => state.catalog);
@@ -42,6 +47,23 @@ export default function InventoryPage() {
     />
     if (!filtersData && !filtersLoading && !data) return <div>Loading...</div>
 
+    const items = data?.items ?? [];
+    const sorted = items.slice().sort((a, b) => {
+        const ca = getCategoryKey(a).toLowerCase();
+        const cb = getCategoryKey(b).toLowerCase();
+        if (ca !== cb) return ca.localeCompare(cb);
+        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
+
+    const grouped = sorted.reduce<Record<string, Product[]>>((acc, p) => {
+        const key = getCategoryKey(p);
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(p);
+        return acc;
+    }, {});
+
+    const categoryOrder = Object.keys(grouped).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
     return (
         <>
             <Box display='flex' justifyContent='space-between' alignItems='center'>
@@ -56,64 +78,85 @@ export default function InventoryPage() {
                 <Grid item xs={12} md={9}>
                     {/* Desktop/tablet: show table */}
                     <TableContainer component={Box} sx={{ display: { xs: 'none', md: 'block' } }}>
-                <Table sx={{minWidth: 650, tableLayout: 'fixed'}}>
+                <Table sx={{minWidth: 650, tableLayout: 'auto'}}>
                     <TableHead>
                         <TableRow>
-                            <TableCell>#</TableCell>
                             <TableCell align="left">Produto</TableCell>
                             <TableCell align="right">Preço</TableCell>
-                            <TableCell align="center">Género</TableCell>
-                            <TableCell align="center">Ano</TableCell>
-                            <TableCell align="center">Quantidade</TableCell>
+                            <TableCell align="center">Desconto</TableCell>
+                            <TableCell align="center">Stock</TableCell>
                             <TableCell align="right"></TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {data && data.items.map(product => (
-                            <TableRow
-                                key={product.id}
-                                sx={{
-                                    '&:last-child td, &:last-child th': {border: 0}
-                                }}
-                            >
-                                <TableCell component='th' scope="row">
-                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{product.id}</Box>
-                                </TableCell>
-                                <TableCell align="left" sx={{width: 300, maxWidth: 300}}>
-                                    <Box sx={{display: 'flex', alignItems: 'center'}}>
-                                        <img 
-                                            src={product.pictureUrl} 
-                                            alt={product.name} 
-                                            style={{height: 50, marginRight: 20, flex: '0 0 auto'}}
-                                        />
-                                        <Box sx={{flex: 1, minWidth: 0, overflow: 'hidden'}}>
-                                            <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
-                                                <Typography sx={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{product.name}</Typography>
-                                            </Box>
-                                        </Box>
-                                    </Box>
-                                </TableCell>
-                                <TableCell align="right">
-                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
-                                        {product.discountPercentage && product.discountPercentage > 0 ? (
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
-                                                <span style={{ textDecoration: 'line-through', color: 'gray' }}>{currencyFormat(product.price)}</span>
-                                                <span style={{ color: 'crimson', fontWeight: 700 }}>{currencyFormat(computeFinalPrice(product.price, product.discountPercentage))}</span>
-                                                <span style={{ fontSize: 12, background: 'crimson', color: 'white', padding: '2px 6px', borderRadius: 4 }}>{`-${product.discountPercentage}%`}</span>
-                                            </Box>
-                                        ) : (
-                                            <Box sx={{ textAlign: 'right' }}>{currencyFormat(product.price)}</Box>
-                                        )}
-                                    </Box>
-                                </TableCell>
-                                <TableCell align="center"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{product.genero ?? '—'}</Box></TableCell>
-                                <TableCell align="center"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{product.anoPublicacao ?? '—'}</Box></TableCell>
-                                <TableCell align="center"><Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{product.quantityInStock}</Box></TableCell>
-                                                <TableCell align="right">
-                                                    <Button onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary' size='small' />
-                                                    <Button onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />} color="error" size='small' sx={{ ml: 1 }} />
-                                                </TableCell>
-                            </TableRow>
+                        {categoryOrder.map(categoryName => (
+                            <Fragment key={categoryName}>
+                                <TableRow>
+                                    <TableCell colSpan={5} sx={{ bgcolor: 'action.hover', fontWeight: 800 }}>
+                                        {categoryName}
+                                    </TableCell>
+                                </TableRow>
+
+                                {grouped[categoryName].map(product => {
+                                    const hasDiscount = !!product.discountPercentage && product.discountPercentage > 0;
+                                    const finalPrice = hasDiscount ? computeFinalPrice(product.price, product.discountPercentage) : product.price;
+                                    return (
+                                        <TableRow
+                                            key={product.id}
+                                            sx={{ '&:last-child td, &:last-child th': {border: 0} }}
+                                        >
+                                            <TableCell align="left" sx={{ width: 420 }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                    <Box sx={{ flex: '0 0 auto' }}>
+                                                        <img
+                                                            src={product.pictureUrl}
+                                                            alt={product.name}
+                                                            style={{ height: 50, width: 50, objectFit: 'cover', borderRadius: 8 }}
+                                                        />
+                                                    </Box>
+                                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                                                            <Typography sx={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                                                {product.name}
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </Box>
+                                            </TableCell>
+
+                                            <TableCell align="right">
+                                                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                                                    {hasDiscount ? (
+                                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                                                            <span style={{ textDecoration: 'line-through', color: 'gray' }}>{currencyFormat(product.price)}</span>
+                                                            <span style={{ color: 'crimson', fontWeight: 700 }}>{currencyFormat(finalPrice)}</span>
+                                                        </Box>
+                                                    ) : (
+                                                        <Box sx={{ textAlign: 'right', whiteSpace: 'normal', wordBreak: 'break-word' }}>{currencyFormat(product.price)}</Box>
+                                                    )}
+                                                </Box>
+                                            </TableCell>
+
+                                            <TableCell align="center">
+                                                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block', whiteSpace: 'normal' }}>
+                                                    {hasDiscount ? `-${product.discountPercentage}%` : '—'}
+                                                </Box>
+                                            </TableCell>
+
+                                            <TableCell align="center">
+                                                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block', whiteSpace: 'normal' }}>
+                                                    {product.quantityInStock}
+                                                </Box>
+                                            </TableCell>
+
+                                            <TableCell align="right">
+                                                <Button onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary' size='small' />
+                                                <Button onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />} color="error" size='small' sx={{ ml: 1 }} />
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
+                            </Fragment>
                         ))}
                     </TableBody>
                 </Table>
@@ -129,47 +172,58 @@ export default function InventoryPage() {
 
             {/* Mobile: show cards */}
             <Box sx={{ display: { xs: 'block', md: 'none' }, mt: 2 }}>
-                <Grid container spacing={2}>
-                    {data && data.items.map(product => (
-                        <Grid item xs={6} sm={4} key={product.id}>
-                            <Box sx={{p: 1}}>
-                                <Box display='flex' flexDirection='column' alignItems='center'>
-                                    <img src={product.pictureUrl} alt={product.name} style={{width: '100%', height: 100, objectFit: 'cover', borderRadius: 8}} />
-                                    <Box sx={{ mt: 1, width: '100%' }}>
-                                        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
-                                            <Typography
-                                                variant='subtitle2'
-                                                sx={{
-                                                    textAlign: 'center',
-                                                    width: '100%',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap'
-                                                }}
-                                            >
-                                                {product.name}
-                                            </Typography>
-                                        </Box>
-                                        <Box sx={{ mt: 1, textAlign: 'center' }}>
-                                            {product.discountPercentage && product.discountPercentage > 0 ? (
-                                                <>
-                                                    <Typography variant='body2' sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>{currencyFormat(product.price)}</Typography>
-                                                    <Typography variant='subtitle2' sx={{color: 'crimson', fontWeight: 700}}>{currencyFormat(computeFinalPrice(product.price, product.discountPercentage))}</Typography>
-                                                </>
-                                            ) : (
-                                                <Typography variant='subtitle2' sx={{color: 'secondary.main'}}>{currencyFormat(product.price)}</Typography>
-                                            )}
-                                        </Box>
-                                        <Box sx={{display: 'flex', gap:1, mt:1, justifyContent: 'center'}}>
-                                            <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary'>Editar</Button>
-                                            <Button size='small' color='error' onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />}>Excluir</Button>
-                                        </Box>
-                                    </Box>
-                                </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {categoryOrder.map(categoryName => (
+                        <Box key={categoryName}>
+                            <Box sx={{ px: 1.5, py: 1, fontWeight: 800, bgcolor: 'action.hover', borderRadius: 2, mb: 1 }}>
+                                {categoryName}
                             </Box>
-                        </Grid>
+                            <Grid container spacing={2}>
+                                {grouped[categoryName].map(product => {
+                                    const hasDiscount = !!product.discountPercentage && product.discountPercentage > 0;
+                                    const finalPrice = hasDiscount ? computeFinalPrice(product.price, product.discountPercentage) : product.price;
+                                    return (
+                                        <Grid item xs={6} sm={4} key={product.id}>
+                                            <Box sx={{p: 1}}>
+                                                <Box display='flex' flexDirection='column' alignItems='center'>
+                                                    <img src={product.pictureUrl} alt={product.name} style={{width: '100%', height: 100, objectFit: 'cover', borderRadius: 8}} />
+                                                    <Box sx={{ mt: 1, width: '100%' }}>
+                                                        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                                                            <Typography
+                                                                variant='subtitle2'
+                                                                sx={{ textAlign: 'center', width: '100%', whiteSpace: 'normal', wordBreak: 'break-word' }}
+                                                            >
+                                                                {product.name}
+                                                            </Typography>
+                                                        </Box>
+                                                        <Box sx={{ mt: 1, textAlign: 'center' }}>
+                                                            {hasDiscount ? (
+                                                                <>
+                                                                    <Typography variant='body2' sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>{currencyFormat(product.price)}</Typography>
+                                                                    <Typography variant='subtitle2' sx={{color: 'crimson', fontWeight: 700}}>{currencyFormat(finalPrice)}</Typography>
+                                                                    <Typography variant='caption' color='text.secondary'>{`-${product.discountPercentage}%`}</Typography>
+                                                                </>
+                                                            ) : (
+                                                                <Typography variant='subtitle2' sx={{color: 'secondary.main'}}>{currencyFormat(product.price)}</Typography>
+                                                            )}
+                                                        </Box>
+                                                        <Box sx={{ mt: 1, textAlign: 'center' }}>
+                                                            <Typography variant='caption' color='text.secondary'>Stock: {product.quantityInStock}</Typography>
+                                                        </Box>
+                                                        <Box sx={{display: 'flex', gap:1, mt:1, justifyContent: 'center', flexWrap: 'wrap'}}>
+                                                            <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary'>Editar</Button>
+                                                            <Button size='small' color='error' onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />}>Excluir</Button>
+                                                        </Box>
+                                                    </Box>
+                                                </Box>
+                                            </Box>
+                                        </Grid>
+                                    )
+                                })}
+                            </Grid>
+                        </Box>
                     ))}
-                </Grid>
+                </Box>
 
                 <Box sx={{p: 2}}>
                     {data?.pagination && data.items.length > 0 && (
