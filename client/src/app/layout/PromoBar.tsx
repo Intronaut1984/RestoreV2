@@ -22,37 +22,22 @@ export default function PromoBar() {
 
     // measure the AppBar (if present) to position PromoBar directly below it
     function measure() {
-      // Sum heights of fixed-position elements at the top of the page (exclude the promo itself)
-      let totalFixedTop = 0;
-
-      // Iterate reasonable set of elements to detect fixed top bars. We include all body children
-      const all = Array.from(document.querySelectorAll<HTMLElement>('body *'));
-      for (const el of all) {
-        if (!el.getBoundingClientRect) continue;
-        if (el === rootRef.current) continue; // don't include the promo itself
-
-        const style = window.getComputedStyle(el);
-        if (style.position !== 'fixed') continue;
-        if (style.display === 'none' || style.visibility === 'hidden') continue;
-
-        const rect = el.getBoundingClientRect();
-        // consider elements that are pinned to the top (top ~= 0)
-        if (Math.abs(rect.top) <= 2 && rect.height > 0) {
-          totalFixedTop += Math.ceil(rect.height);
-        }
-      }
-
-      // If we found no fixed elements, fallback to theme toolbar height
-      const finalTop = totalFixedTop > 0 ? totalFixedTop : toolbarHeight;
-      setTopOffset(`${finalTop + extraGap}px`);
+      // Only measure the main AppBar. Scanning all fixed elements can accidentally
+      // include overlays/backdrops and push the page content far below the fold.
+      const appBar = document.querySelector<HTMLElement>('.MuiAppBar-root');
+      const appBarHeight = appBar ? Math.ceil(appBar.getBoundingClientRect().height) : toolbarHeight;
+      setTopOffset(`${appBarHeight + extraGap}px`);
     }
 
     // measure once and also on resize
     measure();
+    // Run a second measure after fonts/layout settle (production can shift sizes slightly)
+    const settleTimer = window.setTimeout(measure, 500);
     window.addEventListener('resize', measure);
 
     return () => {
       clearTimeout(showTimer);
+      window.clearTimeout(settleTimer);
       window.removeEventListener('resize', measure);
     };
   }, [theme, toolbarHeight, extraGap, isSm]);

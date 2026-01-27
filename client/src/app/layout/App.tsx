@@ -2,10 +2,11 @@ import { Box, Container, createTheme, CssBaseline, ThemeProvider } from "@mui/ma
 import NavBar from "./NavBar";
 import PromoBar from "./PromoBar";
 import Footer from "./Footer";
-import { Outlet, ScrollRestoration } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { useAppSelector } from "../store/store";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { googleClientId, hasGoogleClientId } from "../config/env";
+import ScrollToTop from "./ScrollToTop";
 
 
 function App() {
@@ -26,7 +27,7 @@ function App() {
 
   const appShell = (
     <ThemeProvider theme={theme}>
-      <ScrollRestoration />
+      <ScrollToTop />
       <CssBaseline />
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <NavBar />
