@@ -19,7 +19,7 @@ export default function PromoBar() {
     const threshold = shippingRateData?.freeShippingThreshold ?? 100;
     if (threshold <= 0) return 'Entrega grátis';
     const label = Number.isInteger(threshold) ? threshold.toFixed(0) : threshold.toFixed(2);
-    return `Entrega grátis em compras acima de €${label}`;
+    return `€${label}`;
   })();
 
   const displayMessage = (() => {
@@ -31,7 +31,7 @@ export default function PromoBar() {
       : (Number.isInteger(threshold) ? threshold.toFixed(0) : threshold.toFixed(2));
 
     if (!base) {
-      return `Promoção: ${freeShippingText} — Aproveite!`;
+      return `${freeShippingText}`;
     }
 
     if (base.includes(placeholder)) {
