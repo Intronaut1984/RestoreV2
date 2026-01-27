@@ -106,7 +106,7 @@ export default function OrderSummary() {
 
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Typography variant="subtitle1" component="label">
-                        Do you have a voucher code?
+                        Tem um código de voucher?
                     </Typography>
 
                     {basket?.coupon &&
@@ -134,7 +134,7 @@ export default function OrderSummary() {
                         fullWidth
                         disabled={!!basket?.coupon}
                     >
-                        Apply code
+                        Usar Código de Voucher
                     </LoadingButton>
                 </form>
             </Paper>}

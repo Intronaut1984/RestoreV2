@@ -313,6 +313,70 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                         )}
                     </Grid>
 
+                    {/* Categories multi-select */}
+                    <Grid item xs={12}>
+                        <Autocomplete
+                            inputValue={categoryInput}
+                            onInputChange={(_e, v) => setCategoryInput(v)}
+                            multiple
+                            freeSolo
+                            options={(categories ?? []) as Category[]}
+                            getOptionLabel={(option: Category | string) => typeof option === 'string' ? option : option.name}
+                            value={selectedCategories}
+                            onChange={(_event, value) => {
+                                // value can contain Category objects or strings (freeSolo)
+                                const vals = value ?? [];
+                                const resolved: Array<Category | string> = [];
+                                for (const v of vals) {
+                                    if (typeof v === 'string') {
+                                        // keep as pending (no id yet) — will create on submit
+                                        resolved.push(v);
+                                    } else {
+                                        resolved.push(v as Category);
+                                    }
+                                }
+                                setSelectedCategories(resolved);
+                                // clear the input field when selection changes
+                                setCategoryInput('');
+                                // update form categoryIds only with existing numeric ids
+                                setValue('categoryIds', resolved.filter(r => typeof r !== 'string').map(r => (r as Category).id));
+                            }}
+                            renderTags={(value: (Category | string)[], getTagProps) =>
+                                value.map((option, index) => {
+                                    const label = typeof option === 'string' ? option : option.name;
+                                    const key = typeof option === 'string' ? label + index : option.id;
+                                    return <Chip label={label} {...getTagProps({ index })} key={key} />
+                                })
+                            }
+                            renderInput={(params) => (
+                                <TextField {...params} label="Categorias" placeholder="Select or type to create" />
+                            )}
+                        />
+                    </Grid>
+
+                    {/* Campaigns multi-select */}
+                    <Grid item xs={12}>
+                        <Autocomplete
+                            multiple
+                            options={(campaigns ?? []) as Campaign[]}
+                            getOptionLabel={(option: Campaign) => option.name}
+                            value={selectedCampaigns}
+                            onChange={(_, value: Campaign[] | null) => {
+                                const vals = (value ?? []) as Campaign[];
+                                setSelectedCampaigns(vals);
+                                setValue('campaignIds', vals.map(v => v.id));
+                            }}
+                            renderTags={(value: Campaign[], getTagProps) =>
+                                value.map((option, index) => (
+                                    <Chip label={option.name} {...getTagProps({ index })} key={option.id} />
+                                ))
+                            }
+                            renderInput={(params) => (
+                                <TextField {...params} label="Campanhas" placeholder="Select campaigns" />
+                            )}
+                        />
+                    </Grid>
+
                     {/* Book-specific fields */}
                     {isBook(selectedCategories) && (
                         <>
@@ -488,71 +552,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             name="description"
                             label="Descrição"
                         />
-                    </Grid>
-
-                    {/* Categories multi-select */}
-                    <Grid item xs={12}>
-                        <Autocomplete
-                            inputValue={categoryInput}
-                            onInputChange={(_e, v) => setCategoryInput(v)}
-                            multiple
-                            freeSolo
-                            options={(categories ?? []) as Category[]}
-                            getOptionLabel={(option: Category | string) => typeof option === 'string' ? option : option.name}
-                            value={selectedCategories}
-                            onChange={(_event, value) => {
-                                // value can contain Category objects or strings (freeSolo)
-                                const vals = value ?? [];
-                                const resolved: Array<Category | string> = [];
-                                for (const v of vals) {
-                                    if (typeof v === 'string') {
-                                        // keep as pending (no id yet) — will create on submit
-                                        resolved.push(v);
-                                    } else {
-                                        resolved.push(v as Category);
-                                    }
-                                }
-                                setSelectedCategories(resolved);
-                                // clear the input field when selection changes
-                                setCategoryInput('');
-                                // update form categoryIds only with existing numeric ids
-                                setValue('categoryIds', resolved.filter(r => typeof r !== 'string').map(r => (r as Category).id));
-                            }}
-                            renderTags={(value: (Category | string)[], getTagProps) =>
-                                value.map((option, index) => {
-                                    const label = typeof option === 'string' ? option : option.name;
-                                    const key = typeof option === 'string' ? label + index : option.id;
-                                    return <Chip label={label} {...getTagProps({ index })} key={key} />
-                                })
-                            }
-                            renderInput={(params) => (
-                                <TextField {...params} label="Categorias" placeholder="Select or type to create" />
-                            )}
-                        />
-                    </Grid>
-
-                    {/* Campaigns multi-select */}
-                    <Grid item xs={12}>
-                        <Autocomplete
-                            multiple
-                            options={(campaigns ?? []) as Campaign[]}
-                            getOptionLabel={(option: Campaign) => option.name}
-                            value={selectedCampaigns}
-                            onChange={(_, value: Campaign[] | null) => {
-                                const vals = (value ?? []) as Campaign[];
-                                setSelectedCampaigns(vals);
-                                setValue('campaignIds', vals.map(v => v.id));
-                            }}
-                            renderTags={(value: Campaign[], getTagProps) =>
-                                value.map((option, index) => (
-                                    <Chip label={option.name} {...getTagProps({ index })} key={option.id} />
-                                ))
-                            }
-                            renderInput={(params) => (
-                                <TextField {...params} label="Campanhas" placeholder="Select campaigns" />
-                            )}
-                        />
-                    </Grid>
+                    </Grid>                           
 
                     <Grid item xs={12} sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
                         <Box sx={{ flex: 1, width: '100%' }}>
@@ -613,7 +613,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
 
                 <Box sx={{ mt: 3, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', gap: 2 }}>
                     <Button onClick={() => setEditMode(false)} variant="contained" color="inherit" sx={{ width: { xs: '100%', sm: 'auto' } }}>
-                        Cancel
+                        Cancelar
                     </Button>
 
                     <LoadingButton
@@ -623,7 +623,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                         type="submit"
                         sx={{ width: { xs: '100%', sm: 'auto' } }}
                     >
-                        Submit
+                        Enviar
                     </LoadingButton>
                 </Box>
             </form>
