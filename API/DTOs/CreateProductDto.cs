@@ -86,6 +86,21 @@ public class CreateProductDto
     [JsonPropertyName("marca")]
     public string? Marca { get; set; }
 
+    [JsonPropertyName("tipo")]
+    public string? Tipo { get; set; }
+
+    [JsonPropertyName("modelo")]
+    public string? Modelo { get; set; }
+
+    [JsonPropertyName("capacidade")]
+    public string? Capacidade { get; set; }
+
+    [JsonPropertyName("idadeMinima")]
+    public int? IdadeMinima { get; set; }
+
+    [JsonPropertyName("idadeMaxima")]
+    public int? IdadeMaxima { get; set; }
+
     [JsonPropertyName("activo")]
     public bool Active { get; set; } = true;
 

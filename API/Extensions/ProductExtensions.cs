@@ -42,12 +42,26 @@ public static class ProductExtensions
     }
 
     public static IQueryable<Product> Filter(this IQueryable<Product> query,
-        string? generos, string? anos, bool? hasDiscount = null)
+        string? generos,
+        string? anos,
+        bool? hasDiscount = null,
+        string? marcas = null,
+        string? modelos = null,
+        string? tipos = null,
+        string? capacidades = null,
+        string? cores = null,
+        string? materiais = null,
+        string? tamanhos = null)
     {
         var generoList = new List<string>();
         var anoList = new List<int>();
-        var categoryList = new List<int>();
-        var campaignList = new List<int>();
+        var marcaList = new List<string>();
+        var modeloList = new List<string>();
+        var tipoList = new List<string>();
+        var capacidadeList = new List<string>();
+        var corList = new List<string>();
+        var materialList = new List<string>();
+        var tamanhoList = new List<string>();
 
         if (!string.IsNullOrEmpty(generos))
         {
@@ -61,6 +75,41 @@ public static class ProductExtensions
                 .Where(v => v > 0));
         }
 
+        if (!string.IsNullOrEmpty(marcas))
+        {
+            marcaList.AddRange(marcas.ToLower().Split(",", StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()));
+        }
+
+        if (!string.IsNullOrEmpty(modelos))
+        {
+            modeloList.AddRange(modelos.ToLower().Split(",", StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()));
+        }
+
+        if (!string.IsNullOrEmpty(tipos))
+        {
+            tipoList.AddRange(tipos.ToLower().Split(",", StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()));
+        }
+
+        if (!string.IsNullOrEmpty(capacidades))
+        {
+            capacidadeList.AddRange(capacidades.ToLower().Split(",", StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()));
+        }
+
+        if (!string.IsNullOrEmpty(cores))
+        {
+            corList.AddRange(cores.ToLower().Split(",", StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()));
+        }
+
+        if (!string.IsNullOrEmpty(materiais))
+        {
+            materialList.AddRange(materiais.ToLower().Split(",", StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()));
+        }
+
+        if (!string.IsNullOrEmpty(tamanhos))
+        {
+            tamanhoList.AddRange(tamanhos.ToLower().Split(",", StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()));
+        }
+
         // category and campaign lists are parsed in controller where DbContext is available
         // keep placeholders here for potential future use
 
@@ -72,6 +121,41 @@ public static class ProductExtensions
         if (anoList.Count > 0)
         {
             query = query.Where(x => x.PublicationYear != null && anoList.Contains(x.PublicationYear.Value));
+        }
+
+        if (marcaList.Count > 0)
+        {
+            query = query.Where(x => x.Marca != null && marcaList.Contains(x.Marca.ToLower()));
+        }
+
+        if (modeloList.Count > 0)
+        {
+            query = query.Where(x => x.Modelo != null && modeloList.Contains(x.Modelo.ToLower()));
+        }
+
+        if (tipoList.Count > 0)
+        {
+            query = query.Where(x => x.Tipo != null && tipoList.Contains(x.Tipo.ToLower()));
+        }
+
+        if (capacidadeList.Count > 0)
+        {
+            query = query.Where(x => x.Capacidade != null && capacidadeList.Contains(x.Capacidade.ToLower()));
+        }
+
+        if (corList.Count > 0)
+        {
+            query = query.Where(x => x.Cor != null && corList.Contains(x.Cor.ToLower()));
+        }
+
+        if (materialList.Count > 0)
+        {
+            query = query.Where(x => x.Material != null && materialList.Contains(x.Material.ToLower()));
+        }
+
+        if (tamanhoList.Count > 0)
+        {
+            query = query.Where(x => x.Tamanho != null && tamanhoList.Contains(x.Tamanho.ToLower()));
         }
 
         // Filter products that have a discount: either a positive promotional price or a discount percentage

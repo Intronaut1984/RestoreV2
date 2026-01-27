@@ -76,9 +76,9 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
 
   // features to show in bottom sliding bar
   const features = [
-    { id: 'shipping', icon: <LocalShippingIcon color="primary" />, text: `Free shipping over ${freeShippingLabel}` },
-    { id: 'secure', icon: <LockIcon color="primary" />, text: 'Secure payments' },
-    { id: 'returns', icon: <ReplayIcon color="primary" />, text: '30-day returns' },
+    { id: 'shipping', icon: <LocalShippingIcon color="primary" />, text: `Entrega Gratuita acima de ${freeShippingLabel}` },
+    { id: 'secure', icon: <LockIcon color="primary" />, text: 'Pagamentos Seguros' },
+    { id: 'returns', icon: <ReplayIcon color="primary" />, text: 'Devoluções até 15 dias' },
   ];
 
   useEffect(() => {

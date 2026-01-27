@@ -8,6 +8,13 @@ const initialState: ProductParams = {
     generos: [],
     categoryIds: [],
     campaignIds: [],
+    marcas: [],
+    modelos: [],
+    tipos: [],
+    capacidades: [],
+    cores: [],
+    materiais: [],
+    tamanhos: [],
     hasDiscount: undefined,
     searchTerm: '',
     orderBy: 'name'
@@ -43,6 +50,34 @@ export const catalogSlice = createSlice({
             state.campaignIds = action.payload
             state.pageNumber = 1;
         },
+        setMarcas(state, action) {
+            state.marcas = action.payload
+            state.pageNumber = 1;
+        },
+        setModelos(state, action) {
+            state.modelos = action.payload
+            state.pageNumber = 1;
+        },
+        setTipos(state, action) {
+            state.tipos = action.payload
+            state.pageNumber = 1;
+        },
+        setCapacidades(state, action) {
+            state.capacidades = action.payload
+            state.pageNumber = 1;
+        },
+        setCores(state, action) {
+            state.cores = action.payload
+            state.pageNumber = 1;
+        },
+        setMateriais(state, action) {
+            state.materiais = action.payload
+            state.pageNumber = 1;
+        },
+        setTamanhos(state, action) {
+            state.tamanhos = action.payload
+            state.pageNumber = 1;
+        },
         setHasDiscount(state, action) {
             state.hasDiscount = action.payload;
             state.pageNumber = 1;
@@ -60,4 +95,4 @@ export const catalogSlice = createSlice({
 export const { setOrderBy, setPageNumber, setPageSize, 
     setSearchTerm, setAnos, setGeneros, resetParams } 
     = catalogSlice.actions;
-export const { setCategories, setCampaigns, setHasDiscount } = catalogSlice.actions;
+export const { setCategories, setCampaigns, setHasDiscount, setMarcas, setModelos, setTipos, setCapacidades, setCores, setMateriais, setTamanhos } = catalogSlice.actions;

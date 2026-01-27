@@ -4,7 +4,7 @@ import { useState } from 'react';
 // Search moved to NavBar for global access
 import RadioButtonGroup from "../../app/shared/components/RadioButtonGroup";
 import { useAppDispatch, useAppSelector } from "../../app/store/store";
-import { resetParams, setOrderBy, setAnos, setGeneros, setCategories, setCampaigns } from "./catalogSlice";
+import { resetParams, setOrderBy, setAnos, setGeneros, setCategories, setCampaigns, setMarcas, setModelos, setTipos, setCapacidades, setCores, setMateriais, setTamanhos } from "./catalogSlice";
 import CheckboxButtons from "../../app/shared/components/CheckboxButtons";
 import genres from "../../lib/genres";
 
@@ -19,12 +19,24 @@ const sortOptions = [
 ]
 
 type Props = {
-    filtersData?: { generos: string[], anos: number[], categories?: { id: number; name: string }[], campaigns?: { id: number; name: string }[] }
+    filtersData?: {
+        generos: string[];
+        anos: number[];
+        categories?: { id: number; name: string }[];
+        campaigns?: { id: number; name: string }[];
+        marcas?: string[];
+        modelos?: string[];
+        tipos?: string[];
+        capacidades?: string[];
+        cores?: string[];
+        materiais?: string[];
+        tamanhos?: string[];
+    }
     onChangeComplete?: () => void
 }
 
 export default function Filters({filtersData: data, onChangeComplete}: Props) {
-    const { orderBy, anos, generos, categoryIds, campaignIds } = useAppSelector(state => state.catalog);
+    const { orderBy, anos, generos, categoryIds, campaignIds, marcas, modelos, tipos, capacidades, cores, materiais, tamanhos } = useAppSelector(state => state.catalog);
     const dispatch = useAppDispatch();
     const theme = useTheme();
 
@@ -33,6 +45,13 @@ export default function Filters({filtersData: data, onChangeComplete}: Props) {
     const [openTypes, setOpenTypes] = useState(false);
     const [openCategories, setOpenCategories] = useState(false);
     const [openCampaigns, setOpenCampaigns] = useState(false);
+    const [openMarcas, setOpenMarcas] = useState(false);
+    const [openModelos, setOpenModelos] = useState(false);
+    const [openTipos, setOpenTipos] = useState(false);
+    const [openCapacidades, setOpenCapacidades] = useState(false);
+    const [openCores, setOpenCores] = useState(false);
+    const [openMateriais, setOpenMateriais] = useState(false);
+    const [openTamanhos, setOpenTamanhos] = useState(false);
 
     const selectedCount = (arr?: Array<string | number>) => (arr && arr.length) ? arr.length : 0;
 
@@ -51,11 +70,29 @@ export default function Filters({filtersData: data, onChangeComplete}: Props) {
     const generoItems = (data?.generos ?? []).map(g => ({ value: g, label: mapGeneroLabel(g) }));
     const categoryItems = (data?.categories ?? []).map(c => ({ value: String(c.id), label: c.name }));
     const campaignItems = (data?.campaigns ?? []).map(c => ({ value: String(c.id), label: c.name }));
+    const marcaItems = (data?.marcas ?? []).map(m => ({ value: m, label: m }));
+    const modeloItems = (data?.modelos ?? []).map(m => ({ value: m, label: m }));
+    const tipoItems = (data?.tipos ?? []).map(t => ({ value: t, label: t }));
+    const capacidadeItems = (data?.capacidades ?? []).map(c => ({ value: c, label: c }));
+    const corItems = (data?.cores ?? []).map(c => ({ value: c, label: c }));
+    const materialItems = (data?.materiais ?? []).map(m => ({ value: m, label: m }));
+    const tamanhoItems = (data?.tamanhos ?? []).map(t => ({ value: t, label: t }));
     // Show the genero (genre) filter only when the user has selected a category
     // that indicates books (contains 'livro' in its name). This keeps the UI
     // simpler for non-book categories.
     const selectedCategoryNames = (data?.categories ?? []).filter(c => (categoryIds ?? []).includes(c.id)).map(c => c.name.toLowerCase());
     const showGenero = selectedCategoryNames.some(n => n.includes('livro'));
+    const showTech = selectedCategoryNames.some(n => n.includes('tecn'));
+    const showClothing = selectedCategoryNames.some(n => n.includes('vest') || n.includes('roup'));
+    const showToy = selectedCategoryNames.some(n => n.includes('brinqu'));
+
+    const showMarca = (showTech || showClothing || showToy) && (data?.marcas?.length ?? 0) > 0;
+    const showModelo = showTech && (data?.modelos?.length ?? 0) > 0;
+    const showTipo = showTech && (data?.tipos?.length ?? 0) > 0;
+    const showCapacidade = showTech && (data?.capacidades?.length ?? 0) > 0;
+    const showCor = showClothing && (data?.cores?.length ?? 0) > 0;
+    const showMaterial = (showClothing || showToy) && (data?.materiais?.length ?? 0) > 0;
+    const showTamanho = showClothing && (data?.tamanhos?.length ?? 0) > 0;
 
     return (
         <Box sx={{ width: '100%' }}>
@@ -88,6 +125,23 @@ export default function Filters({filtersData: data, onChangeComplete}: Props) {
                             </Box>
                         </Collapse>
 
+                        {/* Categories */}
+                        <Box
+                            onClick={() => setOpenCategories(s => !s)}
+                            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
+                        >
+                            <Typography sx={{ fontWeight: 700 }}>Categorias</Typography>
+                            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                <Typography color='text.secondary'>{selectedCount(categoryIds) > 0 ? `${selectedCount(categoryIds)} selecionadas` : 'Todas'}</Typography>
+                                <Box component='span' sx={{ transform: openCategories ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
+                            </Box>
+                        </Box>
+                        <Collapse in={openCategories} timeout={160}>
+                            <Box sx={{ p: 2 }}>
+                                <CheckboxButtons items={categoryItems} checked={(categoryIds ?? []).map(String)} onChange={(items: string[]) => { dispatch(setCategories(items.map(Number))); onChangeComplete?.(); }} />
+                            </Box>
+                        </Collapse>
+
                         {/* Generos (only shown when user selects a Books category) */}
                         {showGenero && (
                             <>
@@ -109,22 +163,150 @@ export default function Filters({filtersData: data, onChangeComplete}: Props) {
                             </>
                         )}
 
-                        {/* Categories */}
-                        <Box
-                            onClick={() => setOpenCategories(s => !s)}
-                            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
-                        >
-                            <Typography sx={{ fontWeight: 700 }}>Categorias</Typography>
-                            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                                <Typography color='text.secondary'>{selectedCount(categoryIds) > 0 ? `${selectedCount(categoryIds)} selecionadas` : 'Todas'}</Typography>
-                                <Box component='span' sx={{ transform: openCategories ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
-                            </Box>
-                        </Box>
-                        <Collapse in={openCategories} timeout={160}>
-                            <Box sx={{ p: 2 }}>
-                                <CheckboxButtons items={categoryItems} checked={(categoryIds ?? []).map(String)} onChange={(items: string[]) => { dispatch(setCategories(items.map(Number))); onChangeComplete?.(); }} />
-                            </Box>
-                        </Collapse>
+                        {/* Marca */}
+                        {showMarca && (
+                            <>
+                                <Box
+                                    onClick={() => setOpenMarcas(s => !s)}
+                                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
+                                >
+                                    <Typography sx={{ fontWeight: 700 }}>Marca</Typography>
+                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                        <Typography color='text.secondary'>{selectedCount(marcas) > 0 ? `${selectedCount(marcas)} selecionadas` : 'Todas'}</Typography>
+                                        <Box component='span' sx={{ transform: openMarcas ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
+                                    </Box>
+                                </Box>
+                                <Collapse in={openMarcas} timeout={160}>
+                                    <Box sx={{ p: 2 }}>
+                                        <CheckboxButtons items={marcaItems} checked={(marcas ?? [])} onChange={(items: string[]) => { dispatch(setMarcas(items)); onChangeComplete?.(); }} />
+                                    </Box>
+                                </Collapse>
+                            </>
+                        )}
+
+                        {/* Tecnologia */}
+                        {showTipo && (
+                            <>
+                                <Box
+                                    onClick={() => setOpenTipos(s => !s)}
+                                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
+                                >
+                                    <Typography sx={{ fontWeight: 700 }}>Tipo</Typography>
+                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                        <Typography color='text.secondary'>{selectedCount(tipos) > 0 ? `${selectedCount(tipos)} selecionados` : 'Todos'}</Typography>
+                                        <Box component='span' sx={{ transform: openTipos ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
+                                    </Box>
+                                </Box>
+                                <Collapse in={openTipos} timeout={160}>
+                                    <Box sx={{ p: 2 }}>
+                                        <CheckboxButtons items={tipoItems} checked={(tipos ?? [])} onChange={(items: string[]) => { dispatch(setTipos(items)); onChangeComplete?.(); }} />
+                                    </Box>
+                                </Collapse>
+                            </>
+                        )}
+
+                        {showModelo && (
+                            <>
+                                <Box
+                                    onClick={() => setOpenModelos(s => !s)}
+                                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
+                                >
+                                    <Typography sx={{ fontWeight: 700 }}>Modelo</Typography>
+                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                        <Typography color='text.secondary'>{selectedCount(modelos) > 0 ? `${selectedCount(modelos)} selecionados` : 'Todos'}</Typography>
+                                        <Box component='span' sx={{ transform: openModelos ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
+                                    </Box>
+                                </Box>
+                                <Collapse in={openModelos} timeout={160}>
+                                    <Box sx={{ p: 2 }}>
+                                        <CheckboxButtons items={modeloItems} checked={(modelos ?? [])} onChange={(items: string[]) => { dispatch(setModelos(items)); onChangeComplete?.(); }} />
+                                    </Box>
+                                </Collapse>
+                            </>
+                        )}
+
+                        {showCapacidade && (
+                            <>
+                                <Box
+                                    onClick={() => setOpenCapacidades(s => !s)}
+                                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
+                                >
+                                    <Typography sx={{ fontWeight: 700 }}>Capacidade</Typography>
+                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                        <Typography color='text.secondary'>{selectedCount(capacidades) > 0 ? `${selectedCount(capacidades)} selecionados` : 'Todas'}</Typography>
+                                        <Box component='span' sx={{ transform: openCapacidades ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
+                                    </Box>
+                                </Box>
+                                <Collapse in={openCapacidades} timeout={160}>
+                                    <Box sx={{ p: 2 }}>
+                                        <CheckboxButtons items={capacidadeItems} checked={(capacidades ?? [])} onChange={(items: string[]) => { dispatch(setCapacidades(items)); onChangeComplete?.(); }} />
+                                    </Box>
+                                </Collapse>
+                            </>
+                        )}
+
+                        {/* Vestuário */}
+                        {showCor && (
+                            <>
+                                <Box
+                                    onClick={() => setOpenCores(s => !s)}
+                                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
+                                >
+                                    <Typography sx={{ fontWeight: 700 }}>Cor</Typography>
+                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                        <Typography color='text.secondary'>{selectedCount(cores) > 0 ? `${selectedCount(cores)} selecionadas` : 'Todas'}</Typography>
+                                        <Box component='span' sx={{ transform: openCores ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
+                                    </Box>
+                                </Box>
+                                <Collapse in={openCores} timeout={160}>
+                                    <Box sx={{ p: 2 }}>
+                                        <CheckboxButtons items={corItems} checked={(cores ?? [])} onChange={(items: string[]) => { dispatch(setCores(items)); onChangeComplete?.(); }} />
+                                    </Box>
+                                </Collapse>
+                            </>
+                        )}
+
+                        {showMaterial && (
+                            <>
+                                <Box
+                                    onClick={() => setOpenMateriais(s => !s)}
+                                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
+                                >
+                                    <Typography sx={{ fontWeight: 700 }}>Material</Typography>
+                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                        <Typography color='text.secondary'>{selectedCount(materiais) > 0 ? `${selectedCount(materiais)} selecionados` : 'Todos'}</Typography>
+                                        <Box component='span' sx={{ transform: openMateriais ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
+                                    </Box>
+                                </Box>
+                                <Collapse in={openMateriais} timeout={160}>
+                                    <Box sx={{ p: 2 }}>
+                                        <CheckboxButtons items={materialItems} checked={(materiais ?? [])} onChange={(items: string[]) => { dispatch(setMateriais(items)); onChangeComplete?.(); }} />
+                                    </Box>
+                                </Collapse>
+                            </>
+                        )}
+
+                        {showTamanho && (
+                            <>
+                                <Box
+                                    onClick={() => setOpenTamanhos(s => !s)}
+                                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, borderRadius: 2, cursor: 'pointer', bgcolor: theme.palette.action.hover }}
+                                >
+                                    <Typography sx={{ fontWeight: 700 }}>Tamanho</Typography>
+                                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                        <Typography color='text.secondary'>{selectedCount(tamanhos) > 0 ? `${selectedCount(tamanhos)} selecionados` : 'Todos'}</Typography>
+                                        <Box component='span' sx={{ transform: openTamanhos ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms' }}>›</Box>
+                                    </Box>
+                                </Box>
+                                <Collapse in={openTamanhos} timeout={160}>
+                                    <Box sx={{ p: 2 }}>
+                                        <CheckboxButtons items={tamanhoItems} checked={(tamanhos ?? [])} onChange={(items: string[]) => { dispatch(setTamanhos(items)); onChangeComplete?.(); }} />
+                                    </Box>
+                                </Collapse>
+                            </>
+                        )}
+
+                        
 
                         {/* Campaigns */}
                         <Box
@@ -188,6 +370,55 @@ export default function Filters({filtersData: data, onChangeComplete}: Props) {
                         <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
                             <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Género</Typography>
                             <CheckboxButtons items={generoItems} checked={(generos ?? [])} onChange={(items: string[]) => { dispatch(setGeneros(items)); onChangeComplete?.(); }} />
+                        </Paper>
+                    )}
+
+                    {showMarca && (
+                        <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                            <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Marca</Typography>
+                            <CheckboxButtons items={marcaItems} checked={(marcas ?? [])} onChange={(items: string[]) => { dispatch(setMarcas(items)); onChangeComplete?.(); }} />
+                        </Paper>
+                    )}
+
+                    {showTipo && (
+                        <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                            <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Tipo</Typography>
+                            <CheckboxButtons items={tipoItems} checked={(tipos ?? [])} onChange={(items: string[]) => { dispatch(setTipos(items)); onChangeComplete?.(); }} />
+                        </Paper>
+                    )}
+
+                    {showModelo && (
+                        <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                            <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Modelo</Typography>
+                            <CheckboxButtons items={modeloItems} checked={(modelos ?? [])} onChange={(items: string[]) => { dispatch(setModelos(items)); onChangeComplete?.(); }} />
+                        </Paper>
+                    )}
+
+                    {showCapacidade && (
+                        <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                            <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Capacidade</Typography>
+                            <CheckboxButtons items={capacidadeItems} checked={(capacidades ?? [])} onChange={(items: string[]) => { dispatch(setCapacidades(items)); onChangeComplete?.(); }} />
+                        </Paper>
+                    )}
+
+                    {showCor && (
+                        <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                            <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Cor</Typography>
+                            <CheckboxButtons items={corItems} checked={(cores ?? [])} onChange={(items: string[]) => { dispatch(setCores(items)); onChangeComplete?.(); }} />
+                        </Paper>
+                    )}
+
+                    {showMaterial && (
+                        <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                            <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Material</Typography>
+                            <CheckboxButtons items={materialItems} checked={(materiais ?? [])} onChange={(items: string[]) => { dispatch(setMateriais(items)); onChangeComplete?.(); }} />
+                        </Paper>
+                    )}
+
+                    {showTamanho && (
+                        <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
+                            <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Tamanho</Typography>
+                            <CheckboxButtons items={tamanhoItems} checked={(tamanhos ?? [])} onChange={(items: string[]) => { dispatch(setTamanhos(items)); onChangeComplete?.(); }} />
                         </Paper>
                     )}
 

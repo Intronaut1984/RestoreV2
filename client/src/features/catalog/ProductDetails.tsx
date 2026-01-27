@@ -45,64 +45,107 @@ export default function ProductDetails() {
     if (value >= 0) setQuantity(value)
   }
 
-  const productDetails = [
-    { label: 'Nome', value: product.name },
-    { label: 'Descrição', value: product.description ?? '—' },
-    { label: 'Subtítulo', value: product.subtitle ?? '—' },
-    { label: 'Autor', value: product.author ?? '—' },
-    { label: 'Autores Secundários', value: product.secondaryAuthors ?? '—' },
-    { label: 'ISBN', value: product.isbn ?? '—' },
-    { label: 'Editora', value: product.publisher ?? '—' },
-    { label: 'Edição', value: product.edition ?? '—' },
-    { label: 'Género', value: product.genero ?? '—' },
-    { label: 'Ano de Publicação', value: product.anoPublicacao ?? '—' },
-    { label: 'Preço', value: currencyFormat(product.price) },
-    { label: 'Preço Promocional', value: product.promotionalPrice ? currencyFormat(product.promotionalPrice) : '—' },
-    { label: 'Desconto (%)', value: product.discountPercentage ?? '—' },
-    { label: 'Quantidade em estoque', value: product.quantityInStock },
-    { label: 'Sinopse', value: product.synopsis ?? '—' },
-    { label: 'Índice', value: product.index ?? '—' },
-    { label: 'Número de páginas', value: product.pageCount ?? '—' },
-    { label: 'Idioma', value: product.language ?? '—' },
-    { label: 'Formato', value: product.format ?? '—' },
-    { label: 'Dimensões', value: product.dimensoes ?? '—' },
-    { label: 'Peso (g)', value: product.weight ?? '—' },
-  ]
+  const productDetails: Array<{ label: string; value: string }> = [];
+
+  const pushIfValue = (label: string, value: unknown) => {
+    if (value === null || value === undefined) return;
+    if (typeof value === 'string' && value.trim() === '') return;
+    if (Array.isArray(value) && value.length === 0) return;
+
+    if (Array.isArray(value)) {
+      productDetails.push({ label, value: value.join(', ') });
+      return;
+    }
+
+    productDetails.push({ label, value: String(value) });
+  };
+
+  // Base fields (always relevant)
+  pushIfValue('Nome', product.name);
+  pushIfValue('Descrição', (product as any).description ?? product.synopsis);
+  pushIfValue('Subtítulo', product.subtitle);
+  pushIfValue('Preço', currencyFormat(product.price));
+  if (product.promotionalPrice) pushIfValue('Preço Promocional', currencyFormat(product.promotionalPrice));
+  if (product.discountPercentage != null) pushIfValue('Desconto (%)', product.discountPercentage);
+  pushIfValue('Quantidade em stock', product.quantityInStock);
 
   const isBook = (p: typeof product) => {
     return (p.categories ?? []).some(c => (c?.name ?? '').toLowerCase().includes('livro'))
   }
 
-  const isClothingOrToy = (p: typeof product) => {
+  const isClothing = (p: typeof product) => {
     return (p.categories ?? []).some(c => {
       const n = (c?.name ?? '').toLowerCase();
-      return ['vestuario','vestuário','roupa','roupas','brinquedo','brinquedos'].some(k => n.includes(k));
+      return ['vestuario', 'vestuário', 'roupa', 'roupas'].some(k => n.includes(k));
+    })
+  }
+
+  const isToy = (p: typeof product) => {
+    return (p.categories ?? []).some(c => {
+      const n = (c?.name ?? '').toLowerCase();
+      return ['brinquedo', 'brinquedos', 'toy', 'toys'].some(k => n.includes(k));
+    })
+  }
+
+  const isTechnology = (p: typeof product) => {
+    return (p.categories ?? []).some(c => {
+      const n = (c?.name ?? '').toLowerCase();
+      return ['tecnologia', 'tecnológico', 'tecnologicos', 'tech', 'eletronica', 'eletrónica', 'electronica', 'electronics', 'eletrónicos'].some(k => n.includes(k));
     })
   }
 
   if (isBook(product)) {
-    // book-specific fields are already mostly included above; nothing extra here
+    pushIfValue('Autor', product.author);
+    pushIfValue('Autores Secundários', product.secondaryAuthors);
+    pushIfValue('ISBN', product.isbn);
+    pushIfValue('Editora', product.publisher);
+    pushIfValue('Edição', product.edition);
+    pushIfValue('Género', product.genero);
+    pushIfValue('Ano de Publicação', product.anoPublicacao);
+    pushIfValue('Índice', product.index);
+    pushIfValue('Número de páginas', product.pageCount);
+    pushIfValue('Idioma', product.language);
+    pushIfValue('Formato', product.format);
+    pushIfValue('Dimensões', product.dimensoes);
+    pushIfValue('Peso (g)', product.weight);
   }
 
-  if (isClothingOrToy(product)) {
-    productDetails.push({ label: 'Cor / Color', value: product.cor ?? '—' });
-    productDetails.push({ label: 'Material', value: product.material ?? '—' });
-    productDetails.push({ label: 'Tamanho / Size', value: product.tamanho ?? '—' });
-    productDetails.push({ label: 'Marca / Brand', value: product.marca ?? '—' });
+  if (isClothing(product)) {
+    pushIfValue('Marca / Brand', product.marca);
+    pushIfValue('Tamanho / Size', product.tamanho);
+    pushIfValue('Cor / Color', product.cor);
+    pushIfValue('Material / Tecido', product.material);
+  }
+
+  if (isTechnology(product)) {
+    pushIfValue('Tipo', product.tipo);
+    pushIfValue('Marca / Brand', product.marca);
+    pushIfValue('Modelo', product.modelo);
+    pushIfValue('Capacidade', product.capacidade);
+    pushIfValue('Cor / Color', product.cor);
+    pushIfValue('Material', product.material);
+  }
+
+  if (isToy(product)) {
+    pushIfValue('Marca / Brand', product.marca);
+    pushIfValue('Cor / Color', product.cor);
+    pushIfValue('Material', product.material);
+    pushIfValue('Idade mínima', product.idadeMinima);
+    pushIfValue('Idade máxima', product.idadeMaxima);
   }
 
   // always include categories and campaigns if present
   if (product.categories && product.categories.length) {
-    productDetails.push({ label: 'Categorias', value: product.categories.map(c => c.name).join(', ') });
+    pushIfValue('Categorias', product.categories.map(c => c.name));
   }
 
   if (product.campaigns && product.campaigns.length) {
-    productDetails.push({ label: 'Campaigns', value: product.campaigns.map(c => c.name).join(', ') });
+    pushIfValue('Campaigns', product.campaigns.map(c => c.name));
   }
 
   // metadata
-  productDetails.push({ label: 'Criado em', value: product.createdAt ?? '—' });
-  productDetails.push({ label: 'Atualizado em', value: product.updatedAt ?? '—' });
+  pushIfValue('Criado em', product.createdAt);
+  pushIfValue('Atualizado em', product.updatedAt);
 
   return (
     <Grid2 container spacing={4} sx={{ mx: 'auto', px: { xs: 2, md: 3 }, maxWidth: 1200, justifyContent: 'center' }}>

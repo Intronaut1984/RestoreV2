@@ -36,6 +36,34 @@ export const catalogApi = createApi({
                     params.campaignIds = productParams.campaignIds.join(',');
                 }
 
+                if (productParams.marcas && productParams.marcas.length > 0) {
+                    params.marcas = productParams.marcas.map(x => x.toLowerCase()).join(',');
+                }
+
+                if (productParams.modelos && productParams.modelos.length > 0) {
+                    params.modelos = productParams.modelos.map(x => x.toLowerCase()).join(',');
+                }
+
+                if (productParams.tipos && productParams.tipos.length > 0) {
+                    params.tipos = productParams.tipos.map(x => x.toLowerCase()).join(',');
+                }
+
+                if (productParams.capacidades && productParams.capacidades.length > 0) {
+                    params.capacidades = productParams.capacidades.map(x => x.toLowerCase()).join(',');
+                }
+
+                if (productParams.cores && productParams.cores.length > 0) {
+                    params.cores = productParams.cores.map(x => x.toLowerCase()).join(',');
+                }
+
+                if (productParams.materiais && productParams.materiais.length > 0) {
+                    params.materiais = productParams.materiais.map(x => x.toLowerCase()).join(',');
+                }
+
+                if (productParams.tamanhos && productParams.tamanhos.length > 0) {
+                    params.tamanhos = productParams.tamanhos.map(x => x.toLowerCase()).join(',');
+                }
+
                 if (productParams.hasDiscount !== undefined) {
                     params.hasDiscount = productParams.hasDiscount ? 'true' : 'false';
                 }
@@ -64,7 +92,19 @@ export const catalogApi = createApi({
         ,
             providesTags: (_result, _error, id) => [{ type: 'Products', id }]
         }),
-        fetchFilters: builder.query<{ generos: string[], anos: number[], categories?: { id: number; name: string; slug?: string; isActive?: boolean }[], campaigns?: { id: number; name: string; slug?: string; isActive?: boolean }[] }, void>({
+        fetchFilters: builder.query<{
+            generos: string[];
+            anos: number[];
+            categories?: { id: number; name: string; slug?: string; isActive?: boolean }[];
+            campaigns?: { id: number; name: string; slug?: string; isActive?: boolean }[];
+            marcas?: string[];
+            modelos?: string[];
+            tipos?: string[];
+            capacidades?: string[];
+            cores?: string[];
+            materiais?: string[];
+            tamanhos?: string[];
+        }, void>({
             query: () => 'products/filters'
         ,
             providesTags: ['Filters']

@@ -24,7 +24,7 @@ export default function Search() {
 
     return (
         <TextField
-            label='Search products'
+            label='Procurar Produtos'
             variant="outlined"
             fullWidth
             type="search"

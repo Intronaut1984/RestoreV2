@@ -23,7 +23,17 @@ namespace API.Controllers
             var query = context.Products
                 .Sort(productParams.OrderBy)
                 .Search(productParams.SearchTerm)
-                .Filter(productParams.Generos, productParams.Anos, productParams.HasDiscount)
+                .Filter(
+                    productParams.Generos,
+                    productParams.Anos,
+                    productParams.HasDiscount,
+                    productParams.Marcas,
+                    productParams.Modelos,
+                    productParams.Tipos,
+                    productParams.Capacidades,
+                    productParams.Cores,
+                    productParams.Materiais,
+                    productParams.Tamanhos)
                 .AsQueryable();
 
             // Parse category and campaign id strings into lists
@@ -148,7 +158,49 @@ namespace API.Controllers
                 .Select(c => new { c.Id, c.Name, c.Slug, c.IsActive })
                 .ToListAsync();
 
-            return Ok(new { generos, anos, categories, campaigns });
+            var marcas = await context.Products
+                .Where(p => p.Marca != null)
+                .Select(p => p.Marca)
+                .Distinct()
+                .ToListAsync();
+
+            var modelos = await context.Products
+                .Where(p => p.Modelo != null)
+                .Select(p => p.Modelo)
+                .Distinct()
+                .ToListAsync();
+
+            var tipos = await context.Products
+                .Where(p => p.Tipo != null)
+                .Select(p => p.Tipo)
+                .Distinct()
+                .ToListAsync();
+
+            var capacidades = await context.Products
+                .Where(p => p.Capacidade != null)
+                .Select(p => p.Capacidade)
+                .Distinct()
+                .ToListAsync();
+
+            var cores = await context.Products
+                .Where(p => p.Cor != null)
+                .Select(p => p.Cor)
+                .Distinct()
+                .ToListAsync();
+
+            var materiais = await context.Products
+                .Where(p => p.Material != null)
+                .Select(p => p.Material)
+                .Distinct()
+                .ToListAsync();
+
+            var tamanhos = await context.Products
+                .Where(p => p.Tamanho != null)
+                .Select(p => p.Tamanho)
+                .Distinct()
+                .ToListAsync();
+
+            return Ok(new { generos, anos, categories, campaigns, marcas, modelos, tipos, capacidades, cores, materiais, tamanhos });
         }
 
         [Authorize(Roles = "Admin")]

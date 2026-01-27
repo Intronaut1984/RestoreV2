@@ -44,6 +44,13 @@ export const createProductSchema = z.object({
     material: z.string().optional(),
     tamanho: z.string().optional(),
     marca: z.string().optional(),
+    // technology specific fields
+    tipo: z.string().optional(),
+    modelo: z.string().optional(),
+    capacidade: z.string().optional(),
+    // toy specific fields
+    idadeMinima: z.coerce.number().optional(),
+    idadeMaxima: z.coerce.number().optional(),
     tags: z.array(z.string()).optional()
 }).refine((data) => data.pictureUrl || data.file, {
     message: 'Please provide an image',
