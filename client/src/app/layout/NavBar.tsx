@@ -152,20 +152,36 @@ export default function NavBar() {
                 </Box>
 
                 {/* Desktop search field - Centered */}
-                <Box sx={{ display: { xs: 'none', md: 'flex' }, flex: 1, justifyContent: 'center', alignItems: 'center', gap: 1, maxWidth: 620 }}>
-                    <Select
-                        size="small"
-                        value={quickFilterValue}
-                        onChange={onQuickFilterChange}
-                        sx={{ minWidth: 150, bgcolor: 'background.paper', borderRadius: 1 }}
-                    >
-                        <MenuItem value="all">Todos</MenuItem>
-                        <MenuItem value="promo">Promoção</MenuItem>
-                        <MenuItem value="bestsellers">Mais vendidos</MenuItem>
-                    </Select>
-                    <SearchIcon sx={{ color: 'inherit' }} />
-                    <Box sx={{ flex: 1 }}>
-                        <Search />
+                <Box sx={{ display: { xs: 'none', md: 'flex' }, flex: 1, justifyContent: 'center', alignItems: 'center', maxWidth: 680 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'stretch', width: '100%' }}>
+                        <Select
+                            size="small"
+                            value={quickFilterValue}
+                            onChange={onQuickFilterChange}
+                            sx={{
+                                minWidth: 170,
+                                bgcolor: 'background.paper',
+                                '& .MuiOutlinedInput-root': {
+                                    borderTopRightRadius: 0,
+                                    borderBottomRightRadius: 0,
+                                },
+                            }}
+                        >
+                            <MenuItem value="all">Todos</MenuItem>
+                            <MenuItem value="promo">Promoção</MenuItem>
+                            <MenuItem value="bestsellers">Mais vendidos</MenuItem>
+                        </Select>
+                        <Box sx={{ flex: 1 }}>
+                            <Search
+                                sx={{
+                                    ml: '-1px',
+                                    '& .MuiOutlinedInput-root': {
+                                        borderTopLeftRadius: 0,
+                                        borderBottomLeftRadius: 0,
+                                    },
+                                }}
+                            />
+                        </Box>
                     </Box>
                 </Box>
 
