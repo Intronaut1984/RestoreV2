@@ -3,6 +3,7 @@ import { baseQueryWithErrorHandling } from '../../app/api/baseApi';
 
 export interface ShippingRateDto {
     rate: number;
+    freeShippingThreshold: number;
     updatedAt: string;
 }
 

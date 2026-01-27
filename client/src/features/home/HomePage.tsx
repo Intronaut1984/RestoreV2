@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGetCampaignsQuery } from '../admin/adminApi';
 import { Button } from '@mui/material';
 import { useGetHeroBlocksQuery } from '../admin/heroBlocksApi';
+import { useGetShippingRateQuery } from '../admin/shippingRateApi';
 
 type HeroImage = { id: number; url: string; publicId?: string; order?: number };
 type HeroBlock = { id: number; title?: string; visible: boolean; order?: number; images?: HeroImage[] };
@@ -58,6 +59,13 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
   const heroRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
   const { data: campaigns } = useGetCampaignsQuery();
+  const { data: shippingRateData } = useGetShippingRateQuery();
+
+  const freeShippingLabel = (() => {
+    const threshold = shippingRateData?.freeShippingThreshold ?? 100;
+    if (threshold <= 0) return 'Free shipping';
+    return Number.isInteger(threshold) ? `€${threshold.toFixed(0)}` : `€${threshold.toFixed(2)}`;
+  })();
 
   // image slideshow for this hero block
   useEffect(() => {
@@ -68,7 +76,7 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
 
   // features to show in bottom sliding bar
   const features = [
-    { id: 'shipping', icon: <LocalShippingIcon color="primary" />, text: 'Free shipping over €50' },
+    { id: 'shipping', icon: <LocalShippingIcon color="primary" />, text: `Free shipping over ${freeShippingLabel}` },
     { id: 'secure', icon: <LockIcon color="primary" />, text: 'Secure payments' },
     { id: 'returns', icon: <ReplayIcon color="primary" />, text: '30-day returns' },
   ];

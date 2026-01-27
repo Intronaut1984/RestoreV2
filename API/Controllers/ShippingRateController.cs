@@ -15,6 +15,9 @@ namespace API.Controllers;
 [Route("api/[controller]")]
 public class ShippingRateController(StoreContext context, IMapper mapper, ILogger<ShippingRateController> logger) : ControllerBase
 {
+    private const decimal DefaultRate = 5m;
+    private const decimal DefaultFreeShippingThreshold = 100m;
+
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<ShippingRateDto>> GetShippingRate()
@@ -23,14 +26,14 @@ public class ShippingRateController(StoreContext context, IMapper mapper, ILogge
         {
             var shippingRate = await context.ShippingRates.FirstOrDefaultAsync();
             if (shippingRate == null)
-                return Ok(new ShippingRateDto { Rate = 0 });
+                return Ok(new ShippingRateDto { Rate = DefaultRate, FreeShippingThreshold = DefaultFreeShippingThreshold, UpdatedAt = DateTime.UtcNow });
 
             return Ok(mapper.Map<ShippingRateDto>(shippingRate));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load ShippingRate from database");
-            return Ok(new ShippingRateDto { Rate = 0 });
+            return Ok(new ShippingRateDto { Rate = DefaultRate, FreeShippingThreshold = DefaultFreeShippingThreshold, UpdatedAt = DateTime.UtcNow });
         }
     }
 
@@ -47,6 +50,7 @@ public class ShippingRateController(StoreContext context, IMapper mapper, ILogge
                 shippingRate = new ShippingRate
                 {
                     Rate = dto.Rate,
+                    FreeShippingThreshold = dto.FreeShippingThreshold,
                     UpdatedAt = DateTime.UtcNow
                 };
                 context.ShippingRates.Add(shippingRate);
@@ -54,6 +58,7 @@ public class ShippingRateController(StoreContext context, IMapper mapper, ILogge
             else
             {
                 shippingRate.Rate = dto.Rate;
+                shippingRate.FreeShippingThreshold = dto.FreeShippingThreshold;
                 shippingRate.UpdatedAt = DateTime.UtcNow;
             }
 

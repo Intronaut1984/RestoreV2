@@ -18,6 +18,9 @@ namespace API.Controllers;
 [Authorize]
 public class OrdersController(StoreContext context, IConfiguration config, ILogger<OrdersController> logger, Services.DiscountService discountService) : BaseApiController
 {
+    private const decimal DefaultRate = 5m;
+    private const decimal DefaultFreeShippingThreshold = 100m;
+
     [HttpGet]
     public async Task<ActionResult<List<OrderDto>>> GetOrders()
     {
@@ -54,7 +57,7 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
         if (items == null) return BadRequest("Some items out of stock");
         // items.Price is stored as cents (long) in the OrderItem entity, so subtotal is in cents
         var subtotal = items.Sum(x => x.Price * x.Quantity);
-        var deliveryFee = CalculateDeliveryFee(subtotal);
+        var deliveryFee = await CalculateDeliveryFeeAsync(subtotal);
 
         // Compute product-level discounts (difference between original unit price and final unit price)
         long productDiscount = 0;
@@ -167,9 +170,26 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
         return CreatedAtAction(nameof(GetOrderDetails), new { id = order.Id }, order.ToDto());
     }
 
-    private long CalculateDeliveryFee(long subtotal)
+    private async Task<long> CalculateDeliveryFeeAsync(long subtotal)
     {
-        return subtotal > 10000 ? 0 : 500;
+        try
+        {
+            var shipping = await context.ShippingRates.AsNoTracking().FirstOrDefaultAsync();
+
+            var rateEuros = shipping?.Rate ?? DefaultRate;
+            var thresholdEuros = shipping?.FreeShippingThreshold ?? DefaultFreeShippingThreshold;
+
+            var rateCents = (long)Math.Round(rateEuros * 100m);
+            var thresholdCents = (long)Math.Round(thresholdEuros * 100m);
+
+            if (thresholdCents <= 0) return 0;
+            return subtotal > thresholdCents ? 0 : Math.Max(0, rateCents);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load ShippingRate while calculating delivery fee. Falling back to defaults.");
+            return subtotal > 10000 ? 0 : 500;
+        }
     }
 
     private List<OrderItem>? CreateOrderItems(List<BasketItem> items)

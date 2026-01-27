@@ -7,10 +7,15 @@ export default function AdminShippingRate() {
     const { data: shippingRateData, isLoading } = useGetShippingRateQuery();
     const [updateShippingRate, { isLoading: isSubmitting }] = useUpdateShippingRateMutation();
     const [rate, setRate] = useState('0');
+    const [freeShippingThreshold, setFreeShippingThreshold] = useState('100');
 
     useEffect(() => {
-        if (shippingRateData?.rate) {
+        if (!shippingRateData) return;
+        if (shippingRateData.rate !== undefined && shippingRateData.rate !== null) {
             setRate(shippingRateData.rate.toString());
+        }
+        if (shippingRateData.freeShippingThreshold !== undefined && shippingRateData.freeShippingThreshold !== null) {
+            setFreeShippingThreshold(shippingRateData.freeShippingThreshold.toString());
         }
     }, [shippingRateData]);
 
@@ -19,13 +24,19 @@ export default function AdminShippingRate() {
         
         try {
             const rateValue = parseFloat(rate);
+            const thresholdValue = parseFloat(freeShippingThreshold);
             if (isNaN(rateValue) || rateValue < 0) {
                 alert('Por favor insira um valor válido');
+                return;
+            }
+            if (isNaN(thresholdValue) || thresholdValue < 0) {
+                alert('Por favor insira um valor válido para o mínimo de portes grátis');
                 return;
             }
 
             await updateShippingRate({
                 rate: rateValue,
+                freeShippingThreshold: thresholdValue,
                 updatedAt: new Date().toISOString()
             }).unwrap();
             
@@ -60,6 +71,18 @@ export default function AdminShippingRate() {
                     onChange={(e) => setRate(e.target.value)}
                     sx={{ mb: 2 }}
                     placeholder="0.00"
+                />
+
+                <TextField
+                    fullWidth
+                    label="Mínimo para Portes Grátis"
+                    type="number"
+                    inputProps={{ step: '0.01', min: '0' }}
+                    value={freeShippingThreshold}
+                    onChange={(e) => setFreeShippingThreshold(e.target.value)}
+                    sx={{ mb: 2 }}
+                    placeholder="100.00"
+                    helperText="Ex.: 100 significa portes grátis acima de €100"
                 />
 
                 <LoadingButton

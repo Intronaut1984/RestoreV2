@@ -3,5 +3,8 @@
 //     "appService.deploySubpath": "API\\bin\\Publish"
 // }
 {
-    "sqltools.connections": []
+    "sqltools.connections": [],
+    "yaml.schemas": {
+        "https://json.schemastore.org/github-workflow.json": ".github/workflows/*"
+    }
 }

@@ -1,17 +1,47 @@
 import { useEffect, useState, useRef } from 'react';
 import { Box, Typography, useTheme, useMediaQuery } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useGetShippingRateQuery } from '../../features/admin/shippingRateApi';
 
 export default function PromoBar() {
   const navigate = useNavigate();
+  const { data: shippingRateData } = useGetShippingRateQuery();
   const [visible, setVisible] = useState(false);
   const [topOffset, setTopOffset] = useState<number | string>(0);
   const theme = useTheme();
   const isSm = useMediaQuery(theme.breakpoints.down('sm'));
   const rootRef = useRef<HTMLElement | null>(null);
   const previousBodyPaddingRef = useRef<string | null>(null);
-  const [message, setMessage] = useState('Promoção: Entrega grátis em compras acima de €50 — Aproveite!');
+  const [message, setMessage] = useState('');
   const [color, setColor] = useState('#050505');
+
+  const freeShippingText = (() => {
+    const threshold = shippingRateData?.freeShippingThreshold ?? 100;
+    if (threshold <= 0) return 'Entrega grátis';
+    const label = Number.isInteger(threshold) ? threshold.toFixed(0) : threshold.toFixed(2);
+    return `Entrega grátis em compras acima de €${label}`;
+  })();
+
+  const displayMessage = (() => {
+    const base = (message ?? '').trim();
+    const placeholder = '{{freeShippingThreshold}}';
+    const threshold = shippingRateData?.freeShippingThreshold ?? 100;
+    const thresholdLabel = threshold <= 0
+      ? ''
+      : (Number.isInteger(threshold) ? threshold.toFixed(0) : threshold.toFixed(2));
+
+    if (!base) {
+      return `Promoção: ${freeShippingText} — Aproveite!`;
+    }
+
+    if (base.includes(placeholder)) {
+      const replacement = threshold <= 0 ? '0' : thresholdLabel;
+      return base.split(placeholder).join(replacement);
+    }
+
+    // Keep admin message intact but ensure free-shipping info is visible and up-to-date.
+    return `${base} • ${freeShippingText}`;
+  })();
 
   // Fallback toolbar height from theme (used only if DOM measure fails)
   const toolbarHeight = ((theme.mixins as unknown) as { toolbar?: { minHeight?: number } })?.toolbar?.minHeight ?? 64;
@@ -131,6 +161,7 @@ export default function PromoBar() {
     <Box
       component="section"
       ref={rootRef}
+      className="promo-bar"
       onClick={() => navigate('/catalog')}
       sx={{
         position: 'fixed',
@@ -158,7 +189,7 @@ export default function PromoBar() {
       }}
     >
       <Typography variant={isSm ? 'body2' : 'body1'} sx={{ fontWeight: 600, lineHeight: 1 }}>
-        {message}
+        {displayMessage}
       </Typography>
     </Box>
   );

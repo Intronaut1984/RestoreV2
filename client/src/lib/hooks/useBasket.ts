@@ -12,8 +12,17 @@ export const useBasket = () => {
     const subtotal = basket?.items.reduce((sum: number, item: Item) => sum + item.quantity * item.price, 0) ?? 0;
     
     // Get shipping rate from API (convert from euros to cents: rate * 100)
-    const shippingRate = shippingRateData?.rate ? Math.round(shippingRateData.rate * 100) : 500;
-    const deliveryFee = subtotal > 10000 ? 0 : shippingRate;
+    const shippingRate = shippingRateData?.rate !== undefined && shippingRateData?.rate !== null
+        ? Math.round(shippingRateData.rate * 100)
+        : 500;
+
+    const freeShippingThresholdCents = shippingRateData?.freeShippingThreshold !== undefined && shippingRateData?.freeShippingThreshold !== null
+        ? Math.round(shippingRateData.freeShippingThreshold * 100)
+        : 10000;
+
+    const deliveryFee = freeShippingThresholdCents <= 0
+        ? 0
+        : (subtotal > freeShippingThresholdCents ? 0 : shippingRate);
 
     // product-level discounts (sum of original - discounted price for each item)
     const productDiscount = basket?.items.reduce((sum: number, item: Item) => {
@@ -36,5 +45,5 @@ export const useBasket = () => {
 
     const total = subtotal - discount + deliveryFee;
 
-    return {basket, subtotal, deliveryFee, productDiscount, couponDiscount, discount, total, clearBasket}
+    return {basket, subtotal, deliveryFee, freeShippingThresholdCents, productDiscount, couponDiscount, discount, total, clearBasket}
 }
