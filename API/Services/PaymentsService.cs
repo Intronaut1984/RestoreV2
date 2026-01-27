@@ -1,12 +1,17 @@
 using API.Entities;
+using API.Data;
 using Stripe;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace API.Services;
 
-public class PaymentsService(IConfiguration config, DiscountService discountService)
+public class PaymentsService(IConfiguration config, DiscountService discountService, StoreContext context)
 {
+    private const decimal DefaultRate = 5m;
+    private const decimal DefaultFreeShippingThreshold = 100m;
+
     public async Task<PaymentIntent> CreateOrUpdatePaymentIntent(Basket basket,
         bool removeDiscount = false)
     {
@@ -50,8 +55,24 @@ public class PaymentsService(IConfiguration config, DiscountService discountServ
             subtotal = (long)Math.Round(subtotalDecimal * 100M);
         }
 
-        // delivery fee logic expects cents: free over €100 (10000 cents), otherwise €5 (500 cents)
-        long deliveryFee = subtotal > 10000 ? 0 : 500;
+        // delivery fee logic expects cents and is configured via ShippingRates (defaults to prior behavior)
+        long deliveryFee;
+        try
+        {
+            var shipping = await context.ShippingRates.AsNoTracking().FirstOrDefaultAsync();
+            var rateEuros = shipping?.Rate ?? DefaultRate;
+            var thresholdEuros = shipping?.FreeShippingThreshold ?? DefaultFreeShippingThreshold;
+
+            var rateCents = (long)Math.Round(rateEuros * 100m);
+            var thresholdCents = (long)Math.Round(thresholdEuros * 100m);
+
+            if (thresholdCents <= 0) deliveryFee = 0;
+            else deliveryFee = subtotal > thresholdCents ? 0 : Math.Max(0, rateCents);
+        }
+        catch
+        {
+            deliveryFee = subtotal > 10000 ? 0 : 500;
+        }
         long discount = 0;
 
         if (basket.Coupon != null)

@@ -75,7 +75,7 @@ export default function ProductCard({ product }: Props) {
                         try {
                             if (next) await addFavorite(product.id).unwrap();
                             else await removeFavorite(product.id).unwrap();
-                        } catch (err) {
+                        } catch {
                             // rollback on error
                             setIsFav(!next);
                         }
@@ -111,7 +111,7 @@ export default function ProductCard({ product }: Props) {
                     disableElevation={isLight}
                     sx={isLight ? { backgroundColor: 'grey.900', color: 'common.white', '&:hover': { backgroundColor: 'grey.800' }, width: { xs: '100%', sm: 'auto' } } : { width: { xs: '100%', sm: 'auto' } }}
                 >
-                    Comprar
+                    Adicionar ao Cesto
                 </LoadingButton>
 
                 <Button

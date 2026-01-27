@@ -9,7 +9,11 @@ import { Delete } from "@mui/icons-material";
 
 export default function OrderSummary() {
     const theme = useTheme();
-    const {subtotal, deliveryFee, discount, basket, total} = useBasket();
+    const {subtotal, deliveryFee, freeShippingThresholdCents, discount, basket, total} = useBasket();
+    const freeShippingThresholdEuros = freeShippingThresholdCents / 100;
+    const freeShippingThresholdLabel = Number.isInteger(freeShippingThresholdEuros)
+        ? freeShippingThresholdEuros.toFixed(0)
+        : freeShippingThresholdEuros.toFixed(2);
     // If the primary color is very light (low contrast on white paper), use outlined buttons
     // so they remain visible in light mode. We check MUI's contrast helper.
     const primaryContrastText = theme.palette.getContrastText(theme.palette.primary.main);
@@ -64,7 +68,9 @@ export default function OrderSummary() {
                         </Typography>
                     </Box>
                     <Typography variant="caption" sx={{fontStyle: 'italic', fontSize: { xs: '0.65rem', sm: '0.8rem' }, mt: 1}}>
-                    *Entrega Gratuita em compras mais de €50
+                        {freeShippingThresholdCents <= 0
+                            ? '*Entrega Gratuita'
+                            : `*Entrega Gratuita em compras acima de €${freeShippingThresholdLabel}`}
                     </Typography>
                 </Box>
 
@@ -79,7 +85,7 @@ export default function OrderSummary() {
                         disableElevation={checkoutUsesDarkFill}
                         sx={checkoutSx}
                     >
-                        Comprar
+                        Adicionar ao Cesto
                     </Button>}
                     <Button
                         component={Link}
