@@ -1,7 +1,7 @@
 export type Product = {
     id: number
     name: string
-    description: string
+    description?: string | null
     price: number
     pictureUrl: string
     // removed 'type' and 'brand' — replaced with book-specific fields

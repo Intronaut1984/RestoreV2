@@ -14,6 +14,9 @@ public class UpdateProductDto
     [Required]
     public string Name { get; set; } = string.Empty;
 
+    // Bound from multipart/form-data field `description` sent by the admin form
+    public string? Description { get; set; }
+
     [JsonPropertyName("subtitulo")]
     public string? Subtitle { get; set; }
 

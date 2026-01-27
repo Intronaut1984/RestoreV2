@@ -62,7 +62,7 @@ export default function ProductDetails() {
 
   // Base fields (always relevant)
   pushIfValue('Nome', product.name);
-  pushIfValue('Descrição', (product as any).description ?? product.synopsis);
+  pushIfValue('Descrição', product.description ?? product.synopsis);
   pushIfValue('Subtítulo', product.subtitle);
   pushIfValue('Preço', currencyFormat(product.price));
   if (product.promotionalPrice) pushIfValue('Preço Promocional', currencyFormat(product.promotionalPrice));
