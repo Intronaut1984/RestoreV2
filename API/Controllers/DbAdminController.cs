@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers;
 
+[ApiController]
+[Route("api/[controller]")]
 [Authorize(Roles = "Admin")]
 public class DbAdminController(StoreContext context) : BaseApiController
 {

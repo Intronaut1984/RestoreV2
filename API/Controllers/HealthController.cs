@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers;
 
+[ApiController]
+[Route("api/[controller]")]
 [AllowAnonymous]
 public class HealthController(StoreContext context) : BaseApiController
 {
