@@ -21,9 +21,9 @@ namespace API.Controllers
         public async Task<ActionResult<List<Product>>> GetProducts(
             [FromQuery] ProductParams productParams)
         {
-            // Start with base query applying sort/search and simple scalar filters
+            // Start with base query applying search and scalar filters.
+            // Sorting is applied later because some sorts may depend on other tables (e.g. clicks).
             var query = context.Products
-                .Sort(productParams.OrderBy)
                 .Search(productParams.SearchTerm)
                 .Filter(
                     productParams.Generos,
@@ -79,7 +79,32 @@ namespace API.Controllers
                 query = query.Where(p => productIds.Contains(p.Id));
             }
 
-            // include navigation properties after all filtering to keep the EF translation simple
+            // Apply sorting after filters.
+            // Support click-based sorting for "Mais procurados".
+            if (!string.IsNullOrWhiteSpace(productParams.OrderBy) &&
+                (productParams.OrderBy == "clicksDesc" || productParams.OrderBy == "clicks"))
+            {
+                var clickCounts = context.ProductClicks
+                    .AsNoTracking()
+                    .GroupBy(c => c.ProductId)
+                    .Select(g => new { ProductId = g.Key, Clicks = g.LongCount() });
+
+                var joined = query.GroupJoin(
+                    clickCounts,
+                    p => p.Id,
+                    c => c.ProductId,
+                    (p, cg) => new { Product = p, Clicks = cg.Select(x => x.Clicks).FirstOrDefault() });
+
+                query = productParams.OrderBy == "clicksDesc"
+                    ? joined.OrderByDescending(x => x.Clicks).ThenBy(x => x.Product.Name).Select(x => x.Product)
+                    : joined.OrderBy(x => x.Clicks).ThenBy(x => x.Product.Name).Select(x => x.Product);
+            }
+            else
+            {
+                query = query.Sort(productParams.OrderBy);
+            }
+
+            // include navigation properties after filtering/sorting to keep EF translation simple
             query = query.Include(p => p.Campaigns).Include(p => p.Categories);
 
             var products = await PagedList<Product>.ToPagedList(query,

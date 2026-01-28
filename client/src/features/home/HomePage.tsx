@@ -1,20 +1,60 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Skeleton } from "@mui/material";
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import LockIcon from '@mui/icons-material/Lock';
 import ReplayIcon from '@mui/icons-material/Replay';
-import { useEffect, useState, useRef } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetCampaignsQuery } from '../admin/adminApi';
 import { Button } from '@mui/material';
 import { useGetHeroBlocksQuery } from '../admin/heroBlocksApi';
 import { useGetShippingRateQuery } from '../admin/shippingRateApi';
+import { skipToken } from '@reduxjs/toolkit/query';
+import { useFetchFiltersQuery, useFetchProductsQuery } from '../catalog/catalogApi';
+import { useAppDispatch } from '../../app/store/store';
+import { resetParams, setCategories, setOrderBy } from '../catalog/catalogSlice';
+import { Product } from '../../app/models/product';
+import { ProductParams } from '../../app/models/productParams';
+import { computeFinalPrice, currencyFormat } from '../../lib/util';
 
 type HeroImage = { id: number; url: string; publicId?: string; order?: number };
 type HeroBlock = { id: number; title?: string; visible: boolean; order?: number; images?: HeroImage[] };
 
+const baseProductParams: ProductParams = {
+  pageNumber: 1,
+  pageSize: 8,
+  anos: [],
+  generos: [],
+  categoryIds: [],
+  campaignIds: [],
+  marcas: [],
+  modelos: [],
+  tipos: [],
+  capacidades: [],
+  cores: [],
+  materiais: [],
+  tamanhos: [],
+  hasDiscount: undefined,
+  searchTerm: '',
+  orderBy: 'name'
+};
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export default function HomePage() {
   const { data: blocks } = useGetHeroBlocksQuery();
   const [pullUp, setPullUp] = useState<number>(0);
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { data: filtersData } = useFetchFiltersQuery();
+  const [booksCategoryId, setBooksCategoryId] = useState<number | null>(null);
+  const [techCategoryId, setTechCategoryId] = useState<number | null>(null);
 
   // each block handles its own slideshow interval via local state
 
@@ -38,16 +78,304 @@ export default function HomePage() {
     .filter((b: HeroBlock) => b.visible && ((b.images?.length ?? 0) > 0))
     .slice(0, 3);
 
+  useEffect(() => {
+    const categories = (filtersData?.categories ?? []).filter(c => c && c.id && c.isActive !== false);
+    if (!categories.length) return;
+
+    const byName = (needle: string) =>
+      categories.find(c => (c.name ?? '').toLowerCase().includes(needle));
+
+    const books = byName('livr') ?? byName('book') ?? categories[0];
+    const tech = (byName('tecn') ?? byName('tech') ?? byName('eletr') ?? categories[1] ?? categories[0]);
+
+    setBooksCategoryId(books?.id ?? null);
+    setTechCategoryId((tech?.id ?? null) === (books?.id ?? null) ? null : (tech?.id ?? null));
+  }, [filtersData?.categories]);
+
+  const bestParams = useMemo<ProductParams>(() => ({
+    ...baseProductParams,
+    pageNumber: 1,
+    pageSize: 24,
+    orderBy: 'salesDesc'
+  }), []);
+
+  const clicksParams = useMemo<ProductParams>(() => ({
+    ...baseProductParams,
+    pageNumber: 1,
+    pageSize: 24,
+    orderBy: 'clicksDesc'
+  }), []);
+
+  const booksParams = useMemo<ProductParams | typeof skipToken>(() => {
+    if (!booksCategoryId) return skipToken;
+    return {
+      ...baseProductParams,
+      pageNumber: 1,
+      pageSize: 24,
+      orderBy: 'name',
+      categoryIds: [booksCategoryId]
+    };
+  }, [booksCategoryId]);
+
+  const techParams = useMemo<ProductParams | typeof skipToken>(() => {
+    if (!techCategoryId) return skipToken;
+    return {
+      ...baseProductParams,
+      pageNumber: 1,
+      pageSize: 24,
+      orderBy: 'name',
+      categoryIds: [techCategoryId]
+    };
+  }, [techCategoryId]);
+
+  const { data: bestData, isLoading: bestLoading } = useFetchProductsQuery(bestParams);
+  const { data: clicksData, isLoading: clicksLoading } = useFetchProductsQuery(clicksParams);
+  const { data: booksData, isLoading: booksLoading } = useFetchProductsQuery(booksParams);
+  const { data: techData, isLoading: techLoading } = useFetchProductsQuery(techParams);
+
+  const bestPreview = useMemo(() => shuffle(bestData?.items ?? []).slice(0, 12), [bestData?.items]);
+  const clicksPreview = useMemo(() => {
+    const items = clicksData?.items ?? [];
+    // No shuffle here; keep the most-clicked ordering.
+    return items.slice(0, 12);
+  }, [clicksData?.items]);
+
+  const booksPreview = useMemo(() => shuffle(booksData?.items ?? []).slice(0, 12), [booksData?.items]);
+  const techPreview = useMemo(() => shuffle(techData?.items ?? []).slice(0, 12), [techData?.items]);
+
   return (
-    <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: { xs: 1, md: 1 } }}>
+    <Box
+      sx={{
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: { xs: 1, md: 1 },
+        pb: { xs: 3, md: 6 },
+      }}
+    >
       {/* Render up to 3 hero blocks configured in the backend. If none exist, show nothing. */}
       {visibleBlocks.map((b: HeroBlock, i: number) => (
-        // Only apply the pullUp offset to the first hero block; subtract a small lift so
-        // the first block sits slightly higher on the page.
-        <HeroBlockView key={b.id} block={b} pullUp={i === 0 ? Math.max(0, pullUp - 70) : 0} />
+        <Fragment key={b.id}>
+          {/* Only apply the pullUp offset to the first hero block; subtract a small lift so
+              the first block sits slightly higher on the page. */}
+          <HeroBlockView block={b} pullUp={i === 0 ? Math.max(0, pullUp - 70) : 0} />
+
+          {/* Two recommendation squares directly under the first campaign/hero */}
+          {i === 0 && (
+            <Box sx={{ px: { xs: 1, md: 0 }, mt: { xs: 1, md: 1 } }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' },
+                  gap: { xs: 1, md: 1.5 },
+                }}
+              >
+                <RotatingProductTile
+                  title="Livros"
+                  subtitle="Categoria"
+                  products={booksPreview}
+                  loading={booksLoading}
+                  onClick={() => {
+                    if (!booksCategoryId) return;
+                    dispatch(resetParams());
+                    dispatch(setCategories([booksCategoryId]));
+                    navigate(`/catalog?categoryIds=${booksCategoryId}`);
+                  }}
+                />
+
+                <RotatingProductTile
+                  title="Tecnologia"
+                  subtitle="Categoria"
+                  products={techPreview}
+                  loading={techLoading}
+                  onClick={() => {
+                    if (!techCategoryId) return;
+                    dispatch(resetParams());
+                    dispatch(setCategories([techCategoryId]));
+                    navigate(`/catalog?categoryIds=${techCategoryId}`);
+                  }}
+                />
+
+                <RotatingProductTile
+                  title="Mais procurados"
+                  subtitle="Mais cliques"
+                  products={clicksPreview.length ? clicksPreview : bestPreview}
+                  loading={clicksLoading}
+                  onClick={() => {
+                    dispatch(resetParams());
+                    dispatch(setOrderBy('clicksDesc'));
+                    navigate('/catalog');
+                  }}
+                />
+
+                <RotatingProductTile
+                  title="As Pessoas também compram"
+                  subtitle="Mais vendidos"
+                  products={bestPreview}
+                  loading={bestLoading}
+                  onClick={() => {
+                    dispatch(resetParams());
+                    dispatch(setOrderBy('salesDesc'));
+                    navigate('/catalog');
+                  }}
+                />
+              </Box>
+            </Box>
+          )}
+        </Fragment>
       ))}
 
       {/* static features row removed — slides are shown per-hero block */}
+    </Box>
+  );
+}
+
+function RotatingProductTile({
+  title,
+  subtitle,
+  products,
+  loading,
+  onClick,
+}: {
+  title: string;
+  subtitle?: string;
+  products: Product[];
+  loading?: boolean;
+  onClick: () => void;
+}) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    setIndex(0);
+  }, [products.length]);
+
+  useEffect(() => {
+    if (!products.length) return;
+    const id = setInterval(() => {
+      setIndex(i => (i + 1) % products.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [products.length]);
+
+  const p = products[index];
+  const hasDiscount = !!p?.discountPercentage && p.discountPercentage > 0;
+  const finalPrice = p ? computeFinalPrice(p.price, p.discountPercentage, p.promotionalPrice) : 0;
+
+  return (
+    <Box
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onClick();
+      }}
+      sx={{
+        position: 'relative',
+        borderRadius: { xs: 2, md: 3 },
+        overflow: 'hidden',
+        bgcolor: 'background.paper',
+        boxShadow: '0 6px 24px rgba(0,0,0,0.08)',
+        cursor: 'pointer',
+        aspectRatio: '1 / 1',
+        userSelect: 'none',
+        outline: 'none',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
+        },
+        transition: 'all 180ms ease',
+      }}
+    >
+      {loading && (
+        <Box sx={{ p: 1.5 }}>
+          <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
+          <Skeleton height={24} sx={{ mt: 1 }} />
+          <Skeleton height={20} width="70%" />
+        </Box>
+      )}
+
+      {!loading && p && (
+        <>
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: `url(${p.pictureUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: 'saturate(1.05)',
+              transform: 'scale(1.02)',
+            }}
+          />
+
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.78) 100%)',
+            }}
+          />
+
+          <Box sx={{ position: 'absolute', left: 12, right: 12, top: 12, zIndex: 2 }}>
+            <Typography
+              sx={{
+                color: 'common.white',
+                fontWeight: 900,
+                letterSpacing: 0.2,
+                fontSize: { xs: '1.05rem', sm: '1.15rem', md: '1.2rem' },
+                textShadow: '0 2px 10px rgba(0,0,0,0.55)',
+                lineHeight: 1.1,
+              }}
+            >
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography
+                sx={{
+                  mt: 0.5,
+                  color: 'rgba(255,255,255,0.90)',
+                  fontWeight: 700,
+                  fontSize: { xs: '0.8rem', md: '0.9rem' },
+                  textShadow: '0 2px 10px rgba(0,0,0,0.45)',
+                }}
+              >
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+
+          <Box sx={{ position: 'absolute', left: 12, right: 12, bottom: 12, zIndex: 2 }}>
+            <Typography sx={{ color: 'common.white', fontWeight: 700, fontSize: { xs: '0.9rem', md: '0.95rem' }, lineHeight: 1.15 }}>
+              {p.name}
+            </Typography>
+            <Box sx={{ mt: 0.5, display: 'flex', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
+              {hasDiscount && (
+                <Typography sx={{ color: 'rgba(255,255,255,0.75)', textDecoration: 'line-through', fontSize: '0.8rem' }}>
+                  {currencyFormat(p.price)}
+                </Typography>
+              )}
+              <Typography sx={{ color: 'common.white', fontWeight: 800, fontSize: '0.95rem' }}>
+                {currencyFormat(finalPrice)}
+              </Typography>
+            </Box>
+            <Typography sx={{ mt: 0.25, color: 'rgba(255,255,255,0.75)', fontSize: '0.72rem' }}>
+              Clique para ver mais
+            </Typography>
+          </Box>
+        </>
+      )}
+
+      {!loading && !p && (
+        <Box sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <Box>
+            <Typography sx={{ fontWeight: 800 }}>{title}</Typography>
+            {subtitle && <Typography color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{subtitle}</Typography>}
+          </Box>
+          <Typography color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+            Sem produtos para mostrar
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }

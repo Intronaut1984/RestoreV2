@@ -10,6 +10,7 @@ import genres from "../../lib/genres";
 
 const sortOptions = [
     { value: 'name', label: 'Alfabeticamente' },
+    { value: 'clicksDesc', label: 'Mais procurados' },
     { value: 'salesDesc', label: 'Mais vendidos' },
     { value: 'priceDesc', label: 'Preço: Maior para menor' },
     { value: 'price', label: 'Preço: Menor para maior' },
@@ -119,6 +120,7 @@ export default function Filters({filtersData: data, onChangeComplete}: Props) {
                             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                                 <Typography color='text.secondary' sx={{ whiteSpace: 'nowrap' }}>
                                     {orderBy === 'name' ? 'Alfabético'
+                                        : orderBy === 'clicksDesc' ? 'Mais procurados'
                                         : orderBy === 'salesDesc' ? 'Mais vendidos'
                                         : orderBy === 'price' ? 'Preço: Menor para maior'
                                         : orderBy === 'priceDesc' ? 'Preço: Maior para menor'

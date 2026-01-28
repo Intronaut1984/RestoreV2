@@ -39,7 +39,7 @@ function App() {
               flex: 1,
               background: darkMode
                 ? 'radial-gradient(circle, #1d0d03ff, #111B27)'
-                : 'radial-gradient(circle, #c9bfacff, #ffffffff)',
+                : 'radial-gradient(circle, rgb(255, 255, 255), #ffffffff)',
               py: 0
             }}
           >
