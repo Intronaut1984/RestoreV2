@@ -1,6 +1,6 @@
 import { UploadFile } from "@mui/icons-material";
 import { FormControl, FormHelperText, Typography } from "@mui/material";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { FieldValues, useController, UseControllerProps } from "react-hook-form"
 
@@ -21,13 +21,42 @@ export default function AppDropzone<T extends FieldValues>(props: Props<T>) {
         }
     }, [field]);
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({onDrop});
+    // Revoke previously created object URLs to avoid memory leaks
+    useEffect(() => {
+        const current = field.value as unknown as { preview?: string } | undefined;
+        return () => {
+            if (current?.preview) URL.revokeObjectURL(current.preview);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+        onDrop,
+        accept: { 'image/*': [] },
+        multiple: false,
+        noKeyboard: true,
+        // We'll open the picker ourselves on click.
+        noClick: true,
+    });
+
+    const inputProps = getInputProps({
+        // Some environments behave inconsistently with onDrop when selecting via file picker.
+        // Hook into the input change so "select file" always sets the preview.
+        onChange: (e) => {
+            const files = (e.target as HTMLInputElement).files;
+            if (files && files.length > 0) {
+                onDrop(Array.from(files));
+            }
+        },
+        style: { display: 'none' }
+    });
 
     const baseSx = {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        cursor: 'pointer',
         border: 'dashed 2px',
         borderColor: '#767676',
         borderRadius: 1,
@@ -37,7 +66,10 @@ export default function AppDropzone<T extends FieldValues>(props: Props<T>) {
         width: '100%',
         maxWidth: 500,
         boxSizing: 'border-box',
-        textAlign: 'center'
+        textAlign: 'center',
+        '&:hover': {
+            backgroundColor: 'rgba(0,0,0,0.03)'
+        }
     } as const;
 
     const activeSx = {
@@ -45,16 +77,17 @@ export default function AppDropzone<T extends FieldValues>(props: Props<T>) {
     } as const;
 
     return (
-       <div {...getRootProps()}>
-        <FormControl 
-            sx={isDragActive ? {...baseSx, ...activeSx} : baseSx}
+        <FormControl
+            {...getRootProps({
+                onClick: open,
+            })}
+            sx={isDragActive ? { ...baseSx, ...activeSx } : baseSx}
             error={!!fieldState.error}
         >
-            <input {...getInputProps()} />
-            <UploadFile sx={{fontSize: { xs: 48, sm: 80, md: 100 }, color: 'action.active'}} />
-            <Typography variant="h6" sx={{mt: 1}}>Arrastar Imagem Aqui</Typography>
+            <input {...inputProps} />
+            <UploadFile sx={{ fontSize: { xs: 48, sm: 80, md: 100 }, color: 'action.active' }} />
+            <Typography variant="h6" sx={{ mt: 1 }}>Arrastar ou clicar para selecionar</Typography>
             <FormHelperText>{fieldState.error?.message}</FormHelperText>
         </FormControl>
-       </div>
     )
 }
