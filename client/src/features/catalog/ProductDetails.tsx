@@ -2,12 +2,13 @@ import { useParams } from "react-router-dom"
 import { Button, Divider, Grid2, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton } from "@mui/material";
 import { ArrowBackIosNew, ArrowForwardIos } from '@mui/icons-material'
 import { currencyFormat, computeFinalPrice } from "../../lib/util";
-import { useFetchProductDetailsQuery } from "./catalogApi";
+import { useFetchProductDetailsQuery, useRecordProductClickMutation } from "./catalogApi";
 import { useAddBasketItemMutation, useFetchBasketQuery, useRemoveBasketItemMutation } from "../basket/basketApi";
 import { ChangeEvent, useEffect, useState } from "react";
 
 export default function ProductDetails() {
   const { id } = useParams();
+  const [recordClick] = useRecordProductClickMutation();
   const [removeBasketItem] = useRemoveBasketItemMutation();
   const [addBasketItem] = useAddBasketItemMutation();
   const {data: basket} = useFetchBasketQuery();
@@ -27,6 +28,23 @@ export default function ProductDetails() {
     // reset to first image when product changes
     setCurrent(0);
   }, [product?.id]);
+
+  useEffect(() => {
+    const productId = id ? +id : 0;
+    if (!productId) return;
+
+    const key = 'restore_session_id';
+    let sessionId = localStorage.getItem(key);
+    if (!sessionId) {
+      sessionId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      localStorage.setItem(key, sessionId);
+    }
+
+    // Fire and forget (dedupe is enforced server-side).
+    recordClick({ productId, sessionId }).catch(() => undefined);
+  }, [id, recordClick]);
 
   if (!product || isLoading) return <div>Loading...</div>
 

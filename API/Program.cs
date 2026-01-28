@@ -24,6 +24,12 @@ builder.Services.AddControllers().AddJsonOptions(opt =>
 builder.Services.AddDbContext<StoreContext>(opt => 
 {
     opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+
+    // EF Core warning 20606 (Model.Validation): optional owned type with all-nullable properties.
+    // This is expected for Product.Dimensoes (it should be null when all fields are null).
+    opt.ConfigureWarnings(w => w.Ignore(new Microsoft.Extensions.Logging.EventId(
+        20606,
+        "OptionalDependentWithDependentEntityWithoutIdentifyingPropertyWarning")));
 });
 builder.Services.AddCors();
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());

@@ -242,7 +242,7 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
                 ItemOrdered = new ProductItemOrdered
                 {
                     ProductId = item.ProductId,
-                    PictureUrl = item.Product.PictureUrl,
+                    PictureUrl = item.Product.PictureUrl ?? string.Empty,
                     Name = item.Product.Name
                 },
                 // store price in cents for orders (long)

@@ -12,6 +12,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers
 {
+    public record ProductClickDto(string SessionId);
+
     public class ProductsController(StoreContext context, IMapper mapper, 
         ImageService imageService) : BaseApiController
     {
@@ -128,6 +130,42 @@ namespace API.Controllers
             }
 
             return product;
+        }
+
+        // Track a view/click on the product details page.
+        // Anonymous allowed; we dedupe by (ProductId, SessionId) within a short window.
+        [HttpPost("{id}/click")]
+        public async Task<IActionResult> TrackProductClick(int id, [FromBody] ProductClickDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.SessionId)) return BadRequest("SessionId is required");
+
+            // Ensure product exists (avoid FK failures)
+            var exists = await context.Products.AnyAsync(p => p.Id == id);
+            if (!exists) return NotFound();
+
+            var windowStart = DateTime.UtcNow.AddMinutes(-5);
+            var alreadyCounted = await context.ProductClicks.AnyAsync(c =>
+                c.ProductId == id &&
+                c.SessionId == dto.SessionId &&
+                c.CreatedAt >= windowStart);
+
+            if (alreadyCounted) return Ok();
+
+            var userId = User?.Identity?.IsAuthenticated ?? false
+                ? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                : null;
+
+            context.ProductClicks.Add(new ProductClick
+            {
+                ProductId = id,
+                SessionId = dto.SessionId.Trim(),
+                UserId = userId,
+                UserAgent = Request.Headers.UserAgent.ToString(),
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await context.SaveChangesAsync();
+            return Ok();
         }
 
         [HttpGet("filters")]
