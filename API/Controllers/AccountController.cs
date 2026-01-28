@@ -19,6 +19,7 @@ namespace API.Controllers;
 
 public class AccountController(
     SignInManager<User> signInManager,
+    IEmailService emailService,
     IOptions<EmailSettings> emailSettings,
     IWebHostEnvironment env,
     IConfiguration config) : BaseApiController
@@ -26,6 +27,7 @@ public class AccountController(
     private readonly EmailSettings _emailSettings = emailSettings.Value;
     private readonly bool _isDevelopment = env.IsDevelopment();
     private readonly IConfiguration _config = config;
+    private readonly IEmailService _emailService = emailService;
 
     [HttpPost("register")]
     public async Task<ActionResult> RegisterUser(RegisterDto registerDto)
@@ -327,19 +329,44 @@ public class AccountController(
         var user = await signInManager.UserManager.FindByEmailAsync(dto.Email);
 
         // Do not reveal whether user exists
-        if (user == null) return Ok();
+        if (user == null) return Ok(new { message = "Se existir uma conta com esse email, enviámos um link para repor a password." });
+
+        // If FrontendUrl is not configured, we cannot create a usable link.
+        var frontendUrl = (_emailSettings.FrontendUrl ?? string.Empty).TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(frontendUrl))
+        {
+            return Ok(new { message = "Se existir uma conta com esse email, enviámos um link para repor a password." });
+        }
 
         var token = await signInManager.UserManager.GeneratePasswordResetTokenAsync(user);
         var encodedToken = WebUtility.UrlEncode(token);
 
         // Build a full reset URL using configured frontend base URL
-        var resetUrl = $"{_emailSettings.FrontendUrl.TrimEnd('/')}/reset-password?email={WebUtility.UrlEncode(user.Email)}&token={encodedToken}";
+                var resetUrl = $"{frontendUrl}/reset-password?email={WebUtility.UrlEncode(user.Email)}&token={encodedToken}";
 
-        // Return the resetUrl and token in the response so it can be opened directly.
-        // NOTE: This exposes the reset token in the API response. Keep this behavior
-        // only while performing account recovery tasks and remove it before long-term
-        // production use if you prefer not to expose tokens in responses.
-        return Ok(new { email = user.Email, token = encodedToken, resetUrl });
+                var subject = "Repor password";
+                var html = $@"
+<div style=""font-family: Arial, sans-serif; color:#111827;"">
+    <h2 style=""margin:0 0 12px 0;"">Repor password</h2>
+    <p style=""margin:0 0 16px 0;"">Recebemos um pedido para repor a sua password. Para continuar, clique no botão abaixo:</p>
+    <p style=""margin:0 0 16px 0;"">
+        <a href=""{resetUrl}"" style=""display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:10px 14px;border-radius:8px;"">Repor password</a>
+    </p>
+    <p style=""margin:0 0 8px 0;font-size:12px;color:#6b7280;"">Se não pediu esta alteração, pode ignorar este email.</p>
+    <p style=""margin:0;font-size:12px;color:#6b7280;"">Se o botão não funcionar, copie e cole este link no browser:<br/>
+        <a href=""{resetUrl}"" style=""color:#2563eb;"">{resetUrl}</a>
+    </p>
+</div>";
+
+                _ = await _emailService.SendEmailAsync(user.Email!, subject, html);
+
+                // In development, returning the link can help local testing.
+                if (_isDevelopment)
+                {
+                        return Ok(new { message = "Link enviado por email. Verificar Spam", resetUrl });
+                }
+
+                return Ok(new { message = "Se existir uma conta com esse email, enviámos um link para repor a password." });
     }
     
 
