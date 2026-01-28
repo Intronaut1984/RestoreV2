@@ -235,7 +235,7 @@ export default function ProductDetails() {
             <TextField
               variant="outlined"
               type="number"
-              label='Quantity in basket'
+              label='Quantidade no Cesto'
               fullWidth
               value={quantity}
               onChange={handleInputChange}
@@ -251,7 +251,7 @@ export default function ProductDetails() {
               variant="contained"
               fullWidth
             >
-              {item ? 'Update quantity' : 'Add to basket'}
+              {item ? 'Atualizar' : 'Adicionar ao carrinho'}
             </Button>
           </Grid2>
         </Grid2>

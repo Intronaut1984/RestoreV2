@@ -9,18 +9,18 @@ export default function OrderDetailedPage() {
 
     const { data: order, isLoading } = useFetchOrderDetailedQuery(+id!)
 
-    if (isLoading) return <Typography variant="h5">Loading order...</Typography>
+    if (isLoading) return <Typography variant="h5">A carregar encomenda...</Typography>
 
-    if (!order) return <Typography variant="h5">Order not found</Typography>
+    if (!order) return <Typography variant="h5">Encomenda não encontrada</Typography>
 
     return (
         <Box sx={{ maxWidth: 'md', mx: 'auto', px: 1 }}>
             <Box display='flex' justifyContent='space-between' alignItems='center' sx={{ mb: 1 }}>
                 <Typography variant="h5" align="center">
-                    Order summary for #{order.id}
+                    Resumo da Encomenda #{order.id}
                 </Typography>
                 <Button component={Link} to='/orders' variant='outlined'>
-                    Back to orders
+                    Voltar às Encomendas
                 </Button>
             </Box>
 
@@ -28,14 +28,14 @@ export default function OrderDetailedPage() {
 
             <Box sx={{ mb: 2 }}>
                 <Typography variant="h6" fontWeight='bold'>
-                    Billing and delivery information
+                    Detalhes da Encomenda
                 </Typography>
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
-                    <Typography variant='subtitle1' fontWeight='500'>Shipping address</Typography>
+                    <Typography variant='subtitle1' fontWeight='500'>Morada de envio</Typography>
                     <Typography variant='body2' fontWeight='300'>{formatAddressString(order.shippingAddress)}</Typography>
                 </Box>
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
-                    <Typography variant='subtitle1' fontWeight='500'>Payment info</Typography>
+                    <Typography variant='subtitle1' fontWeight='500'>Detalhes do pagamento</Typography>
                     <Typography variant='body2' fontWeight='300'>{formatPaymentString(order.paymentSummary)}</Typography>
                 </Box>
             </Box>
@@ -43,17 +43,17 @@ export default function OrderDetailedPage() {
             <Divider sx={{ my: 2 }} />
 
             <Box sx={{ mb: 2 }}>
-                <Typography variant="h6" fontWeight='bold'>Order details</Typography>
+                <Typography variant="h6" fontWeight='bold'>Detalhes da Encomenda</Typography>
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
-                    <Typography variant='subtitle1' fontWeight='500'>Email address</Typography>
+                    <Typography variant='subtitle1' fontWeight='500'>Endereço de email</Typography>
                     <Typography variant='body2' fontWeight='300'>{order.buyerEmail}</Typography>
                 </Box>
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
-                    <Typography variant='subtitle1' fontWeight='500'>Order status</Typography>
+                    <Typography variant='subtitle1' fontWeight='500'>Estado da encomenda</Typography>
                     <Typography variant='body2' fontWeight='300'>{order.orderStatus}</Typography>
                 </Box>
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
-                    <Typography variant='subtitle1' fontWeight='500'>Order date</Typography>
+                    <Typography variant='subtitle1' fontWeight='500'>Data da encomenda</Typography>
                     <Typography variant='body2' fontWeight='300'>{format(order.orderDate, 'dd MMM yyyy')}</Typography>
                 </Box>
             </Box>
@@ -91,11 +91,11 @@ export default function OrderDetailedPage() {
                     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{formatOrderAmount(order.subtotal)}</Box>
                 </Box>
                 <Box display='flex' justifyContent='space-between' sx={{ mb: 1 }}>
-                    <Typography variant='subtitle1' fontWeight='500'>Discount</Typography>
+                    <Typography variant='subtitle1' fontWeight='500'>Desconto</Typography>
                     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, color: 'green' }}>{formatOrderAmount(order.discount)}</Box>
                 </Box>
                 <Box display='flex' justifyContent='space-between' sx={{ mb: 1 }}>
-                    <Typography variant='subtitle1' fontWeight='500'>Delivery fee</Typography>
+                    <Typography variant='subtitle1' fontWeight='500'>Taxa de entrega</Typography>
                     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>{formatOrderAmount(order.deliveryFee)}</Box>
                 </Box>
             </Box>
