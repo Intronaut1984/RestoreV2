@@ -2,6 +2,7 @@ export type User = {
     email: string;
     userName?: string;
     roles: string[];
+    newsletterOptIn?: boolean;
 }
 
 export type Address = {

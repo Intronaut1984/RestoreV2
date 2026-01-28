@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Container, Typography, Grid, Box, Divider, TextField, Button, Stack, IconButton, InputAdornment, Paper, useTheme } from '@mui/material';
+import { Container, Typography, Grid, Box, Divider, TextField, Button, Stack, IconButton, InputAdornment, Paper, useTheme, FormControlLabel, Switch } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useUserInfoQuery, useFetchAddressQuery, useUpdateUserInfoMutation, useUpdateUserAddressMutation } from './accountApi';
 import { useChangePasswordMutation } from './accountApi';
@@ -178,6 +178,16 @@ export default function ProfilePage() {
     }
   };
 
+  const handleToggleNewsletter = async (next: boolean) => {
+    try {
+      await updateUserInfo({ newsletterOptIn: next }).unwrap();
+      toast.success(next ? 'Newsletter ativada' : 'Newsletter desativada');
+    } catch (err) {
+      toast.error('Problema ao atualizar preferência de newsletter');
+      console.error(err);
+    }
+  };
+
   return (
     <Container
       component={Paper}
@@ -232,6 +242,21 @@ export default function ProfilePage() {
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
                   <Typography variant="subtitle2">Roles</Typography>
                   <Typography>{user?.roles?.join(', ') ?? '-'}</Typography>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                  <Typography variant="subtitle2">Newsletter</Typography>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={user?.newsletterOptIn ?? true}
+                        onChange={(e) => handleToggleNewsletter(e.target.checked)}
+                      />
+                    }
+                    label={(user?.newsletterOptIn ?? true) ? 'Ativa' : 'Desativada'}
+                  />
                 </Box>
               </Grid>
 

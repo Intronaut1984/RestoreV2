@@ -3,8 +3,14 @@ import { startLoading, stopLoading } from "../layout/uiSlice";
 import { toast } from "react-toastify";
 import { router } from "../routes/Routes";
 
+const ensureTrailingSlash = (url: string) => (url.endsWith('/') ? url : `${url}/`);
+
+const apiBaseUrl = ensureTrailingSlash(
+    (import.meta.env.VITE_API_URL as string | undefined) ?? '/api/'
+);
+
 const customBaseQuery = fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
+    baseUrl: apiBaseUrl,
     credentials: 'include'
 });
 

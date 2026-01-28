@@ -30,7 +30,7 @@ public class AccountController(
     [HttpPost("register")]
     public async Task<ActionResult> RegisterUser(RegisterDto registerDto)
     {
-        var user = new User{UserName = registerDto.Email, Email = registerDto.Email};
+        var user = new User{UserName = registerDto.Email, Email = registerDto.Email, NewsletterOptIn = registerDto.NewsletterOptIn};
 
         var result = await signInManager.UserManager.CreateAsync(user, registerDto.Password);
 
@@ -64,6 +64,7 @@ public class AccountController(
         {
             user.Email,
             user.UserName,
+            user.NewsletterOptIn,
             Roles = roles
         });
     }
@@ -150,6 +151,11 @@ public class AccountController(
         }
 
         // Ensure other user fields are persisted
+        if (update.NewsletterOptIn.HasValue)
+        {
+            user.NewsletterOptIn = update.NewsletterOptIn.Value;
+        }
+
         var result = await signInManager.UserManager.UpdateAsync(user);
 
         if (!result.Succeeded) return BadRequest("Problem updating user");
@@ -160,6 +166,7 @@ public class AccountController(
         {
             user.Email,
             user.UserName,
+            user.NewsletterOptIn,
             Roles = roles
         });
     }
