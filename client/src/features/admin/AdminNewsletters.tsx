@@ -30,7 +30,6 @@ import {
   useUploadAttachmentsMutation,
 } from './newslettersApi';
 import { toast } from 'react-toastify';
-import { useEffect } from 'react';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -103,15 +102,6 @@ export default function AdminNewsletters() {
     setEditorStatus(n.status);
     setEditorLastError(n.lastError ?? null);
   };
-
-  useEffect(() => {
-    if (selectedId !== null) return;
-    if (!newsletters || newsletters.length === 0) return;
-
-    const first = newsletters[0];
-    setSelectedId(first.id);
-    syncEditorFrom(first);
-  }, [newsletters, selectedId]);
 
   const handleSelect = (n: Newsletter) => {
     setSelectedId(n.id);
@@ -384,129 +374,130 @@ export default function AdminNewsletters() {
           )}
         </Paper>
 
-        <Paper sx={{ p: 2, flex: 2, minWidth: 360 }}>
-          <Typography variant="h6">Editor</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {editorEnabled ? `#${selectedId} · ${selected?.status ?? editorStatus}` : 'Seleciona uma newsletter para editar'}
-          </Typography>
+        {editorEnabled && (
+          <Paper sx={{ p: 2, flex: 2, minWidth: 360 }}>
+            <Typography variant="h6">Editor</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {`#${selectedId} · ${selected?.status ?? editorStatus}`}
+            </Typography>
 
-          <Stack spacing={2}>
-            <TextField
-              label="Assunto"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              disabled={false}
-              helperText={!editorEnabled ? 'Cria ou seleciona uma newsletter para guardar/agendar' : ' '}
-              fullWidth
-            />
+            <Stack spacing={2}>
+              <TextField
+                label="Assunto"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                disabled={false}
+                fullWidth
+              />
 
-            <TextField
-              label="Agendar (hora local)"
-              type="datetime-local"
-              value={scheduledLocal}
-              onChange={(e) => setScheduledLocal(e.target.value)}
-              disabled={false}
-              InputLabelProps={{ shrink: true }}
-            />
+              <TextField
+                label="Agendar (hora local)"
+                type="datetime-local"
+                value={scheduledLocal}
+                onChange={(e) => setScheduledLocal(e.target.value)}
+                disabled={false}
+                InputLabelProps={{ shrink: true }}
+              />
 
-            <TextField
-              label="Conteúdo HTML"
-              value={htmlContent}
-              onChange={(e) => setHtmlContent(e.target.value)}
-              disabled={false}
-              multiline
-              minRows={10}
-              fullWidth
-            />
+              <TextField
+                label="Conteúdo HTML"
+                value={htmlContent}
+                onChange={(e) => setHtmlContent(e.target.value)}
+                disabled={false}
+                multiline
+                minRows={10}
+                fullWidth
+              />
 
-            {(selected?.lastError ?? editorLastError) && (
-              <Box>
-                <Typography variant="subtitle2" color="error">
-                  Último erro
-                </Typography>
-                <Typography variant="body2" color="error">
-                  {selected?.lastError ?? editorLastError}
-                </Typography>
-              </Box>
-            )}
-
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Button variant="outlined" onClick={handleSaveDraft} disabled={!editorEnabled || saving}>
-                Guardar rascunho
-              </Button>
-              <Button variant="contained" onClick={handleSchedule} disabled={!editorEnabled || saving}>
-                Agendar
-              </Button>
-              <Button color="inherit" onClick={handleCancel} disabled={!editorEnabled || saving}>
-                Cancelar
-              </Button>
-              <Button
-                color="error"
-                onClick={handleDeleteNewsletter}
-                disabled={!editorEnabled || deletingNewsletter || (selected?.status ?? editorStatus) === 'Sending'}
-              >
-                Apagar
-              </Button>
-            </Stack>
-
-            <Divider />
-
-            <Box>
-              <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                Anexos
-              </Typography>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
-                <Button variant="outlined" component="label" disabled={!editorEnabled || uploading}>
-                  Enviar anexos
-                  <input hidden type="file" multiple onChange={(e) => handleUpload(e.target.files)} />
-                </Button>
-                <Typography variant="caption" color="text.secondary">
-                  PDF/imagens até 10MB cada
-                </Typography>
-              </Stack>
-
-              <Stack spacing={1} sx={{ mt: 2 }}>
-                {(selected?.attachments ?? []).length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Sem anexos
+              {(selected?.lastError ?? editorLastError) && (
+                <Box>
+                  <Typography variant="subtitle2" color="error">
+                    Último erro
                   </Typography>
-                ) : (
-                  (selected?.attachments ?? []).map((att) => (
-                    <Paper key={att.id} variant="outlined" sx={{ p: 1 }}>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} justifyContent="space-between">
-                        <Box>
-                          <Typography variant="body2">{att.fileName}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {Math.round(att.sizeBytes / 1024)} KB · {att.contentType}
-                          </Typography>
-                        </Box>
-                        <Stack direction="row" spacing={1}>
-                          <Button
-                            size="small"
-                            component="a"
-                            href={attachmentUrl(selected!.id, att.id)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Download
-                          </Button>
-                          <Button
-                            size="small"
-                            color="error"
-                            onClick={() => handleDeleteAttachment(att)}
-                            disabled={deletingAttachment}
-                          >
-                            Remover
-                          </Button>
-                        </Stack>
-                      </Stack>
-                    </Paper>
-                  ))
-                )}
+                  <Typography variant="body2" color="error">
+                    {selected?.lastError ?? editorLastError}
+                  </Typography>
+                </Box>
+              )}
+
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                <Button variant="outlined" onClick={handleSaveDraft} disabled={!editorEnabled || saving}>
+                  Guardar rascunho
+                </Button>
+                <Button variant="contained" onClick={handleSchedule} disabled={!editorEnabled || saving}>
+                  Agendar
+                </Button>
+                <Button color="inherit" onClick={handleCancel} disabled={!editorEnabled || saving}>
+                  Cancelar
+                </Button>
+                <Button
+                  color="error"
+                  onClick={handleDeleteNewsletter}
+                  disabled={!editorEnabled || deletingNewsletter || (selected?.status ?? editorStatus) === 'Sending'}
+                >
+                  Apagar
+                </Button>
               </Stack>
-            </Box>
-          </Stack>
-        </Paper>
+
+              <Divider />
+
+              <Box>
+                <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                  Anexos
+                </Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+                  <Button variant="outlined" component="label" disabled={!editorEnabled || uploading}>
+                    Enviar anexos
+                    <input hidden type="file" multiple onChange={(e) => handleUpload(e.target.files)} />
+                  </Button>
+                  <Typography variant="caption" color="text.secondary">
+                    PDF/imagens até 10MB cada
+                  </Typography>
+                </Stack>
+
+                <Stack spacing={1} sx={{ mt: 2 }}>
+                  {(selected?.attachments ?? []).length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Sem anexos
+                    </Typography>
+                  ) : (
+                    (selected?.attachments ?? []).map((att) => (
+                      <Paper key={att.id} variant="outlined" sx={{ p: 1 }}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} justifyContent="space-between">
+                          <Box>
+                            <Typography variant="body2">{att.fileName}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {Math.round(att.sizeBytes / 1024)} KB · {att.contentType}
+                            </Typography>
+                          </Box>
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              size="small"
+                              component="a"
+                              href={attachmentUrl(selected!.id, att.id)}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Download
+                            </Button>
+                            <Button
+                              size="small"
+                              color="error"
+                              onClick={() => handleDeleteAttachment(att)}
+                              disabled={deletingAttachment}
+                            >
+                              Remover
+                            </Button>
+                          </Stack>
+                        </Stack>
+                      </Paper>
+                    ))
+                  )}
+                </Stack>
+              </Box>
+            </Stack>
+          </Paper>
+        )}
       </Stack>
       )}
     </Container>
