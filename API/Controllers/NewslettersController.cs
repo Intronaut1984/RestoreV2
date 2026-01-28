@@ -6,15 +6,17 @@ using System.Threading.Tasks;
 using API.Data;
 using API.DTOs;
 using API.Entities;
+using API.RequestHelpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace API.Controllers;
 
 [Authorize(Roles = "Admin")]
-public class NewslettersController(StoreContext context, IHostEnvironment env) : BaseApiController
+public class NewslettersController(StoreContext context, IHostEnvironment env, IOptions<EmailSettings> emailOptions) : BaseApiController
 {
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -63,6 +65,20 @@ public class NewslettersController(StoreContext context, IHostEnvironment env) :
             .ToListAsync();
 
         return res;
+    }
+
+    [HttpGet("config")]
+    public ActionResult GetEmailConfig()
+    {
+        var s = emailOptions.Value;
+        return Ok(new
+        {
+            sendGridApiKeyConfigured = !string.IsNullOrWhiteSpace(s.SendGridApiKey),
+            fromEmailConfigured = !string.IsNullOrWhiteSpace(s.FromEmail),
+            fromEmail = s.FromEmail,
+            fromName = s.FromName,
+            useSandbox = s.UseSandbox
+        });
     }
 
     [HttpGet("{id:int}")]

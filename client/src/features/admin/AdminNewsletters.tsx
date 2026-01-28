@@ -64,7 +64,9 @@ const statusColor = (status: NewsletterStatus) => {
 };
 
 export default function AdminNewsletters() {
-  const { data: newsletters, isLoading, refetch } = useGetNewslettersQuery();
+  const { data: newsletters, isLoading, refetch } = useGetNewslettersQuery(undefined, {
+    pollingInterval: 5000,
+  });
   const [createNewsletter, { isLoading: creating }] = useCreateNewsletterMutation();
   const [updateNewsletter, { isLoading: saving }] = useUpdateNewsletterMutation();
   const [uploadAttachments, { isLoading: uploading }] = useUploadAttachmentsMutation();

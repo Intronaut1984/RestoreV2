@@ -78,21 +78,40 @@ public class NewsletterDispatcher : BackgroundService
                 n.TotalRecipients = recipients.Count;
                 n.SentCount = 0;
                 n.FailedCount = 0;
+                n.LastError = null;
                 await context.SaveChangesAsync(ct);
+
+                if (n.TotalRecipients == 0)
+                {
+                    n.Status = NewsletterStatus.Failed;
+                    n.LastError = "No opted-in recipients";
+                    n.SentAtUtc = DateTime.UtcNow;
+                    n.UpdatedAtUtc = DateTime.UtcNow;
+                    await context.SaveChangesAsync(ct);
+                    continue;
+                }
 
                 foreach (var email in recipients)
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    var ok = await sender.SendNewsletterAsync(email, n.Subject, n.HtmlContent, n.Attachments, ct);
-                    if (ok) n.SentCount++;
-                    else n.FailedCount++;
+                    var result = await sender.SendNewsletterAsync(email, n.Subject, n.HtmlContent, n.Attachments, ct);
+                    if (result.Ok)
+                    {
+                        n.SentCount++;
+                    }
+                    else
+                    {
+                        n.FailedCount++;
+                        // keep first error message for diagnostics
+                        n.LastError ??= result.Error;
+                    }
 
                     // Very small throttle to reduce rate-limit risk
                     await Task.Delay(100, ct);
                 }
 
-                n.Status = n.SentCount > 0 ? NewsletterStatus.Sent : NewsletterStatus.Failed;
+                n.Status = n.FailedCount == 0 ? NewsletterStatus.Sent : NewsletterStatus.Failed;
                 n.SentAtUtc = DateTime.UtcNow;
                 n.UpdatedAtUtc = DateTime.UtcNow;
                 await context.SaveChangesAsync(ct);

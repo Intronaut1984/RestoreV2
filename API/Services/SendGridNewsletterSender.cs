@@ -20,15 +20,21 @@ public class SendGridNewsletterSender : INewsletterSender
         _settings = options.Value;
     }
 
-    public async Task<bool> SendNewsletterAsync(
+    public async Task<NewsletterSendResult> SendNewsletterAsync(
         string toEmail,
         string subject,
         string htmlContent,
         IReadOnlyList<NewsletterAttachment> attachments,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_settings.SendGridApiKey)) return false;
-        if (string.IsNullOrWhiteSpace(toEmail)) return false;
+        if (string.IsNullOrWhiteSpace(toEmail))
+            return new NewsletterSendResult(false, "Recipient email is empty");
+
+        if (string.IsNullOrWhiteSpace(_settings.SendGridApiKey))
+            return new NewsletterSendResult(false, "SendGridApiKey is not configured");
+
+        if (string.IsNullOrWhiteSpace(_settings.FromEmail))
+            return new NewsletterSendResult(false, "FromEmail is not configured");
 
         var client = new SendGridClient(_settings.SendGridApiKey);
         var from = new EmailAddress(_settings.FromEmail, _settings.FromName);
@@ -65,11 +71,34 @@ public class SendGridNewsletterSender : INewsletterSender
         try
         {
             var response = await client.SendEmailAsync(msg, cancellationToken);
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode) return new NewsletterSendResult(true);
+
+            string? responseBody = null;
+            try
+            {
+                if (response.Body != null)
+                {
+                    responseBody = await response.Body.ReadAsStringAsync();
+                }
+            }
+            catch
+            {
+                // ignore body read errors
+            }
+
+            var err = $"SendGrid returned {(int)response.StatusCode} ({response.StatusCode})";
+            if (!string.IsNullOrWhiteSpace(responseBody))
+            {
+                // avoid huge DB rows
+                var trimmed = responseBody.Length > 500 ? responseBody[..500] + "..." : responseBody;
+                err += $": {trimmed}";
+            }
+
+            return new NewsletterSendResult(false, err);
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            return new NewsletterSendResult(false, $"SendGrid exception: {ex.Message}");
         }
     }
 

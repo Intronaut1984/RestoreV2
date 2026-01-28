@@ -5,9 +5,11 @@ using API.Entities;
 
 namespace API.Services;
 
+public record NewsletterSendResult(bool Ok, string? Error = null);
+
 public interface INewsletterSender
 {
-    Task<bool> SendNewsletterAsync(
+    Task<NewsletterSendResult> SendNewsletterAsync(
         string toEmail,
         string subject,
         string htmlContent,
