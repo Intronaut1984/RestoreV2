@@ -53,3 +53,12 @@ public class UpdateNewsletterDto
     public DateTime? ScheduledForUtc { get; set; }
     public NewsletterStatus? Status { get; set; }
 }
+
+public class NewsletterRecipientDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? UserName { get; set; }
+    public bool EmailConfirmed { get; set; }
+    public bool NewsletterOptIn { get; set; }
+}

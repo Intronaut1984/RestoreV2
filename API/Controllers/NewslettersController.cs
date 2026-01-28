@@ -81,6 +81,26 @@ public class NewslettersController(StoreContext context, IHostEnvironment env, I
         });
     }
 
+    [HttpGet("recipients")]
+    public async Task<ActionResult<List<NewsletterRecipientDto>>> GetRecipients()
+    {
+        var recipients = await context.Users
+            .AsNoTracking()
+            .Where(u => u.NewsletterOptIn && u.Email != null && u.Email != "")
+            .OrderBy(u => u.Email)
+            .Select(u => new NewsletterRecipientDto
+            {
+                Id = u.Id,
+                Email = u.Email!,
+                UserName = u.UserName,
+                EmailConfirmed = u.EmailConfirmed,
+                NewsletterOptIn = u.NewsletterOptIn
+            })
+            .ToListAsync();
+
+        return recipients;
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<NewsletterDto>> GetById(int id)
     {
@@ -179,6 +199,52 @@ public class NewslettersController(StoreContext context, IHostEnvironment env, I
         await context.SaveChangesAsync();
 
         return await GetById(n.Id);
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<ActionResult> Delete(int id)
+    {
+        var n = await context.Newsletters
+            .Include(x => x.Attachments)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (n == null) return NotFound();
+        if (n.Status == NewsletterStatus.Sending) return BadRequest("Newsletter is currently sending");
+
+        var attachmentPaths = n.Attachments
+            .Select(a => a.StoragePath)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Cast<string>()
+            .ToList();
+
+        context.Newsletters.Remove(n);
+        await context.SaveChangesAsync();
+
+        foreach (var path in attachmentPaths)
+        {
+            try
+            {
+                if (System.IO.File.Exists(path))
+                    System.IO.File.Delete(path);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        try
+        {
+            var dir = Path.Combine(env.ContentRootPath, "Uploads", "newsletters", id.ToString());
+            if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any())
+                Directory.Delete(dir);
+        }
+        catch
+        {
+            // ignore
+        }
+
+        return NoContent();
     }
 
     [HttpPost("{id:int}/attachments")]

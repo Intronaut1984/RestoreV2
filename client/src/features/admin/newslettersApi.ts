@@ -33,6 +33,14 @@ export type Newsletter = {
   attachments: NewsletterAttachment[];
 };
 
+export type NewsletterRecipient = {
+  id: string;
+  email: string;
+  userName?: string | null;
+  emailConfirmed: boolean;
+  newsletterOptIn: boolean;
+};
+
 export type CreateNewsletterDto = {
   subject: string;
   htmlContent: string;
@@ -82,6 +90,15 @@ export const newslettersApi = createApi({
       }),
       invalidatesTags: ['Newsletters'],
     }),
+
+    deleteNewsletter: builder.mutation<void, number>({
+      query: (id) => ({ url: `newsletters/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['Newsletters'],
+    }),
+
+    getNewsletterRecipients: builder.query<NewsletterRecipient[], void>({
+      query: () => ({ url: 'newsletters/recipients' }),
+    }),
   }),
 });
 
@@ -92,4 +109,6 @@ export const {
   useUpdateNewsletterMutation,
   useUploadAttachmentsMutation,
   useDeleteAttachmentMutation,
+  useDeleteNewsletterMutation,
+  useGetNewsletterRecipientsQuery,
 } = newslettersApi;

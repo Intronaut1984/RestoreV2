@@ -6,11 +6,13 @@ import {
   Divider,
   Paper,
   Stack,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
+  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
@@ -20,8 +22,10 @@ import {
   NewsletterAttachment,
   NewsletterStatus,
   useCreateNewsletterMutation,
+  useDeleteNewsletterMutation,
   useDeleteAttachmentMutation,
   useGetNewslettersQuery,
+  useGetNewsletterRecipientsQuery,
   useUpdateNewsletterMutation,
   useUploadAttachmentsMutation,
 } from './newslettersApi';
@@ -64,13 +68,18 @@ const statusColor = (status: NewsletterStatus) => {
 };
 
 export default function AdminNewsletters() {
-  const { data: newsletters, isLoading, refetch } = useGetNewslettersQuery(undefined, {
-    pollingInterval: 5000,
+  const [tab, setTab] = useState(0);
+
+  const { data: newsletters, isLoading, refetch } = useGetNewslettersQuery();
+  const { data: recipients, isLoading: recipientsLoading } = useGetNewsletterRecipientsQuery(undefined, {
+    skip: tab !== 1,
   });
+
   const [createNewsletter, { isLoading: creating }] = useCreateNewsletterMutation();
   const [updateNewsletter, { isLoading: saving }] = useUpdateNewsletterMutation();
   const [uploadAttachments, { isLoading: uploading }] = useUploadAttachmentsMutation();
   const [deleteAttachment, { isLoading: deletingAttachment }] = useDeleteAttachmentMutation();
+  const [deleteNewsletter, { isLoading: deletingNewsletter }] = useDeleteNewsletterMutation();
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const editorEnabled = selectedId !== null;
@@ -84,6 +93,8 @@ export default function AdminNewsletters() {
   const [scheduledLocal, setScheduledLocal] = useState('');
   const [editorStatus, setEditorStatus] = useState<NewsletterStatus>('Draft');
   const [editorLastError, setEditorLastError] = useState<string | null>(null);
+
+  const [contactsQuery, setContactsQuery] = useState('');
 
   const syncEditorFrom = (n: Newsletter) => {
     setSubject(n.subject ?? '');
@@ -219,8 +230,104 @@ export default function AdminNewsletters() {
     }
   };
 
+  const clearEditor = () => {
+    setSelectedId(null);
+    setSubject('');
+    setHtmlContent('');
+    setScheduledLocal('');
+    setEditorStatus('Draft');
+    setEditorLastError(null);
+  };
+
+  const handleDeleteNewsletter = async () => {
+    if (!selectedId) return;
+    const ok = window.confirm('Apagar esta newsletter? Esta ação não pode ser desfeita.');
+    if (!ok) return;
+
+    try {
+      await deleteNewsletter(selectedId).unwrap();
+      toast.success('Newsletter apagada');
+      clearEditor();
+      await refetch();
+    } catch (err) {
+      console.error(err);
+      toast.error('Falha ao apagar newsletter');
+    }
+  };
+
+  const filteredRecipients = useMemo(() => {
+    const q = contactsQuery.trim().toLowerCase();
+    const list = recipients ?? [];
+    if (!q) return list;
+    return list.filter((r) => {
+      return (
+        r.email.toLowerCase().includes(q) ||
+        (r.userName ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [recipients, contactsQuery]);
+
   return (
     <Container sx={{ py: 3 }}>
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+        <Tab label="Newsletters" />
+        <Tab label="Contactos" />
+      </Tabs>
+
+      {tab === 1 ? (
+        <Paper sx={{ p: 2 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mb: 2 }}>
+            <Box>
+              <Typography variant="h6">Contactos (Newsletter Opt-in)</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {filteredRecipients.length} de {(recipients ?? []).length}
+              </Typography>
+            </Box>
+            <TextField
+              size="small"
+              label="Pesquisar"
+              value={contactsQuery}
+              onChange={(e) => setContactsQuery(e.target.value)}
+            />
+          </Stack>
+
+          {recipientsLoading ? (
+            <Typography>Loading...</Typography>
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Utilizador</TableCell>
+                  <TableCell>Email confirmado</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredRecipients.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>
+                      <Typography variant="body2">{r.email}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {r.userName ?? '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={r.emailConfirmed ? 'Sim' : 'Não'}
+                        color={r.emailConfirmed ? 'success' : 'default'}
+                        variant={r.emailConfirmed ? 'filled' : 'outlined'}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Paper>
+      ) : (
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-start' }}>
         <Paper sx={{ p: 2, flex: 1, minWidth: 360 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
@@ -333,6 +440,13 @@ export default function AdminNewsletters() {
               <Button color="inherit" onClick={handleCancel} disabled={!editorEnabled || saving}>
                 Cancelar
               </Button>
+              <Button
+                color="error"
+                onClick={handleDeleteNewsletter}
+                disabled={!editorEnabled || deletingNewsletter || (selected?.status ?? editorStatus) === 'Sending'}
+              >
+                Apagar
+              </Button>
             </Stack>
 
             <Divider />
@@ -394,6 +508,7 @@ export default function AdminNewsletters() {
           </Stack>
         </Paper>
       </Stack>
+      )}
     </Container>
   );
 }
