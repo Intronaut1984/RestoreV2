@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Hosting;
 using Google.Apis.Auth;
 using Google.Apis.Auth.OAuth2;
+using Microsoft.Extensions.Logging;
 
 namespace API.Controllers;
 
@@ -22,12 +23,14 @@ public class AccountController(
     IEmailService emailService,
     IOptions<EmailSettings> emailSettings,
     IWebHostEnvironment env,
-    IConfiguration config) : BaseApiController
+    IConfiguration config,
+    ILogger<AccountController> logger) : BaseApiController
 {
     private readonly EmailSettings _emailSettings = emailSettings.Value;
     private readonly bool _isDevelopment = env.IsDevelopment();
     private readonly IConfiguration _config = config;
     private readonly IEmailService _emailService = emailService;
+    private readonly ILogger<AccountController> _logger = logger;
 
     [HttpPost("register")]
     public async Task<ActionResult> RegisterUser(RegisterDto registerDto)
@@ -331,10 +334,24 @@ public class AccountController(
         // Do not reveal whether user exists
         if (user == null) return Ok(new { message = "Se existir uma conta com esse email, enviámos um link para repor a password." });
 
-        // If FrontendUrl is not configured, we cannot create a usable link.
+        // Prefer explicit config, but fall back to request Origin/Host so production can work even if FrontendUrl isn't set.
         var frontendUrl = (_emailSettings.FrontendUrl ?? string.Empty).TrimEnd('/');
         if (string.IsNullOrWhiteSpace(frontendUrl))
         {
+            var origin = Request.Headers.Origin.ToString().TrimEnd('/');
+            if (!string.IsNullOrWhiteSpace(origin))
+            {
+                frontendUrl = origin;
+            }
+            else if (Request.Host.HasValue)
+            {
+                frontendUrl = $"{Request.Scheme}://{Request.Host}".TrimEnd('/');
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(frontendUrl))
+        {
+            _logger.LogWarning("ForgotPassword: FrontendUrl is not configured and could not be inferred from request.");
             return Ok(new { message = "Se existir uma conta com esse email, enviámos um link para repor a password." });
         }
 
@@ -358,7 +375,11 @@ public class AccountController(
     </p>
 </div>";
 
-                _ = await _emailService.SendEmailAsync(user.Email!, subject, html);
+                var sent = await _emailService.SendEmailAsync(user.Email!, subject, html);
+                if (!sent)
+                {
+                    _logger.LogWarning("ForgotPassword email failed to send for {Email}. Check EmailSettings configuration.", user.Email);
+                }
 
                 // In development, returning the link can help local testing.
                 if (_isDevelopment)
