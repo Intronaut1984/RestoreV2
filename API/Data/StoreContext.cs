@@ -31,7 +31,7 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
 
         builder.Entity<User>()
             .Property(u => u.NewsletterOptIn)
-            .HasDefaultValue(true);
+            .HasDefaultValue(false);
 
         builder.Entity<Newsletter>()
             .HasMany(n => n.Attachments)

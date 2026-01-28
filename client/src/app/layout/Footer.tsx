@@ -9,11 +9,31 @@ import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { useCookieConsent } from "./cookieConsent";
+import { useEffect, useState } from 'react';
 
 export default function Footer() {
     const { data: contactData } = useGetContactQuery();
     const { data: logoData } = useGetLogoQuery();
     const { openPreferences } = useCookieConsent();
+    const [cachedLogoUrl, setCachedLogoUrl] = useState<string>(() => {
+        try {
+            return localStorage.getItem('logoUrl') ?? '';
+        } catch {
+            return '';
+        }
+    });
+
+    useEffect(() => {
+        if (!logoData?.url) return;
+        try {
+            localStorage.setItem('logoUrl', logoData.url);
+            setCachedLogoUrl(logoData.url);
+        } catch {
+            // ignore
+        }
+    }, [logoData?.url]);
+
+    const logoUrl = logoData?.url || cachedLogoUrl;
 
     const currentYear = new Date().getFullYear();
 
@@ -37,10 +57,10 @@ export default function Footer() {
                         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
                             Sobre Nós
                         </Typography>
-                        {logoData?.url && (
+                        {logoUrl && (
                             <Box
                                 component='img'
-                                src={logoData.url}
+                                src={logoUrl}
                                 alt='Logo'
                                 sx={{ height: 50, mb: 2, maxWidth: '100%', objectFit: 'contain' }}
                             />
@@ -103,6 +123,11 @@ export default function Footer() {
                     <Grid item xs={12} sm={6} md={3}>
                         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
                             Links Úteis
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            <Link href="/register" underline="hover" color="inherit">
+                                Subscrever Newsletter
+                            </Link>
                         </Typography>
                         <Typography variant="body2" sx={{ mb: 1 }}>
                             <Link href="/contact" underline="hover" color="inherit">

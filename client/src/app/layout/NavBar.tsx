@@ -42,6 +42,13 @@ export default function NavBar() {
     const { data: basket } = useFetchBasketQuery();
     const { data: favorites } = useFetchFavoritesQuery();
     const { data: logoData } = useGetLogoQuery();
+    const [cachedLogoUrl, setCachedLogoUrl] = useState<string>(() => {
+        try {
+            return localStorage.getItem('logoUrl') ?? '';
+        } catch {
+            return '';
+        }
+    });
     const [removeFavorite] = useRemoveFavoriteMutation();
     const [favoritesOpen, setFavoritesOpen] = useState(false);
     const { data: filtersData } = useFetchFiltersQuery();
@@ -117,6 +124,18 @@ export default function NavBar() {
         }
     }, [generos, anos, orderBy, searchTerm, isMobile, closeFilters]);
 
+    useEffect(() => {
+        if (!logoData?.url) return;
+        try {
+            localStorage.setItem('logoUrl', logoData.url);
+            setCachedLogoUrl(logoData.url);
+        } catch {
+            // ignore
+        }
+    }, [logoData?.url]);
+
+    const logoUrl = logoData?.url || cachedLogoUrl || '/images/logo.png';
+
     return (
         <AppBar
             position="fixed"
@@ -141,7 +160,7 @@ export default function NavBar() {
                     >
                         <Box
                             component='img'
-                            src={logoData?.url || '/images/logo.png'}
+                            src={logoUrl}
                             alt='Logo'
                             sx={{ height: { xs: 28, md: 40 }, maxWidth: '100%', objectFit: 'contain', display: 'block' }}
                         />

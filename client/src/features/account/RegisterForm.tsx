@@ -153,7 +153,7 @@ export default function RegisterForm() {
                     />
 
                     <FormControlLabel
-                        control={<Checkbox defaultChecked {...register('newsletterOptIn')} />}
+                        control={<Checkbox {...register('newsletterOptIn')} />}
                         label="Quero receber newsletters e novidades por email"
                     />
                     <LoadingButton

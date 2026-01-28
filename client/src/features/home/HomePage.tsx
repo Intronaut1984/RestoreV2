@@ -87,7 +87,19 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
   }, [features.length]);
 
   return (
-    <Box sx={{ width: '100%', p: 0, m: 0, mb: { xs: 1, md: 0.1 } }}>
+    <Box
+      sx={{
+        width: '100%',
+        p: 0,
+        m: 0,
+        mb: { xs: 1, md: 0.1 },
+        borderRadius: { xs: 2, md: 3 },
+        overflow: 'hidden',
+        bgcolor: 'background.paper',
+        boxShadow: '0 6px 24px rgba(0,0,0,0.08)',
+      }}
+      style={{ marginTop: `${pullUp}px` }}
+    >
       {/* hero image area (fixed px height for predictability) */}
       <Box
         ref={heroRef}
@@ -99,7 +111,6 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
           mt: 0,
           cursor: 'pointer',
         }}
-        style={{ marginTop: `${pullUp}px` }}
         onClick={() => {
           // try to find a campaign with the same name as the block title
           const title = (block.title ?? '').trim().toLowerCase();
@@ -165,7 +176,16 @@ function HeroBlockView({ block, pullUp }: { block: HeroBlock, pullUp: number }) 
       </Box>
 
       {/* Thin full-bleed sliding features bar immediately after the hero image */}
-      <Box sx={{ width: '100%', height: { xs: 56, md: 80 }, overflow: 'hidden', mt: 0 }} onClick={(e) => e.stopPropagation()}>
+      <Box
+        sx={{
+          width: '100%',
+          height: { xs: 56, md: 80 },
+          overflow: 'hidden',
+          mt: 0,
+          bgcolor: 'background.paper',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <Box sx={{ display: 'flex', width: `${features.length * 100}%`, height: '100%', transform: `translateX(-${featIndex * (100 / features.length)}%)`, transition: 'transform 450ms cubic-bezier(.22,.9,.32,1)' }}>
           {features.map(f => (
             <Box key={f.id} sx={{ flex: `0 0 ${100 / features.length}%`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, px: 2, height: '100%' }}>

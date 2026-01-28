@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using API.Data;
 using API.DTOs;
 using API.Entities;
 using API.RequestHelpers;
+using API.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +19,7 @@ using Microsoft.Extensions.Options;
 namespace API.Controllers;
 
 [Authorize(Roles = "Admin")]
-public class NewslettersController(StoreContext context, IHostEnvironment env, IOptions<EmailSettings> emailOptions) : BaseApiController
+public class NewslettersController(StoreContext context, IHostEnvironment env, IOptions<EmailSettings> emailOptions, UserManager<User> userManager) : BaseApiController
 {
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -99,6 +102,40 @@ public class NewslettersController(StoreContext context, IHostEnvironment env, I
             .ToListAsync();
 
         return recipients;
+    }
+
+    [AllowAnonymous]
+    [HttpGet("unsubscribe")]
+    public async Task<IActionResult> Unsubscribe([FromQuery] string userId, [FromQuery] string token)
+    {
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(token))
+            return BadRequest("Missing userId/token");
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user == null)
+            return Content("<html><body><h2>Pedido inválido</h2><p>Utilizador não encontrado.</p></body></html>", "text/html");
+
+        var decodedToken = WebUtility.UrlDecode(token);
+        var valid = await userManager.VerifyUserTokenAsync(
+            user,
+            TokenOptions.DefaultProvider,
+            NewsletterTokens.UnsubscribePurpose,
+            decodedToken);
+
+        if (!valid)
+            return Content("<html><body><h2>Link inválido</h2><p>O link para cancelar a subscrição é inválido ou expirou.</p></body></html>", "text/html");
+
+        if (!user.NewsletterOptIn)
+            return Content("<html><body><h2>Já está cancelado</h2><p>A sua subscrição já estava desativada.</p></body></html>", "text/html");
+
+        user.NewsletterOptIn = false;
+        var update = await userManager.UpdateAsync(user);
+        if (!update.Succeeded)
+            return Content("<html><body><h2>Erro</h2><p>Não foi possível cancelar a subscrição. Tente novamente mais tarde.</p></body></html>", "text/html");
+
+        var home = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+        var homeLink = string.IsNullOrWhiteSpace(home) ? "/" : home;
+        return Content($"<html><body><h2>Subscrição cancelada</h2><p>Deixará de receber newsletters.</p><p><a href=\"{homeLink}\">Voltar ao site</a></p></body></html>", "text/html");
     }
 
     [HttpGet("{id:int}")]

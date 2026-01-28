@@ -29,18 +29,18 @@ export default function Review({confirmationToken}: Props) {
         <div>
             <Box mt={4} width='100%'>
                 <Typography variant="h6" fontWeight='bold'>
-                    Billing and delivery information
+                    Detalhes da encomenda
                 </Typography>
                 <dl>
                     <Typography component='dt' fontWeight='medium'>
-                        Shipping address
+                        Morada de envio
                     </Typography>
                     <Typography component='dd' mt={1} color='textSecondary'>
                         {addressString()}
                     </Typography>
 
                     <Typography component='dt' fontWeight='medium'>
-                        Payment details
+                        Detalhes do pagamento
                     </Typography>
                     <Typography component='dd' mt={1} color='textSecondary'>
                         {paymentString()}
@@ -102,17 +102,17 @@ export default function Review({confirmationToken}: Props) {
                         </Box>
 
                         <Box display='flex' justifyContent='space-between' mb={1}>
-                            <Typography variant='body2' color='textSecondary'>Product discounts</Typography>
+                            <Typography variant='body2' color='textSecondary'>Descontos do Produto</Typography>
                             <Typography variant='body2' color='error'>- {currencyFormat(productDiscount)}</Typography>
                         </Box>
 
                         <Box display='flex' justifyContent='space-between' mb={1}>
-                            <Typography variant='body2' color='textSecondary'>Coupon</Typography>
+                            <Typography variant='body2' color='textSecondary'>Cupão</Typography>
                             <Typography variant='body2' color='error'>- {currencyFormat(couponDiscount)}</Typography>
                         </Box>
 
                         <Box display='flex' justifyContent='space-between' mb={1}>
-                            <Typography variant='body2' color='textSecondary'>Delivery</Typography>
+                            <Typography variant='body2' color='textSecondary'>Entrega</Typography>
                             <Typography variant='body2'>{currencyFormat(deliveryFee)}</Typography>
                         </Box>
 
