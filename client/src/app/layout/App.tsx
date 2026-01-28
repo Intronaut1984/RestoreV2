@@ -7,6 +7,7 @@ import { useAppSelector } from "../store/store";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { googleClientId, hasGoogleClientId } from "../config/env";
 import ScrollToTop from "./ScrollToTop";
+import { CookieConsentProvider } from "./cookieConsent";
 
 
 function App() {
@@ -29,24 +30,26 @@ function App() {
     <ThemeProvider theme={theme}>
       <ScrollToTop />
       <CssBaseline />
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <NavBar />
-        <PromoBar />
-        <Box
-          sx={{
-            flex: 1,
-            background: darkMode
-              ? 'radial-gradient(circle, #1d0d03ff, #111B27)'
-              : 'radial-gradient(circle, #c9bfacff, #ffffffff)',
-            py: 0
-          }}
-        >
-          <Container maxWidth='xl' sx={{ mt: 0 }}>
-            <Outlet />
-          </Container>
+      <CookieConsentProvider>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+          <NavBar />
+          <PromoBar />
+          <Box
+            sx={{
+              flex: 1,
+              background: darkMode
+                ? 'radial-gradient(circle, #1d0d03ff, #111B27)'
+                : 'radial-gradient(circle, #c9bfacff, #ffffffff)',
+              py: 0
+            }}
+          >
+            <Container maxWidth='xl' sx={{ mt: 0 }}>
+              <Outlet />
+            </Container>
+          </Box>
+          <Footer />
         </Box>
-        <Footer />
-      </Box>
+      </CookieConsentProvider>
     </ThemeProvider>
   );
 

@@ -8,10 +8,12 @@ import TwitterIcon from '@mui/icons-material/Twitter';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import { useCookieConsent } from "./cookieConsent";
 
 export default function Footer() {
     const { data: contactData } = useGetContactQuery();
     const { data: logoData } = useGetLogoQuery();
+    const { openPreferences } = useCookieConsent();
 
     const currentYear = new Date().getFullYear();
 
@@ -110,6 +112,25 @@ export default function Footer() {
                         <Typography variant="body2" sx={{ mb: 1 }}>
                             <Link href="/privacy-policy" underline="hover" color="inherit">
                                 Política de Privacidade
+                            </Link>
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            <Link href="/cookie-policy" underline="hover" color="inherit">
+                                Política de Cookies
+                            </Link>
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            <Link
+                                component="button"
+                                underline="hover"
+                                color="inherit"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    openPreferences();
+                                }}
+                                sx={{ textAlign: 'left' }}
+                            >
+                                Definições de cookies
                             </Link>
                         </Typography>
                         <Typography variant="body2" sx={{ mb: 1 }}>

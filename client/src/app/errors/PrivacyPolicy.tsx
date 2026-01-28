@@ -1,6 +1,10 @@
-import { Box, Typography, Container } from "@mui/material";
+import { Box, Link, Typography, Container } from "@mui/material";
+import { Link as RouterLink } from 'react-router-dom';
+import { useCookieConsent } from "../layout/cookieConsent";
 
 export default function PrivacyPolicy() {
+    const { openPreferences } = useCookieConsent();
+
     return (
         <Container maxWidth="md" sx={{ py: 4 }}>
             <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
@@ -63,8 +67,20 @@ export default function PrivacyPolicy() {
                 <Box>
                     <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>6. Cookies</Typography>
                     <Typography>
-                        Usamos cookies para melhorar a sua experiência. Pode gerir suas preferências de cookies 
-                        através das definições do seu navegador.
+                        Usamos cookies necessários para funcionalidades do site e, com o seu consentimento, cookies/armazenamento para analytics.
+                        Pode consultar a nossa{' '}
+                        <Link component={RouterLink} to="/cookie-policy" underline="hover">
+                            Política de Cookies
+                        </Link>
+                        {' '}ou alterar as preferências{' '}
+                        <Link
+                            component="button"
+                            underline="hover"
+                            onClick={(e) => { e.preventDefault(); openPreferences(); }}
+                        >
+                            aqui
+                        </Link>
+                        .
                     </Typography>
                 </Box>
 

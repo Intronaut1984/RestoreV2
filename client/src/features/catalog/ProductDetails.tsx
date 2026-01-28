@@ -5,10 +5,12 @@ import { currencyFormat, computeFinalPrice } from "../../lib/util";
 import { useFetchProductDetailsQuery, useRecordProductClickMutation } from "./catalogApi";
 import { useAddBasketItemMutation, useFetchBasketQuery, useRemoveBasketItemMutation } from "../basket/basketApi";
 import { ChangeEvent, useEffect, useState } from "react";
+import { useCookieConsent } from "../../app/layout/cookieConsent";
 
 export default function ProductDetails() {
   const { id } = useParams();
   const [recordClick] = useRecordProductClickMutation();
+  const { analyticsAllowed } = useCookieConsent();
   const [removeBasketItem] = useRemoveBasketItemMutation();
   const [addBasketItem] = useAddBasketItemMutation();
   const {data: basket} = useFetchBasketQuery();
@@ -30,6 +32,8 @@ export default function ProductDetails() {
   }, [product?.id]);
 
   useEffect(() => {
+    if (!analyticsAllowed) return;
+
     const productId = id ? +id : 0;
     if (!productId) return;
 
@@ -44,7 +48,7 @@ export default function ProductDetails() {
 
     // Fire and forget (dedupe is enforced server-side).
     recordClick({ productId, sessionId }).catch(() => undefined);
-  }, [id, recordClick]);
+  }, [id, recordClick, analyticsAllowed]);
 
   if (!product || isLoading) return <div>Loading...</div>
 
