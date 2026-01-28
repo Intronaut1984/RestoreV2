@@ -8,6 +8,7 @@ import ContactPage from "../../features/contact/ContactPage";
 import ServerError from "../errors/ServerError";
 import NotFound from "../errors/NotFound";
 import PrivacyPolicy from "../errors/PrivacyPolicy";
+import CookiePolicy from "../errors/CookiePolicy";
 import Terms from "../errors/Terms";
 import ReturnPolicy from "../errors/ReturnPolicy";
 import BasketPage from "../../features/basket/BasketPage";
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
             {path: 'about', element: <AboutPage />},
             {path: 'contact', element: <ContactPage />},
             {path: 'privacy-policy', element: <PrivacyPolicy />},
+            {path: 'cookie-policy', element: <CookiePolicy />},
             {path: 'terms', element: <Terms />},
             {path: 'return-policy', element: <ReturnPolicy />},
             {path: 'basket', element: <BasketPage />},
