@@ -1,9 +1,9 @@
-import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, Grid } from "@mui/material";
+import { Box, Button, IconButton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, Grid } from "@mui/material";
 import { useAppDispatch, useAppSelector } from "../../app/store/store"
 import { useFetchProductsQuery, useFetchFiltersQuery } from "../catalog/catalogApi";
 import Filters from "../catalog/Filters";
 import { currencyFormat, computeFinalPrice } from "../../lib/util";
-import { Delete, Edit } from "@mui/icons-material";
+import { Delete, Edit, ExpandLess, ExpandMore } from "@mui/icons-material";
 import AppPagination from "../../app/shared/components/AppPagination";
 import { setPageNumber } from "../catalog/catalogSlice";
 import { Fragment, useState } from "react";
@@ -24,6 +24,7 @@ export default function InventoryPage() {
     const [editMode, setEditMode] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [deleteProduct] = useDeleteProductMutation();
+    const [openByCategory, setOpenByCategory] = useState<Record<string, boolean>>({});
     const [expandedByCategory, setExpandedByCategory] = useState<Record<string, boolean>>({});
 
     const MAX_PER_CATEGORY = 5;
@@ -67,6 +68,15 @@ export default function InventoryPage() {
 
     const categoryOrder = Object.keys(grouped).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
+    const toggleOpenCategory = (categoryName: string) => {
+        setOpenByCategory(prev => {
+            const nextOpen = !prev[categoryName];
+            return { ...prev, [categoryName]: nextOpen };
+        });
+        // When collapsing a category, also collapse its "Ver mais" state.
+        setExpandedByCategory(prev => ({ ...prev, [categoryName]: false }));
+    };
+
     return (
         <>
             <Box display='flex' justifyContent='space-between' alignItems='center'>
@@ -94,6 +104,7 @@ export default function InventoryPage() {
                     <TableBody>
                         {categoryOrder.map(categoryName => {
                             const productsInCategory = grouped[categoryName] ?? [];
+                            const isOpen = !!openByCategory[categoryName];
                             const expanded = !!expandedByCategory[categoryName];
                             const visibleProducts = expanded ? productsInCategory : productsInCategory.slice(0, MAX_PER_CATEGORY);
                             const canToggle = productsInCategory.length > MAX_PER_CATEGORY;
@@ -101,13 +112,36 @@ export default function InventoryPage() {
 
                             return (
                                 <Fragment key={categoryName}>
-                                    <TableRow>
+                                    <TableRow
+                                        hover
+                                        onClick={() => toggleOpenCategory(categoryName)}
+                                        sx={{ cursor: 'pointer' }}
+                                    >
                                         <TableCell colSpan={5} sx={{ bgcolor: 'action.hover', fontWeight: 800 }}>
-                                            {categoryName}
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                                                    <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {categoryName}
+                                                    </Box>
+                                                    <Typography variant="body2" color="text.secondary" sx={{ flex: '0 0 auto' }}>
+                                                        ({productsInCategory.length})
+                                                    </Typography>
+                                                </Box>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleOpenCategory(categoryName);
+                                                    }}
+                                                    aria-label={isOpen ? 'Fechar categoria' : 'Abrir categoria'}
+                                                >
+                                                    {isOpen ? <ExpandLess /> : <ExpandMore />}
+                                                </IconButton>
+                                            </Box>
                                         </TableCell>
                                     </TableRow>
 
-                                    {visibleProducts.map(product => {
+                                    {isOpen && visibleProducts.map(product => {
                                         const hasDiscount = !!product.discountPercentage && product.discountPercentage > 0;
                                         const finalPrice = hasDiscount ? computeFinalPrice(product.price, product.discountPercentage) : product.price;
                                         return (
@@ -167,7 +201,7 @@ export default function InventoryPage() {
                                         )
                                     })}
 
-                                    {canToggle && (
+                                    {isOpen && canToggle && (
                                         <TableRow>
                                             <TableCell colSpan={5} sx={{ textAlign: 'center', py: 1 }}>
                                                 <Button
@@ -199,6 +233,7 @@ export default function InventoryPage() {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {categoryOrder.map(categoryName => {
                         const productsInCategory = grouped[categoryName] ?? [];
+                        const isOpen = !!openByCategory[categoryName];
                         const expanded = !!expandedByCategory[categoryName];
                         const visibleProducts = expanded ? productsInCategory : productsInCategory.slice(0, MAX_PER_CATEGORY);
                         const canToggle = productsInCategory.length > MAX_PER_CATEGORY;
@@ -206,9 +241,33 @@ export default function InventoryPage() {
 
                         return (
                             <Box key={categoryName}>
-                                <Box sx={{ px: 1.5, py: 1, fontWeight: 800, bgcolor: 'action.hover', borderRadius: 2, mb: 1 }}>
-                                    {categoryName}
+                                <Box
+                                    onClick={() => toggleOpenCategory(categoryName)}
+                                    sx={{
+                                        px: 1.5,
+                                        py: 1,
+                                        fontWeight: 800,
+                                        bgcolor: 'action.hover',
+                                        borderRadius: 2,
+                                        mb: 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                                        <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {categoryName}
+                                        </Box>
+                                        <Typography variant="body2" color="text.secondary">({productsInCategory.length})</Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        {isOpen ? <ExpandLess /> : <ExpandMore />}
+                                    </Box>
                                 </Box>
+
+                                {isOpen && (
                                 <Grid container spacing={2}>
                                     {visibleProducts.map(product => {
                                         const hasDiscount = !!product.discountPercentage && product.discountPercentage > 0;
@@ -252,8 +311,9 @@ export default function InventoryPage() {
                                         )
                                     })}
                                 </Grid>
+                                )}
 
-                                {canToggle && (
+                                {isOpen && canToggle && (
                                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
                                         <Button
                                             variant="text"
