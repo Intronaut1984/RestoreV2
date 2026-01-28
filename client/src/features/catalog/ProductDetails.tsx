@@ -10,6 +10,25 @@ import { skipToken } from "@reduxjs/toolkit/query";
 import { ProductParams } from "../../app/models/productParams";
 import { Product } from "../../app/models/product";
 
+const baseProductParams: ProductParams = {
+  pageNumber: 1,
+  pageSize: 8,
+  anos: [],
+  generos: [],
+  categoryIds: [],
+  campaignIds: [],
+  marcas: [],
+  modelos: [],
+  tipos: [],
+  capacidades: [],
+  cores: [],
+  materiais: [],
+  tamanhos: [],
+  hasDiscount: undefined,
+  searchTerm: '',
+  orderBy: 'name'
+};
+
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -26,64 +45,17 @@ export default function ProductDetails() {
   const [removeBasketItem] = useRemoveBasketItemMutation();
   const [addBasketItem] = useAddBasketItemMutation();
   const {data: basket} = useFetchBasketQuery();
-  const item = basket?.items.find(x => x.productId === +id!);
+  const productId = id ? +id : 0;
+  const item = basket?.items.find(x => x.productId === productId);
   const [quantity, setQuantity] = useState(0); 
 
   useEffect(() => {
     if (item) setQuantity(item.quantity);
   }, [item]);
 
-  const {data: product, isLoading} = useFetchProductDetailsQuery(id ? +id : 0)
-  // carousel state: images array and current index
-  const images = product ? [product.pictureUrl, ...(product.secondaryImages ?? [])].filter(Boolean) : [];
-  const [current, setCurrent] = useState(0);
+  const {data: product, isLoading} = useFetchProductDetailsQuery(productId)
 
-  useEffect(() => {
-    // reset to first image when product changes
-    setCurrent(0);
-  }, [product?.id]);
-
-  useEffect(() => {
-    if (!analyticsAllowed) return;
-
-    const productId = id ? +id : 0;
-    if (!productId) return;
-
-    const key = 'restore_session_id';
-    let sessionId = localStorage.getItem(key);
-    if (!sessionId) {
-      sessionId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      localStorage.setItem(key, sessionId);
-    }
-
-    // Fire and forget (dedupe is enforced server-side).
-    recordClick({ productId, sessionId }).catch(() => undefined);
-  }, [id, recordClick, analyticsAllowed]);
-
-  if (!product || isLoading) return <div>Loading...</div>
-
-  const baseProductParams: ProductParams = {
-    pageNumber: 1,
-    pageSize: 8,
-    anos: [],
-    generos: [],
-    categoryIds: [],
-    campaignIds: [],
-    marcas: [],
-    modelos: [],
-    tipos: [],
-    capacidades: [],
-    cores: [],
-    materiais: [],
-    tamanhos: [],
-    hasDiscount: undefined,
-    searchTerm: '',
-    orderBy: 'name'
-  };
-
-  const primaryCategoryId = product.categories?.[0]?.id;
+  const primaryCategoryId = product?.categories?.[0]?.id ?? null;
 
   const similarParams = useMemo<ProductParams | typeof skipToken>(() => {
     if (!primaryCategoryId) return skipToken;
@@ -99,9 +71,10 @@ export default function ProductDetails() {
   const { data: similarData, isLoading: similarLoading } = useFetchProductsQuery(similarParams);
 
   const similarProducts = useMemo(() => {
+    if (!product) return [] as Product[];
     const items = (similarData?.items ?? []).filter(p => p.id !== product.id);
     return shuffle(items).slice(0, 16);
-  }, [similarData?.items, product.id]);
+  }, [similarData?.items, product?.id]);
 
   const [similarPage, setSimilarPage] = useState(0);
   useEffect(() => {
@@ -123,6 +96,34 @@ export default function ProductDetails() {
     if (slice.length === 4) return slice;
     return slice.concat(similarProducts.slice(0, 4 - slice.length));
   }, [similarProducts, similarPage]);
+
+  // carousel state: images array and current index
+  const images = product ? [product.pictureUrl, ...(product.secondaryImages ?? [])].filter(Boolean) : [];
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    // reset to first image when product changes
+    setCurrent(0);
+  }, [product?.id]);
+
+  useEffect(() => {
+    if (!analyticsAllowed) return;
+    if (!productId) return;
+
+    const key = 'restore_session_id';
+    let sessionId = localStorage.getItem(key);
+    if (!sessionId) {
+      sessionId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      localStorage.setItem(key, sessionId);
+    }
+
+    // Fire and forget (dedupe is enforced server-side).
+    recordClick({ productId, sessionId }).catch(() => undefined);
+  }, [productId, recordClick, analyticsAllowed]);
+
+  if (!product || isLoading) return <div>Loading...</div>
 
   const handleUpdateBasket = () => {
     const updatedQuantity = item ? Math.abs(quantity - item.quantity) : quantity;
@@ -313,13 +314,13 @@ export default function ProductDetails() {
                 gap: 1,
               }}
             >
-              {visibleSimilar.map(p => {
+              {visibleSimilar.map((p, idx) => {
                 const hasDiscount = !!p.discountPercentage && p.discountPercentage > 0;
                 const finalPrice = computeFinalPrice(p.price, p.discountPercentage, p.promotionalPrice);
 
                 return (
                   <Box
-                    key={p.id}
+                    key={`${p.id}-${idx}`}
                     component={Link}
                     to={`/catalog/${p.id}`}
                     sx={{
