@@ -1,11 +1,23 @@
-import { useParams } from "react-router-dom"
+import { Link, useParams } from "react-router-dom"
 import { Button, Divider, Grid2, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton } from "@mui/material";
 import { ArrowBackIosNew, ArrowForwardIos } from '@mui/icons-material'
 import { currencyFormat, computeFinalPrice } from "../../lib/util";
-import { useFetchProductDetailsQuery, useRecordProductClickMutation } from "./catalogApi";
+import { useFetchProductDetailsQuery, useFetchProductsQuery, useRecordProductClickMutation } from "./catalogApi";
 import { useAddBasketItemMutation, useFetchBasketQuery, useRemoveBasketItemMutation } from "../basket/basketApi";
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useCookieConsent } from "../../app/layout/cookieConsent";
+import { skipToken } from "@reduxjs/toolkit/query";
+import { ProductParams } from "../../app/models/productParams";
+import { Product } from "../../app/models/product";
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -51,6 +63,66 @@ export default function ProductDetails() {
   }, [id, recordClick, analyticsAllowed]);
 
   if (!product || isLoading) return <div>Loading...</div>
+
+  const baseProductParams: ProductParams = {
+    pageNumber: 1,
+    pageSize: 8,
+    anos: [],
+    generos: [],
+    categoryIds: [],
+    campaignIds: [],
+    marcas: [],
+    modelos: [],
+    tipos: [],
+    capacidades: [],
+    cores: [],
+    materiais: [],
+    tamanhos: [],
+    hasDiscount: undefined,
+    searchTerm: '',
+    orderBy: 'name'
+  };
+
+  const primaryCategoryId = product.categories?.[0]?.id;
+
+  const similarParams = useMemo<ProductParams | typeof skipToken>(() => {
+    if (!primaryCategoryId) return skipToken;
+    return {
+      ...baseProductParams,
+      pageNumber: 1,
+      pageSize: 24,
+      orderBy: 'name',
+      categoryIds: [primaryCategoryId]
+    };
+  }, [primaryCategoryId]);
+
+  const { data: similarData, isLoading: similarLoading } = useFetchProductsQuery(similarParams);
+
+  const similarProducts = useMemo(() => {
+    const items = (similarData?.items ?? []).filter(p => p.id !== product.id);
+    return shuffle(items).slice(0, 16);
+  }, [similarData?.items, product.id]);
+
+  const [similarPage, setSimilarPage] = useState(0);
+  useEffect(() => {
+    setSimilarPage(0);
+  }, [primaryCategoryId]);
+
+  useEffect(() => {
+    if (!similarProducts.length) return;
+    const id = setInterval(() => {
+      setSimilarPage(p => (p + 1) % Math.ceil(similarProducts.length / 4));
+    }, 5000);
+    return () => clearInterval(id);
+  }, [similarProducts.length]);
+
+  const visibleSimilar = useMemo(() => {
+    if (!similarProducts.length) return [] as Product[];
+    const start = (similarPage * 4) % similarProducts.length;
+    const slice = similarProducts.slice(start, start + 4);
+    if (slice.length === 4) return slice;
+    return slice.concat(similarProducts.slice(0, 4 - slice.length));
+  }, [similarProducts, similarPage]);
 
   const handleUpdateBasket = () => {
     const updatedQuantity = item ? Math.abs(quantity - item.quantity) : quantity;
@@ -215,6 +287,84 @@ export default function ProductDetails() {
             <Typography variant="h6" color='secondary' sx={{ fontSize: { xs: '1rem', md: '1.5rem' } }}>{currencyFormat(product.price)}</Typography>
           )}
         </Box>
+
+        <Box sx={{ mt: 2, mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 900, mb: 1 }}>
+            Artigos semelhantes
+          </Typography>
+
+          {similarLoading && (
+            <Typography color="text.secondary" sx={{ fontSize: '0.95rem' }}>
+              A carregar...
+            </Typography>
+          )}
+
+          {!similarLoading && !visibleSimilar.length && (
+            <Typography color="text.secondary" sx={{ fontSize: '0.95rem' }}>
+              Sem artigos semelhantes para mostrar.
+            </Typography>
+          )}
+
+          {!!visibleSimilar.length && (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, 1fr)' },
+                gap: 1,
+              }}
+            >
+              {visibleSimilar.map(p => {
+                const hasDiscount = !!p.discountPercentage && p.discountPercentage > 0;
+                const finalPrice = computeFinalPrice(p.price, p.discountPercentage, p.promotionalPrice);
+
+                return (
+                  <Box
+                    key={p.id}
+                    component={Link}
+                    to={`/catalog/${p.id}`}
+                    sx={{
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                      '&:hover': { boxShadow: 2, transform: 'translateY(-1px)' },
+                      transition: 'all 160ms ease',
+                      display: 'block',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        aspectRatio: '1 / 1',
+                        backgroundImage: `url(${p.pictureUrl})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                      }}
+                    />
+                    <Box sx={{ p: 1 }}>
+                      <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', lineHeight: 1.15 }}>
+                        {p.name}
+                      </Typography>
+                      <Box sx={{ mt: 0.5, display: 'flex', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                        {hasDiscount && (
+                          <Typography sx={{ textDecoration: 'line-through', color: 'text.secondary', fontSize: '0.75rem' }}>
+                            {currencyFormat(p.price)}
+                          </Typography>
+                        )}
+                        <Typography sx={{ fontWeight: 900, fontSize: '0.85rem' }}>
+                          {currencyFormat(finalPrice)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
+        </Box>
+
         <TableContainer>
           <Table sx={{
             '& td': { fontSize: { xs: '0.9rem', md: '1rem' } }
