@@ -281,7 +281,7 @@ public class AccountController(
              var user = await signInManager.UserManager.FindByEmailAsync(email);
              if (user == null)
              {
-                 user = new User { UserName = email, Email = email };
+                 user = new User { UserName = email, Email = email, NewsletterOptIn = false };
                  var createResult = await signInManager.UserManager.CreateAsync(user);
                  if (!createResult.Succeeded)
                  {

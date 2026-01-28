@@ -1,13 +1,17 @@
 using System;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using API.Data;
 using API.Entities;
+using API.RequestHelpers;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace API.Services;
 
@@ -47,6 +51,9 @@ public class NewsletterDispatcher : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<StoreContext>();
         var sender = scope.ServiceProvider.GetRequiredService<INewsletterSender>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+        var emailOptions = scope.ServiceProvider.GetRequiredService<IOptions<EmailSettings>>();
+        var frontendUrl = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
 
         var now = DateTime.UtcNow;
 
@@ -72,7 +79,6 @@ public class NewsletterDispatcher : BackgroundService
                 var recipients = await context.Users
                     .AsNoTracking()
                     .Where(u => u.NewsletterOptIn && u.Email != null && u.Email != "")
-                    .Select(u => u.Email!)
                     .ToListAsync(ct);
 
                 n.TotalRecipients = recipients.Count;
@@ -91,11 +97,29 @@ public class NewsletterDispatcher : BackgroundService
                     continue;
                 }
 
-                foreach (var email in recipients)
+                foreach (var user in recipients)
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    var result = await sender.SendNewsletterAsync(email, n.Subject, n.HtmlContent, n.Attachments, ct);
+                    if (string.IsNullOrWhiteSpace(user.Email))
+                    {
+                        n.FailedCount++;
+                        n.LastError ??= "Recipient email is empty";
+                        continue;
+                    }
+
+                    var token = await userManager.GenerateUserTokenAsync(
+                        user,
+                        TokenOptions.DefaultProvider,
+                        NewsletterTokens.UnsubscribePurpose);
+
+                    var unsubscribeUrl = string.IsNullOrWhiteSpace(frontendUrl)
+                        ? $"/api/newsletters/unsubscribe?userId={WebUtility.UrlEncode(user.Id)}&token={WebUtility.UrlEncode(token)}"
+                        : $"{frontendUrl}/api/newsletters/unsubscribe?userId={WebUtility.UrlEncode(user.Id)}&token={WebUtility.UrlEncode(token)}";
+
+                    var htmlWithUnsubscribe = AppendUnsubscribeFooter(n.HtmlContent, unsubscribeUrl);
+
+                    var result = await sender.SendNewsletterAsync(user.Email, n.Subject, htmlWithUnsubscribe, n.Attachments, ct);
                     if (result.Ok)
                     {
                         n.SentCount++;
@@ -128,5 +152,20 @@ public class NewsletterDispatcher : BackgroundService
                 await context.SaveChangesAsync(ct);
             }
         }
+    }
+
+    private static string AppendUnsubscribeFooter(string? html, string unsubscribeUrl)
+    {
+        html ??= string.Empty;
+
+        if (html.IndexOf("api/newsletters/unsubscribe", StringComparison.OrdinalIgnoreCase) >= 0)
+            return html;
+
+        var footer = $"\n<hr style=\"margin:24px 0;border:none;border-top:1px solid #e5e7eb;\" />\n" +
+                 $"<p style=\"font-family:Arial, sans-serif; font-size:12px; color:#6b7280; line-height:1.4;\">\n" +
+                 $"    Se não quiser receber mais emails, pode <a href=\"{unsubscribeUrl}\" style=\"color:#2563eb;\">cancelar a subscrição</a>.\n" +
+                 $"</p>";
+
+        return html + footer;
     }
 }

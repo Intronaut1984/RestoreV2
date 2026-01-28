@@ -9,6 +9,6 @@ public class RegisterDto
     public string Email { get; set; } = string.Empty;
     public required string Password { get; set; }
 
-    // Marketing/newsletter emails (default true to match expected behavior)
-    public bool NewsletterOptIn { get; set; } = true;
+    // Marketing/newsletter emails (explicit consent; default false for new registrations)
+    public bool NewsletterOptIn { get; set; } = false;
 }

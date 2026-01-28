@@ -9,7 +9,7 @@ export const registerSchema = z.object({
     password: z.string().regex(passwordValidation, {
         message: 'A Password deve ter pelo menos um caractere minúsculo, 1 caractere maiúsculo, 1 número, 1 caractere especial e ter entre 6-10 caracteres'
     }),
-    newsletterOptIn: z.boolean().optional().default(true)
+    newsletterOptIn: z.boolean().optional().default(false)
 });
 
 export type RegisterSchema = z.infer<typeof registerSchema>;
