@@ -11,6 +11,7 @@ import { accountApi } from "../../features/account/accountApi";
 import { checkoutApi } from "../../features/checkout/checkoutApi";
 import { orderApi } from "../../features/orders/orderApi";
 import { adminApi } from "../../features/admin/adminApi";
+import { analyticsApi } from "../../features/admin/analyticsApi";
 import { heroBlocksApi } from "../../features/admin/heroBlocksApi";
 import { logoApi } from "../../features/admin/logoApi";
 import { contactApi } from "../../features/admin/contactApi";
@@ -30,6 +31,7 @@ export const store = configureStore({
         [checkoutApi.reducerPath]: checkoutApi.reducer,
         [orderApi.reducerPath]: orderApi.reducer,
         [adminApi.reducerPath]: adminApi.reducer,
+        [analyticsApi.reducerPath]: analyticsApi.reducer,
         [heroBlocksApi.reducerPath]: heroBlocksApi.reducer,
         [logoApi.reducerPath]: logoApi.reducer,
         [contactApi.reducerPath]: contactApi.reducer,
@@ -48,6 +50,7 @@ export const store = configureStore({
             checkoutApi.middleware,
             orderApi.middleware,
             adminApi.middleware,
+            analyticsApi.middleware,
             heroBlocksApi.middleware,
             logoApi.middleware,
             contactApi.middleware,

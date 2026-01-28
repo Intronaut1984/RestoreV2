@@ -10,6 +10,7 @@ namespace API.Data;
 public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(options)
 {
     public required DbSet<Product> Products { get; set; }
+    public required DbSet<ProductClick> ProductClicks { get; set; }
     public required DbSet<Favorite> Favorites { get; set; }
     public required DbSet<Campaign> Campaigns { get; set; }
     public required DbSet<Category> Categories { get; set; }
@@ -25,6 +26,23 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        // Avoid implicit decimal precision/scale defaults on SQL Server (prevents truncation + removes EF warnings)
+        builder.Entity<Product>()
+            .Property(p => p.Price)
+            .HasPrecision(18, 2);
+
+        builder.Entity<Product>()
+            .Property(p => p.PromotionalPrice)
+            .HasPrecision(18, 2);
+
+        builder.Entity<ShippingRate>()
+            .Property(p => p.Rate)
+            .HasPrecision(18, 2);
+
+        builder.Entity<ShippingRate>()
+            .Property(p => p.FreeShippingThreshold)
+            .HasPrecision(18, 2);
 
         builder.Entity<IdentityRole>()
             .HasData(

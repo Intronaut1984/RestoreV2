@@ -118,6 +118,14 @@ export default function UserMenu({ user }: Props) {
                     </ListItemIcon>
                     <ListItemText>Criar Campanha</ListItemText>
                 </MenuItem>}
+
+                {user.roles.includes('Admin') &&
+                <MenuItem component={Link} to='/admin/analytics' onClick={handleClose}>
+                    <ListItemIcon>
+                        <Inventory />
+                    </ListItemIcon>
+                    <ListItemText>Analytics</ListItemText>
+                </MenuItem>}
                 <Divider />
                 <MenuItem onClick={handleLogout}>
                     <ListItemIcon>

@@ -92,6 +92,13 @@ export const catalogApi = createApi({
         ,
             providesTags: (_result, _error, id) => [{ type: 'Products', id }]
         }),
+        recordProductClick: builder.mutation<void, { productId: number; sessionId: string }>({
+            query: ({ productId, sessionId }) => ({
+                url: `products/${productId}/click`,
+                method: 'POST',
+                body: { sessionId }
+            })
+        }),
         fetchFilters: builder.query<{
             generos: string[];
             anos: number[];
@@ -112,5 +119,5 @@ export const catalogApi = createApi({
     })
 });
 
-export const { useFetchProductDetailsQuery, useFetchProductsQuery, useFetchFiltersQuery } 
+export const { useFetchProductDetailsQuery, useFetchProductsQuery, useFetchFiltersQuery, useRecordProductClickMutation } 
     = catalogApi;
