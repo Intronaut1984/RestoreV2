@@ -3,7 +3,7 @@ import { useRegisterMutation, useLazyUserInfoQuery } from "./accountApi"
 import { registerSchema, RegisterSchema } from "../../lib/schemas/registerSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LockOutlined, Visibility, VisibilityOff } from "@mui/icons-material";
-import { Container, Paper, Box, Typography, TextField, IconButton, InputAdornment, useTheme, Alert, Divider } from "@mui/material";
+import { Container, Paper, Box, Typography, TextField, IconButton, InputAdornment, useTheme, Alert, Divider, FormControlLabel, Checkbox } from "@mui/material";
 import { LoadingButton } from '@mui/lab';
 import { useState } from 'react';
 import { Link, useNavigate } from "react-router-dom";
@@ -150,6 +150,11 @@ export default function RegisterForm() {
                                 '&.Mui-focused fieldset': { borderColor: 'primary.main !important' }
                             }
                         }}
+                    />
+
+                    <FormControlLabel
+                        control={<Checkbox defaultChecked {...register('newsletterOptIn')} />}
+                        label="Quero receber newsletters e novidades por email"
                     />
                     <LoadingButton
                         loading={isLoading}

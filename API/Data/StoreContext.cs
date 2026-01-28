@@ -22,10 +22,22 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<ShippingRate> ShippingRates { get; set; }
     public required DbSet<HeroBlock> HeroBlocks { get; set; }
     public required DbSet<HeroBlockImage> HeroBlockImages { get; set; }
+    public required DbSet<Newsletter> Newsletters { get; set; }
+    public required DbSet<NewsletterAttachment> NewsletterAttachments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<User>()
+            .Property(u => u.NewsletterOptIn)
+            .HasDefaultValue(true);
+
+        builder.Entity<Newsletter>()
+            .HasMany(n => n.Attachments)
+            .WithOne(a => a.Newsletter)
+            .HasForeignKey(a => a.NewsletterId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Avoid implicit decimal precision/scale defaults on SQL Server (prevents truncation + removes EF warnings)
         builder.Entity<Product>()

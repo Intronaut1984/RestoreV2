@@ -11,17 +11,18 @@ export default function RequireAuth() {
         return <Navigate to='/login' state={{from: location}} />
     }
 
-    const adminRoutes = [
+    const adminRoutePrefixes = [
         '/inventory',
         '/admin-dashboard',
         '/admin/users',
         '/admin/promo',
         '/admin/logo',
         '/admin/heroblocks',
-        '/admin/analytics'
+        '/admin/analytics',
+        '/admin/newsletters'
     ]
 
-    if (adminRoutes.includes(location.pathname) && !user.roles.includes('Admin')) {
+    if (adminRoutePrefixes.some(p => location.pathname.startsWith(p)) && !user.roles.includes('Admin')) {
         return <Navigate to='/' replace />
     }
 
