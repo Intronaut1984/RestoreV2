@@ -8,9 +8,11 @@ import { useNavigate } from 'react-router-dom';
 
 type Props = {
     sx?: SxProps<Theme>;
+    navigateTo?: string | false;
+    placeholder?: string;
 };
 
-export default function Search({ sx }: Props) {
+export default function Search({ sx, navigateTo = '/catalog', placeholder = 'Pesquisar produtos' }: Props) {
     const {searchTerm} = useAppSelector(state => state.catalog);
     const dispatch = useAppDispatch();
     const [term, setTerm] = useState(searchTerm);
@@ -24,13 +26,12 @@ export default function Search({ sx }: Props) {
     const debouncedSearch = debounce(event => {
         const value = event.target.value;
         dispatch(setSearchTerm(value))
-        // navigate to catalog so results are visible when user searches from elsewhere
-        navigate('/catalog');
+        if (navigateTo) navigate(navigateTo);
     }, 500)
 
     return (
         <TextField
-            placeholder="Pesquisar produtos"
+            placeholder={placeholder}
             variant="outlined"
             size="small"
             fullWidth
@@ -52,7 +53,7 @@ export default function Search({ sx }: Props) {
             onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                     dispatch(setSearchTerm((e.target as HTMLInputElement).value));
-                    navigate('/catalog');
+                    if (navigateTo) navigate(navigateTo);
                 }
             }}
         />
