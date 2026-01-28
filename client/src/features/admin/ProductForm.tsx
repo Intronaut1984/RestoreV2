@@ -8,7 +8,7 @@ import AppDropzone from "../../app/shared/components/AppDropzone";
 import { Product } from "../../app/models/product";
 import { Category } from "../../app/models/category";
 import { Campaign } from "../../app/models/campaign";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingButton } from "@mui/lab";
 import { computeFinalPrice, currencyFormat } from '../../lib/util';
 import { handleApiError } from "../../lib/util";
@@ -17,6 +17,7 @@ import genres from "../../lib/genres";
 
 // --- Tipagem segura para ficheiros com preview ---
 type PreviewFile = File & { preview: string };
+type SecondaryPreviewFile = File & { preview: string };
 
 type Props = {
     setEditMode: (value: boolean) => void;
@@ -33,8 +34,11 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
         });
 
     const [removedSecondaryImages, setRemovedSecondaryImages] = useState<string[]>([]);
+    const [removedSecondaryUploads, setRemovedSecondaryUploads] = useState<string[]>([]);
 
     const watchFile = watch("file");
+    const watchSecondaryFiles = watch('secondaryFiles') as unknown as SecondaryPreviewFile[] | undefined;
+    const secondaryPrevRef = useRef<SecondaryPreviewFile[]>([]);
     const [createProduct] = useCreateProductMutation();
     const [updateProduct] = useUpdateProductMutation();
     const [createCategory] = useCreateCategoryMutation();
@@ -179,6 +183,42 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
         };
     }, [watchFile]);
 
+    const secondaryFileKey = (f: File) => `${f.name}_${f.size}_${f.lastModified}`;
+
+    // Revoke object URLs for secondary files when removed/replaced
+    useEffect(() => {
+        const prev = secondaryPrevRef.current;
+        const current = watchSecondaryFiles ?? [];
+        const currentKeys = new Set(current.map(secondaryFileKey));
+
+        prev.forEach((f) => {
+            if (f.preview && !currentKeys.has(secondaryFileKey(f))) {
+                URL.revokeObjectURL(f.preview);
+            }
+        });
+
+        secondaryPrevRef.current = current;
+        setRemovedSecondaryUploads((old) => old.filter((k) => currentKeys.has(k)));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [watchSecondaryFiles]);
+
+    // On unmount, revoke any remaining previews
+    useEffect(() => {
+        return () => {
+            secondaryPrevRef.current.forEach((f) => {
+                if (f.preview) URL.revokeObjectURL(f.preview);
+            });
+            secondaryPrevRef.current = [];
+        };
+    }, []);
+
+    const secondaryCounts = useMemo(() => {
+        const all = watchSecondaryFiles ?? [];
+        const removed = new Set(removedSecondaryUploads);
+        const active = all.filter((f) => !removed.has(secondaryFileKey(f)));
+        return { total: all.length, active: active.length };
+    }, [watchSecondaryFiles, removedSecondaryUploads]);
+
     // compute final price for preview: use discount percentage only
     const watchedPrice = watch('price') as number | undefined;
     const watchedDiscount = watch('descontoPercentagem') as number | undefined;
@@ -189,6 +229,8 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
         for (const key in items) {
             const value = items[key];
             if (value !== undefined && value !== null) {
+                // These are handled explicitly to avoid duplicates and to support filtering removed uploads
+                if (key === 'file' || key === 'secondaryFiles') continue;
                 // handle arrays (tags) and files specially
                 if (Array.isArray(value)) {
                     value.forEach(v => formData.append(key, v));
@@ -246,9 +288,12 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
             }
 
             // handle secondary files (multiple)
-            const secondaryFiles = data.secondaryFiles as File[] | undefined;
+            const secondaryFiles = data.secondaryFiles as SecondaryPreviewFile[] | undefined;
             if (secondaryFiles && secondaryFiles.length) {
-                secondaryFiles.forEach((f) => formData.append('secondaryFiles', f));
+                const removed = new Set(removedSecondaryUploads);
+                secondaryFiles
+                    .filter((f) => !removed.has(secondaryFileKey(f)))
+                    .forEach((f) => formData.append('secondaryFiles', f));
             }
 
             // include any removed secondary images when updating
@@ -556,16 +601,90 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
 
                     <Grid item xs={12} sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
                         <Box sx={{ flex: 1, width: '100%' }}>
+                            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                Imagem principal
+                            </Typography>
                             <AppDropzone name="file" control={control} />
                             <Box sx={{ mt: 2 }}>
-                                <input type="file" multiple onChange={(e) => {
-                                    const files = e.target.files;
-                                    if (files && files.length) {
-                                        // store as secondaryFiles (array) in the form
-                                        const arr = Array.from(files);
-                                        setValue('secondaryFiles', arr as unknown as CreateProductSchema['secondaryFiles']);
-                                    }
-                                }} />
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                    Imagens secundárias (opcional)
+                                </Typography>
+                                <Button component="label" variant="outlined" size="small">
+                                    Selecionar imagens
+                                    <input
+                                        type="file"
+                                        hidden
+                                        multiple
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const files = e.target.files;
+                                            if (files && files.length) {
+                                                const existing = (watchSecondaryFiles ?? []) as SecondaryPreviewFile[];
+                                                const existingByKey = new Map(existing.map(f => [secondaryFileKey(f), f] as const));
+                                                const incoming = Array.from(files).map((f) => {
+                                                    const key = secondaryFileKey(f);
+                                                    if (existingByKey.has(key)) return existingByKey.get(key)!;
+                                                    return Object.assign(f, { preview: URL.createObjectURL(f) }) as SecondaryPreviewFile;
+                                                });
+                                                const merged = [...existing, ...incoming].reduce<SecondaryPreviewFile[]>((acc, f) => {
+                                                    const key = secondaryFileKey(f);
+                                                    if (!acc.some(x => secondaryFileKey(x) === key)) acc.push(f);
+                                                    return acc;
+                                                }, []);
+
+                                                setValue('secondaryFiles', merged as unknown as CreateProductSchema['secondaryFiles'], {
+                                                    shouldDirty: true,
+                                                    shouldTouch: true,
+                                                });
+                                                // allow selecting the same file again later
+                                                (e.target as HTMLInputElement).value = '';
+                                            }
+                                        }}
+                                    />
+                                </Button>
+
+                                {secondaryCounts.total > 0 && (
+                                    <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+                                        Selecionadas: {secondaryCounts.total} (ativas: {secondaryCounts.active})
+                                    </Typography>
+                                )}
+
+                                {watchSecondaryFiles && watchSecondaryFiles.length > 0 && (
+                                    <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                        {watchSecondaryFiles.map((f) => {
+                                            const key = secondaryFileKey(f);
+                                            const removed = removedSecondaryUploads.includes(key);
+                                            return (
+                                                <Box key={key} sx={{ position: 'relative' }}>
+                                                    <img
+                                                        src={f.preview}
+                                                        alt={f.name}
+                                                        style={{
+                                                            width: 120,
+                                                            height: 80,
+                                                            objectFit: 'cover',
+                                                            borderRadius: 4,
+                                                            opacity: removed ? 0.4 : 1,
+                                                        }}
+                                                    />
+                                                    <Button
+                                                        size="small"
+                                                        color={removed ? 'inherit' : 'error'}
+                                                        onClick={() => {
+                                                            setRemovedSecondaryUploads((prev) => {
+                                                                if (prev.includes(key)) return prev.filter((x) => x !== key);
+                                                                return [...prev, key];
+                                                            });
+                                                        }}
+                                                        sx={{ position: 'absolute', top: 4, right: 4, minWidth: 0, px: 1 }}
+                                                    >
+                                                        {removed ? 'Undo' : 'Remove'}
+                                                    </Button>
+                                                </Box>
+                                            );
+                                        })}
+                                    </Box>
+                                )}
                             </Box>
                         </Box>
 
