@@ -1,11 +1,14 @@
 import { Link, useParams } from "react-router-dom"
 import { useFetchOrderDetailedQuery } from "./orderApi";
 import { Box, Button, Divider, Table, TableBody, TableCell, TableContainer, TableRow, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { format } from "date-fns";
 import { formatAddressString, formatPaymentString, formatOrderAmount } from "../../lib/util";
+import { secondaryActionSx } from "../../app/shared/styles/actionButtons";
 
 export default function OrderDetailedPage() {
     const { id } = useParams();
+    const theme = useTheme();
 
     const { data: order, isLoading } = useFetchOrderDetailedQuery(+id!)
 
@@ -19,7 +22,7 @@ export default function OrderDetailedPage() {
                 <Typography variant="h5" align="center">
                     Resumo da Encomenda #{order.id}
                 </Typography>
-                <Button component={Link} to='/orders' variant='outlined'>
+                <Button component={Link} to='/orders' variant='outlined' sx={secondaryActionSx(theme)}>
                     Voltar às Encomendas
                 </Button>
             </Box>

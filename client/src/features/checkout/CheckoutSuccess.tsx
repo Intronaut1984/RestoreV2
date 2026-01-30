@@ -1,10 +1,12 @@
-import { Box, Button, Container, Divider, Typography } from "@mui/material";
+import { Box, Button, Container, Divider, Typography, useTheme } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
 import { Order } from "../../app/models/order";
 import { currencyFormat, formatAddressString, formatPaymentString, formatOrderAmount } from "../../lib/util";
 import { format } from 'date-fns';
+import { primaryActionSx, secondaryActionSx } from "../../app/shared/styles/actionButtons";
 
 export default function CheckoutSuccess() {
+  const theme = useTheme();
   const { state } = useLocation();
   const order = state?.data as Order | undefined;
   const productDiscount = (order?.productDiscount ?? state?.productDiscount ?? 0) as number;
@@ -59,10 +61,21 @@ export default function CheckoutSuccess() {
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-start', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-        <Button variant="contained" color="primary" component={Link} to={`/orders/${order.id}`} sx={{ width: { xs: '100%', sm: 'auto' } }}>
+        <Button
+          variant="contained"
+          component={Link}
+          to={`/orders/${order.id}`}
+          sx={{ width: { xs: '100%', sm: 'auto' }, ...primaryActionSx(theme) }}
+          disableElevation
+        >
           Ver Compra
         </Button>
-        <Button component={Link} to='/catalog' variant="outlined" color='primary' sx={{ width: { xs: '100%', sm: 'auto' } }}>
+        <Button
+          component={Link}
+          to='/catalog'
+          variant="outlined"
+          sx={{ width: { xs: '100%', sm: 'auto' }, ...secondaryActionSx(theme) }}
+        >
           Voltar à Loja
         </Button>
       </Box>

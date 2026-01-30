@@ -182,27 +182,27 @@ export default function Footer() {
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                             {contactData?.facebookUrl && (
-                                <Link href={contactData.facebookUrl} target="_blank" rel="noopener">
+                                <Link href={contactData.facebookUrl} target="_blank" rel="noopener" color="inherit" sx={{ display: 'inline-flex' }}>
                                     <FacebookIcon />
                                 </Link>
                             )}
                             {contactData?.instagramUrl && (
-                                <Link href={contactData.instagramUrl} target="_blank" rel="noopener">
+                                <Link href={contactData.instagramUrl} target="_blank" rel="noopener" color="inherit" sx={{ display: 'inline-flex' }}>
                                     <InstagramIcon />
                                 </Link>
                             )}
                             {contactData?.linkedinUrl && (
-                                <Link href={contactData.linkedinUrl} target="_blank" rel="noopener">
+                                <Link href={contactData.linkedinUrl} target="_blank" rel="noopener" color="inherit" sx={{ display: 'inline-flex' }}>
                                     <LinkedInIcon />
                                 </Link>
                             )}
                             {contactData?.twitterUrl && (
-                                <Link href={contactData.twitterUrl} target="_blank" rel="noopener">
+                                <Link href={contactData.twitterUrl} target="_blank" rel="noopener" color="inherit" sx={{ display: 'inline-flex' }}>
                                     <TwitterIcon />
                                 </Link>
                             )}
                             {contactData?.whatsappNumber && (
-                                <Link href={`https://wa.me/${contactData.whatsappNumber.replace(/\D/g, '')}`} target="_blank" rel="noopener">
+                                <Link href={`https://wa.me/${contactData.whatsappNumber.replace(/\D/g, '')}`} target="_blank" rel="noopener" color="inherit" sx={{ display: 'inline-flex' }}>
                                     <Box component="span" sx={{ fontSize: 24 }}>
                                         💬
                                     </Box>

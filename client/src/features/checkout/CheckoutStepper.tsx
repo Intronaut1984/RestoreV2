@@ -10,6 +10,7 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { LoadingButton } from "@mui/lab";
 import { useCreateOrderMutation } from "../orders/orderApi";
+import { primaryActionSx, secondaryActionSx } from "../../app/shared/styles/actionButtons";
 
 const steps = ['Morada', 'Pagamento', 'Revisão'];
 
@@ -197,7 +198,13 @@ export default function CheckoutStepper() {
             </Box>
 
             <Box sx={{ display: 'flex', pt: 2, justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
-                <Button onClick={handleBack} sx={{ width: { xs: '100%', sm: 'auto' } }}>Voltar</Button>
+                <Button
+                    onClick={handleBack}
+                    variant="outlined"
+                    sx={{ width: { xs: '100%', sm: 'auto' }, ...secondaryActionSx(theme) }}
+                >
+                    Voltar
+                </Button>
                 <LoadingButton 
                     onClick={handleNext}
                     disabled={
@@ -206,7 +213,8 @@ export default function CheckoutStepper() {
                         submitting
                     }
                     loading={submitting}
-                    sx={{ width: { xs: '100%', sm: 'auto' } }}
+                    variant="contained"
+                    sx={{ width: { xs: '100%', sm: 'auto' }, ...primaryActionSx(theme) }}
                 >
                     {activeStep === steps.length - 1 ? `Pagar ${currencyFormat(total)}` : 'Seguinte'}
                 </LoadingButton>

@@ -1,10 +1,12 @@
-import { Grid, Typography, Box, Button, CircularProgress } from "@mui/material";
+import { Grid, Typography, Box, Button, CircularProgress, useTheme } from "@mui/material";
 import { Link } from 'react-router-dom';
 import { useFetchBasketQuery } from "./basketApi"
 import BasketItem from "./BasketItem";
 import OrderSummary from "../../app/shared/components/OrderSummary";
+import { primaryActionSx } from "../../app/shared/styles/actionButtons";
 
 export default function BasketPage() {
+    const theme = useTheme();
     const {data, isLoading} = useFetchBasketQuery();
 
     if (isLoading) return (
@@ -35,7 +37,12 @@ export default function BasketPage() {
                     Explora o site e descobre as melhores promoções
                 </Typography>
 
-                <Button component={Link} to="/catalog" variant="contained" color="primary">
+                <Button
+                    component={Link}
+                    to="/catalog"
+                    variant="contained"
+                    sx={primaryActionSx(theme)}
+                >
                     Voltar à loja
                 </Button>
             </Box>

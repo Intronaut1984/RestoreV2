@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom"
-import { Button, Divider, Grid2, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton } from "@mui/material";
+import { Button, Divider, Grid2, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton, useTheme } from "@mui/material";
 import { ArrowBackIosNew, ArrowForwardIos } from '@mui/icons-material'
 import { currencyFormat, computeFinalPrice } from "../../lib/util";
 import { useFetchProductDetailsQuery, useFetchProductsQuery, useRecordProductClickMutation } from "./catalogApi";
@@ -40,6 +40,7 @@ function shuffle<T>(arr: T[]): T[] {
 
 export default function ProductDetails() {
   const { id } = useParams();
+  const theme = useTheme();
   const [recordClick] = useRecordProductClickMutation();
   const { analyticsAllowed } = useCookieConsent();
   const [removeBasketItem] = useRemoveBasketItemMutation();
@@ -127,6 +128,9 @@ export default function ProductDetails() {
   }, [productId, recordClick, analyticsAllowed]);
 
   if (!product || isLoading) return <div>Loading...</div>
+
+  const isLight = theme.palette.mode === 'light';
+  const accentColor: 'warning' | 'secondary' = isLight ? 'warning' : 'secondary';
 
   const actionButtonSx = {
     height: { xs: '48px', md: '55px' },
@@ -444,7 +448,7 @@ export default function ProductDetails() {
                 onClick={handleAddToBasket}
                 disabled={!item && quantity <= 0}
                 sx={actionButtonSx}
-                color="secondary"
+              color={accentColor}
               size="large"
               variant="contained"
               fullWidth
@@ -460,10 +464,10 @@ export default function ProductDetails() {
                   disabled={quantity === item.quantity}
                   sx={{
                     ...actionButtonSx,
-                    bgcolor: 'secondary.dark',
-                    '&:hover': { bgcolor: 'secondary.main' }
+                    bgcolor: isLight ? 'warning.dark' : 'secondary.dark',
+                    '&:hover': { bgcolor: isLight ? 'warning.main' : 'secondary.main' }
                   }}
-                  color="secondary"
+                  color={accentColor}
                   size="large"
                   variant="contained"
                   fullWidth

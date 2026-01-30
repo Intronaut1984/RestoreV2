@@ -140,7 +140,7 @@ export default function NavBar() {
         <AppBar
             position="fixed"
             sx={{
-                bgcolor: (theme) => theme.palette.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+                bgcolor: (theme) => theme.palette.mode === 'light' ? 'rgba(250,250,250,0.92)' : 'rgba(0,0,0,0.5)',
                 backdropFilter: 'blur(6px)',
                 boxShadow: 'none',
                 zIndex: (theme) => theme.zIndex.appBar + 10
@@ -206,13 +206,13 @@ export default function NavBar() {
 
                 <Box display='flex' alignItems='center' gap={1}>
                     <IconButton size="large" sx={{ color: 'inherit' }} onClick={() => setFavoritesOpen(true)}>
-                        <Badge badgeContent={favorites?.length ?? 0} color="secondary">
+                        <Badge badgeContent={favorites?.length ?? 0} color={theme.palette.mode === 'light' ? 'warning' : 'secondary'}>
                             <FavoriteBorder />
                         </Badge>
                     </IconButton>
 
                     <IconButton component={Link} to='/basket' size="large" sx={{ color: 'inherit' }}>
-                        <Badge badgeContent={itemCount} color="secondary">
+                        <Badge badgeContent={itemCount} color={theme.palette.mode === 'light' ? 'warning' : 'secondary'}>
                             <ShoppingCart />
                         </Badge>
                     </IconButton>

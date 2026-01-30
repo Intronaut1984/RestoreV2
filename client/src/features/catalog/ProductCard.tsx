@@ -21,6 +21,7 @@ export default function ProductCard({ product }: Props) {
     const [removeFavorite] = useRemoveFavoriteMutation();
     const theme = useTheme();
     const isLight = theme.palette.mode === 'light';
+    const accentColor: 'warning' | 'secondary' = isLight ? 'warning' : 'secondary';
     const images = [product.pictureUrl, ...(product.secondaryImages ?? [])].filter((x): x is string => !!x);
     const [index, setIndex] = useState(0);
     const [isFav, setIsFav] = useState<boolean>(product.isFavorite ?? false);
@@ -117,7 +118,7 @@ export default function ProductCard({ product }: Props) {
                     loading={isLoading}
                     onClick={() => addBasketItem({ product, quantity: 1 })}
                     variant="contained"
-                    color="secondary"
+                    color={accentColor}
                     sx={{
                         width: { xs: '100%', sm: 'auto' },
                         borderRadius: 999,
@@ -132,7 +133,7 @@ export default function ProductCard({ product }: Props) {
                     component={Link}
                     to={`/catalog/${product.id}`}
                     variant="outlined"
-                    color="secondary"
+                    color={accentColor}
                     sx={{
                         width: { xs: '100%', sm: 'auto' },
                         borderRadius: 999,
