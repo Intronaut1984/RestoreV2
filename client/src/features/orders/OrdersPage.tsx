@@ -74,8 +74,8 @@ export default function OrdersPage() {
                                     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{format(order.orderDate, 'dd MMM yyyy')}</Box>
                                 </TableCell>
                                 <TableCell>
-                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block', color: order.discount && order.discount > 0 ? 'green' : 'inherit' }}>
-                                        {order.discount && order.discount > 0 ? formatOrderAmount(order.discount) : '-'}
+                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block', color: (order.productDiscount + order.discount) > 0 ? 'green' : 'inherit' }}>
+                                        {(order.productDiscount + order.discount) > 0 ? formatOrderAmount(order.productDiscount + order.discount) : '-'}
                                     </Box>
                                 </TableCell>
                                 <TableCell>

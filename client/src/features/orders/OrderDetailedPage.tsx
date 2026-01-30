@@ -92,7 +92,7 @@ export default function OrderDetailedPage() {
                 </Box>
                 <Box display='flex' justifyContent='space-between' sx={{ mb: 1 }}>
                     <Typography variant='subtitle1' fontWeight='500'>Desconto</Typography>
-                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, color: 'green' }}>{formatOrderAmount(order.discount)}</Box>
+                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, color: 'green' }}>{formatOrderAmount(order.productDiscount + order.discount)}</Box>
                 </Box>
                 <Box display='flex' justifyContent='space-between' sx={{ mb: 1 }}>
                     <Typography variant='subtitle1' fontWeight='500'>Taxa de entrega</Typography>

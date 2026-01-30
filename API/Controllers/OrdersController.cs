@@ -59,7 +59,8 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
         var subtotal = items.Sum(x => x.Price * x.Quantity);
         var deliveryFee = await CalculateDeliveryFeeAsync(subtotal);
 
-        // Compute product-level discounts (difference between original unit price and final unit price)
+        // Product-level discount is already reflected in the item prices/subtotal.
+        // We still compute it here for display/analytics purposes, but it must NOT be subtracted again from totals.
         long productDiscount = 0;
         foreach (var bItem in basket.Items)
         {
@@ -78,7 +79,7 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
             long originalCents = priceLikelyInCents ? (long)Math.Round(originalUnit) : (long)Math.Round(originalUnit * 100M);
             long finalCents = priceLikelyInCents ? (long)Math.Round(finalUnit) : (long)Math.Round(finalUnit * 100M);
 
-            productDiscount += (originalCents - finalCents) * bItem.Quantity;
+            productDiscount += Math.Max(0, (originalCents - finalCents)) * bItem.Quantity;
         }
 
         long couponDiscount = 0;
@@ -87,13 +88,15 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
             couponDiscount = await discountService.CalculateDiscountFromAmount(basket.Coupon, subtotal);
         }
 
-        long discount = productDiscount + couponDiscount;
+        // NOTE: Product-level discounts are already applied when building OrderItems (see CreateOrderItems)
+        // and therefore reflected in `subtotal`. Only coupon discounts should be stored in Order.Discount.
+        long discount = couponDiscount;
 
         // Diagnostic logging to help investigate discount computation mismatches
         try
         {
             logger.LogInformation("Creating order: subtotal={Subtotal}, productDiscount={ProductDiscount}, couponDiscount={CouponDiscount}, delivery={DeliveryFee}, total={Total}",
-                subtotal, productDiscount, couponDiscount, deliveryFee, subtotal - (productDiscount + couponDiscount) + deliveryFee);
+                subtotal, productDiscount, couponDiscount, deliveryFee, subtotal - couponDiscount + deliveryFee);
 
             foreach (var bItem in basket.Items)
             {
@@ -116,6 +119,7 @@ public class OrdersController(StoreContext context, IConfiguration config, ILogg
                     ShippingAddress = orderDto.ShippingAddress,
                     DeliveryFee = deliveryFee,
                     Subtotal = subtotal,
+                    ProductDiscount = productDiscount,
                     Discount = discount,
                     PaymentSummary = orderDto.PaymentSummary,
                     PaymentIntentId = basket.PaymentIntentId

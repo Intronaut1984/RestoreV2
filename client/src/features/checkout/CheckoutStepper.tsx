@@ -18,7 +18,7 @@ export default function CheckoutStepper() {
     const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
     const [activeStep, setActiveStep] = useState(0);
     const [createOrder] = useCreateOrderMutation();
-    const {basket} = useBasket();
+    const {basket, total, clearBasket, productDiscount, couponDiscount} = useBasket();
     const {data, isLoading} = useFetchAddressQuery();
     const [updateAddress] = useUpdateUserAddressMutation();
     const [saveAddressChecked, setSaveAddressChecked] = useState(false);
@@ -28,7 +28,6 @@ export default function CheckoutStepper() {
     const [paymentComplete, setPaymentComplete] = useState(false);
     const [phone, setPhone] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const {total, clearBasket} = useBasket();
     const navigate = useNavigate();
     const [confirmationToken, setConfirmationToken] = useState<ConfirmationToken | null>(null);
 
@@ -80,8 +79,10 @@ export default function CheckoutStepper() {
             });
 
             if (paymentResult?.paymentIntent?.status === 'succeeded') {
-                const orderResult = await createOrder(orderModel);
-                navigate('/checkout/success', {state: orderResult});
+                const createdOrder = await createOrder(orderModel).unwrap();
+                // Carry discount breakdown into the success page.
+                // Backend Order.Discount may represent only coupon discount to avoid double-counting.
+                navigate('/checkout/success', {state: {data: createdOrder, productDiscount, couponDiscount}});
                 clearBasket();
             } else if (paymentResult?.error) {
                 throw new Error(paymentResult.error.message);
