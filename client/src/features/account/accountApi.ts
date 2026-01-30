@@ -64,6 +64,7 @@ export const accountApi = createApi({
                 
                 await queryFulfilled;
                 dispatch(accountApi.util.invalidateTags(['UserInfo']));
+                toast.success('Logout efetuado com sucesso');
                 router.navigate('/');
             }
         }),

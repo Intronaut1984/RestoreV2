@@ -11,6 +11,7 @@ public class Order
     public List<OrderItem> OrderItems { get; set; } = [];
     public long Subtotal { get; set; }
     public long DeliveryFee { get; set; }
+    public long ProductDiscount { get; set; }
     public long Discount { get; set; }
     public required string PaymentIntentId { get; set; }
     public OrderStatus OrderStatus { get; set; } = OrderStatus.Pending;

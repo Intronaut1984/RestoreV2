@@ -21,6 +21,7 @@ export default function ProductCard({ product }: Props) {
     const [removeFavorite] = useRemoveFavoriteMutation();
     const theme = useTheme();
     const isLight = theme.palette.mode === 'light';
+    const accentColor: 'warning' | 'secondary' = isLight ? 'warning' : 'secondary';
     const images = [product.pictureUrl, ...(product.secondaryImages ?? [])].filter((x): x is string => !!x);
     const [index, setIndex] = useState(0);
     const [isFav, setIsFav] = useState<boolean>(product.isFavorite ?? false);
@@ -30,6 +31,8 @@ export default function ProductCard({ product }: Props) {
         const id = setInterval(() => setIndex(i => (i + 1) % images.length), 3000);
         return () => clearInterval(id);
     }, [images.length]);
+
+    const isLowStock = typeof product.quantityInStock === 'number' && product.quantityInStock > 0 && product.quantityInStock < 5;
 
     // keep local state in sync when product prop changes
     useEffect(() => { setIsFav(product.isFavorite ?? false); }, [product.isFavorite]);
@@ -59,11 +62,18 @@ export default function ProductCard({ product }: Props) {
                     />
                 </Link>
 
-                {product.discountPercentage && product.discountPercentage > 0 && (
-                    <Box sx={{ position: 'absolute', top: 8, left: 8, bgcolor: 'error.main', color: 'common.white', px: 1, py: 0.25, borderRadius: 1, fontSize: '0.75rem', fontWeight: 700, zIndex: 6 }}>
-                        {`-${product.discountPercentage}%`}
-                    </Box>
-                )}
+                <Box sx={{ position: 'absolute', top: 8, left: 8, display: 'flex', flexDirection: 'column', gap: 0.5, zIndex: 6 }}>
+                    {product.discountPercentage && product.discountPercentage > 0 && (
+                        <Box sx={{ bgcolor: 'error.main', color: 'common.white', px: 1, py: 0.25, borderRadius: 1, fontSize: '0.75rem', fontWeight: 700 }}>
+                            {`-${product.discountPercentage}%`}
+                        </Box>
+                    )}
+                    {isLowStock && (
+                        <Box sx={{ bgcolor: 'warning.main', color: 'common.white', px: 1, py: 0.25, borderRadius: 1, fontSize: '0.75rem', fontWeight: 800 }}>
+                            Produto quase esgotado
+                        </Box>
+                    )}
+                </Box>
 
                 {/* Favorite heart in top-right */}
                 <IconButton
@@ -107,9 +117,14 @@ export default function ProductCard({ product }: Props) {
                 <LoadingButton
                     loading={isLoading}
                     onClick={() => addBasketItem({ product, quantity: 1 })}
-                    variant={isLight ? 'contained' : 'contained'}
-                    disableElevation={isLight}
-                    sx={isLight ? { backgroundColor: 'grey.900', color: 'common.white', '&:hover': { backgroundColor: 'grey.800' }, width: { xs: '100%', sm: 'auto' } } : { width: { xs: '100%', sm: 'auto' } }}
+                    variant="contained"
+                    color={accentColor}
+                    sx={{
+                        width: { xs: '100%', sm: 'auto' },
+                        borderRadius: 999,
+                        fontWeight: 800,
+                        textTransform: 'none'
+                    }}
                 >
                     Adicionar ao Cesto
                 </LoadingButton>
@@ -117,8 +132,14 @@ export default function ProductCard({ product }: Props) {
                 <Button
                     component={Link}
                     to={`/catalog/${product.id}`}
-                    variant={isLight ? 'outlined' : 'text'}
-                    sx={isLight ? { borderColor: 'divider', color: 'text.primary', width: { xs: '100%', sm: 'auto' } } : { color: 'inherit', width: { xs: '100%', sm: 'auto' } }}
+                    variant="outlined"
+                    color={accentColor}
+                    sx={{
+                        width: { xs: '100%', sm: 'auto' },
+                        borderRadius: 999,
+                        fontWeight: 800,
+                        textTransform: 'none'
+                    }}
                 >
                     Ver Detalhes
                 </Button>

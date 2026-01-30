@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from "react-router-dom";
 import { GoogleLogin } from '@react-oauth/google';
 import { hasGoogleClientId } from "../../app/config/env";
+import type { CredentialResponse } from "@react-oauth/google";
 
 export default function RegisterForm() {
     const [registerUser, { isLoading }] = useRegisterMutation();
@@ -48,16 +49,22 @@ export default function RegisterForm() {
 
     }
 
-    const handleGoogleSuccess = async (credentialResponse: any) => {
+    const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
         setRegisterError(null);
         try {
+            const credential = credentialResponse.credential;
+            if (!credential) {
+                setRegisterError('Erro ao registar com Google');
+                return;
+            }
+
             // Send the Google token to your backend for verification
             const response = await fetch('/api/account/google-register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ token: credentialResponse.credential }),
+                body: JSON.stringify({ token: credential }),
                 credentials: 'include'
             });
             

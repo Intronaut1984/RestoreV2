@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useLazyUserInfoQuery, useLoginMutation } from "./accountApi";
 import { GoogleLogin } from '@react-oauth/google';
 import { hasGoogleClientId } from "../../app/config/env";
+import type { CredentialResponse } from "@react-oauth/google";
 
 export default function LoginForm() {
     const [login, {isLoading}] = useLoginMutation();
@@ -30,21 +31,28 @@ export default function LoginForm() {
             await login(data).unwrap();
             await fetchUserInfo();
             navigate(location.state?.from || '/catalog');
-        } catch (error: any) {
-            setLoginError(error?.data?.message || 'Erro ao fazer login. Verifique as credenciais.');
+        } catch (error: unknown) {
+            const err = error as { data?: { message?: string } };
+            setLoginError(err?.data?.message || 'Erro ao fazer login. Verifique as credenciais.');
         }
     }
 
-    const handleGoogleSuccess = async (credentialResponse: any) => {
+    const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
         setLoginError(null);
         try {
+            const credential = credentialResponse.credential;
+            if (!credential) {
+                setLoginError('Erro ao fazer login com Google');
+                return;
+            }
+
             // Send the Google token to your backend for verification
             const response = await fetch('/api/account/google-login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ token: credentialResponse.credential }),
+                body: JSON.stringify({ token: credential }),
                 credentials: 'include'
             });
             
@@ -52,6 +60,24 @@ export default function LoginForm() {
                 await fetchUserInfo();
                 navigate(location.state?.from || '/catalog');
             } else {
+                // If the user doesn't exist yet, auto-register and sign-in.
+                if (response.status === 404) {
+                    const registerResponse = await fetch('/api/account/google-register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ token: credential }),
+                        credentials: 'include'
+                    });
+
+                    if (registerResponse.ok) {
+                        await fetchUserInfo();
+                        navigate(location.state?.from || '/catalog');
+                        return;
+                    }
+                }
+
                 setLoginError('Erro ao fazer login com Google');
             }
         } catch (error) {

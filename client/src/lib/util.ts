@@ -5,16 +5,9 @@ export function currencyFormat(amount: number) {
     return '€' + (amount / 100).toFixed(2)
 }
 
-// Format order amounts defensively: API should return cents, but legacy orders
-// may be double-scaled or stored in euros. If the value is implausibly large
-// (greater than €1,000 in cents -> 100000), assume it's accidentally scaled
-// by 100 and divide once more.
 export function formatOrderAmount(amount: number) {
     if (amount === null || amount === undefined) return currencyFormat(0);
-    // if amount is huge (e.g. > 1000 euros expressed in cents), try to correct
-    if (Math.abs(amount) > 100000) {
-        return currencyFormat(Math.round(amount / 100));
-    }
+    // All monetary values are expected to be in cents.
     return currencyFormat(amount);
 }
 

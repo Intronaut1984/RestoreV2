@@ -10,6 +10,7 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { LoadingButton } from "@mui/lab";
 import { useCreateOrderMutation } from "../orders/orderApi";
+import { primaryActionSx, secondaryActionSx } from "../../app/shared/styles/actionButtons";
 
 const steps = ['Morada', 'Pagamento', 'Revisão'];
 
@@ -18,7 +19,7 @@ export default function CheckoutStepper() {
     const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
     const [activeStep, setActiveStep] = useState(0);
     const [createOrder] = useCreateOrderMutation();
-    const {basket} = useBasket();
+    const {basket, total, clearBasket, productDiscount, couponDiscount} = useBasket();
     const {data, isLoading} = useFetchAddressQuery();
     const [updateAddress] = useUpdateUserAddressMutation();
     const [saveAddressChecked, setSaveAddressChecked] = useState(false);
@@ -28,7 +29,6 @@ export default function CheckoutStepper() {
     const [paymentComplete, setPaymentComplete] = useState(false);
     const [phone, setPhone] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const {total, clearBasket} = useBasket();
     const navigate = useNavigate();
     const [confirmationToken, setConfirmationToken] = useState<ConfirmationToken | null>(null);
 
@@ -80,8 +80,10 @@ export default function CheckoutStepper() {
             });
 
             if (paymentResult?.paymentIntent?.status === 'succeeded') {
-                const orderResult = await createOrder(orderModel);
-                navigate('/checkout/success', {state: orderResult});
+                const createdOrder = await createOrder(orderModel).unwrap();
+                // Carry discount breakdown into the success page.
+                // Backend Order.Discount may represent only coupon discount to avoid double-counting.
+                navigate('/checkout/success', {state: {data: createdOrder, productDiscount, couponDiscount}});
                 clearBasket();
             } else if (paymentResult?.error) {
                 throw new Error(paymentResult.error.message);
@@ -196,7 +198,13 @@ export default function CheckoutStepper() {
             </Box>
 
             <Box sx={{ display: 'flex', pt: 2, justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
-                <Button onClick={handleBack} sx={{ width: { xs: '100%', sm: 'auto' } }}>Voltar</Button>
+                <Button
+                    onClick={handleBack}
+                    variant="outlined"
+                    sx={{ width: { xs: '100%', sm: 'auto' }, ...secondaryActionSx(theme) }}
+                >
+                    Voltar
+                </Button>
                 <LoadingButton 
                     onClick={handleNext}
                     disabled={
@@ -205,7 +213,8 @@ export default function CheckoutStepper() {
                         submitting
                     }
                     loading={submitting}
-                    sx={{ width: { xs: '100%', sm: 'auto' } }}
+                    variant="contained"
+                    sx={{ width: { xs: '100%', sm: 'auto' }, ...primaryActionSx(theme) }}
                 >
                     {activeStep === steps.length - 1 ? `Pagar ${currencyFormat(total)}` : 'Seguinte'}
                 </LoadingButton>

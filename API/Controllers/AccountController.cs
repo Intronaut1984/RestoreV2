@@ -251,7 +251,7 @@ public class AccountController(
              // Find user
              var user = await signInManager.UserManager.FindByEmailAsync(email);
              if (user == null)
-                 return Unauthorized("User not found. Please register first.");
+                 return NotFound(new { message = "UserNotFound" });
 
              // Sign in the user (cookie-based)
              await signInManager.SignInAsync(user, isPersistent: false);

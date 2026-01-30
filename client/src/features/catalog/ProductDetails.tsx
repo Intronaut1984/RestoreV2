@@ -1,10 +1,10 @@
 import { Link, useParams } from "react-router-dom"
-import { Button, Divider, Grid2, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton } from "@mui/material";
+import { Button, Divider, Grid2, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton, useTheme } from "@mui/material";
 import { ArrowBackIosNew, ArrowForwardIos } from '@mui/icons-material'
 import { currencyFormat, computeFinalPrice } from "../../lib/util";
 import { useFetchProductDetailsQuery, useFetchProductsQuery, useRecordProductClickMutation } from "./catalogApi";
 import { useAddBasketItemMutation, useFetchBasketQuery, useRemoveBasketItemMutation } from "../basket/basketApi";
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useCookieConsent } from "../../app/layout/cookieConsent";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { ProductParams } from "../../app/models/productParams";
@@ -40,6 +40,7 @@ function shuffle<T>(arr: T[]): T[] {
 
 export default function ProductDetails() {
   const { id } = useParams();
+  const theme = useTheme();
   const [recordClick] = useRecordProductClickMutation();
   const { analyticsAllowed } = useCookieConsent();
   const [removeBasketItem] = useRemoveBasketItemMutation();
@@ -47,10 +48,10 @@ export default function ProductDetails() {
   const {data: basket} = useFetchBasketQuery();
   const productId = id ? +id : 0;
   const item = basket?.items.find(x => x.productId === productId);
-  const [quantity, setQuantity] = useState(0); 
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
-    if (item) setQuantity(item.quantity);
+    setQuantity(item?.quantity ?? 1);
   }, [item]);
 
   const {data: product, isLoading} = useFetchProductDetailsQuery(productId)
@@ -100,6 +101,9 @@ export default function ProductDetails() {
   // carousel state: images array and current index
   const images = product ? [product.pictureUrl, ...(product.secondaryImages ?? [])].filter(Boolean) : [];
   const [current, setCurrent] = useState(0);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [zoomOrigin, setZoomOrigin] = useState('50% 50%');
+  const thumbsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     // reset to first image when product changes
@@ -124,6 +128,22 @@ export default function ProductDetails() {
   }, [productId, recordClick, analyticsAllowed]);
 
   if (!product || isLoading) return <div>Loading...</div>
+
+  const isLight = theme.palette.mode === 'light';
+  const accentColor: 'warning' | 'secondary' = isLight ? 'warning' : 'secondary';
+
+  const actionButtonSx = {
+    height: { xs: '48px', md: '55px' },
+    borderRadius: 999,
+    fontWeight: 800,
+    textTransform: 'none'
+  };
+
+  const handleAddToBasket = () => {
+    const qtyToAdd = item ? 1 : quantity;
+    if (qtyToAdd <= 0) return;
+    addBasketItem({ product, quantity: qtyToAdd });
+  };
 
   const handleUpdateBasket = () => {
     const updatedQuantity = item ? Math.abs(quantity - item.quantity) : quantity;
@@ -162,7 +182,8 @@ export default function ProductDetails() {
   pushIfValue('Preço', currencyFormat(product.price));
   if (product.promotionalPrice) pushIfValue('Preço Promocional', currencyFormat(product.promotionalPrice));
   if (product.discountPercentage != null) pushIfValue('Desconto (%)', product.discountPercentage);
-  pushIfValue('Quantidade em stock', product.quantityInStock);
+
+  const isLowStock = typeof product.quantityInStock === 'number' && product.quantityInStock > 0 && product.quantityInStock < 5;
 
   const isBook = (p: typeof product) => {
     return (p.categories ?? []).some(c => (c?.name ?? '').toLowerCase().includes('livro'))
@@ -242,15 +263,42 @@ export default function ProductDetails() {
   pushIfValue('Criado em', product.createdAt);
   pushIfValue('Atualizado em', product.updatedAt);
 
+  const handleZoomMove = (e: React.MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setZoomOrigin(`${x}% ${y}%`);
+  };
+
+  const scrollThumbsBy = (delta: number) => {
+    const el = thumbsRef.current;
+    if (!el) return;
+    el.scrollBy({ left: delta, behavior: 'smooth' });
+  };
+
   return (
     <Grid2 container spacing={4} sx={{ mx: 'auto', px: { xs: 2, md: 3 }, maxWidth: 1200, justifyContent: 'center' }}>
-      <Grid2 size={6} sx={{ width: { xs: '100%', md: '50%' } }}>
+      <Grid2 size={{ xs: 12, md: 6 }}>
         <Box sx={{ position: 'relative' }}>
-          <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 2 }}>
+          <Box
+            sx={{ position: 'relative', overflow: 'hidden', borderRadius: 2, cursor: { xs: 'default', md: 'zoom-in' } }}
+            onMouseEnter={() => setIsZoomed(true)}
+            onMouseLeave={() => setIsZoomed(false)}
+            onMouseMove={handleZoomMove}
+          >
             <img
               src={images[current]}
               alt={product.name}
-              style={{ width: '100%', height: 'auto', objectFit: 'cover', borderRadius: 8 }}
+              style={{
+                width: '100%',
+                height: 'auto',
+                objectFit: 'cover',
+                borderRadius: 8,
+                transform: isZoomed ? 'scale(2)' : 'scale(1)',
+                transformOrigin: zoomOrigin,
+                transition: 'transform 80ms ease-out',
+                willChange: 'transform'
+              }}
             />
 
             {images.length > 1 && (
@@ -266,15 +314,86 @@ export default function ProductDetails() {
           </Box>
 
           {images.length > 1 && (
-            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-              {images.map((img, idx) => (
-                <Box key={idx} component='img' src={img} alt={`thumb-${idx}`} onClick={() => setCurrent(idx)} sx={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 1, cursor: 'pointer', border: idx === current ? '2px solid' : '1px solid', borderColor: idx === current ? 'primary.main' : 'divider' }} />
-              ))}
+            <Box sx={{ position: 'relative', mt: 1, maxWidth: '100%' }}>
+              {/* Thumbnails scroller */}
+              <Box
+                ref={thumbsRef}
+                sx={{
+                  display: 'flex',
+                  gap: 1,
+                  overflowX: 'auto',
+                  overflowY: 'hidden',
+                  maxWidth: '100%',
+                  pb: 0.5,
+                  scrollBehavior: 'smooth',
+                  WebkitOverflowScrolling: 'touch',
+                  '&::-webkit-scrollbar': { height: 6 },
+                  '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 999 },
+                }}
+              >
+                {images.map((img, idx) => (
+                  <Box
+                    key={idx}
+                    component='img'
+                    src={img}
+                    alt={`thumb-${idx}`}
+                    onClick={() => setCurrent(idx)}
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      objectFit: 'cover',
+                      borderRadius: 1,
+                      cursor: 'pointer',
+                      border: idx === current ? '2px solid' : '1px solid',
+                      borderColor: idx === current ? 'primary.main' : 'divider',
+                      flex: '0 0 auto'
+                    }}
+                  />
+                ))}
+              </Box>
+
+              {/* Scroll controls (only useful when there are many thumbs) */}
+              {images.length > 5 && (
+                <>
+                  <IconButton
+                    onClick={() => scrollThumbsBy(-220)}
+                    size='small'
+                    sx={{
+                      position: 'absolute',
+                      left: 4,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      bgcolor: 'rgba(0,0,0,0.35)',
+                      color: 'common.white',
+                      '&:hover': { bgcolor: 'rgba(0,0,0,0.5)' }
+                    }}
+                    aria-label='miniaturas anteriores'
+                  >
+                    <ArrowBackIosNew fontSize='inherit' />
+                  </IconButton>
+                  <IconButton
+                    onClick={() => scrollThumbsBy(220)}
+                    size='small'
+                    sx={{
+                      position: 'absolute',
+                      right: 4,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      bgcolor: 'rgba(0,0,0,0.35)',
+                      color: 'common.white',
+                      '&:hover': { bgcolor: 'rgba(0,0,0,0.5)' }
+                    }}
+                    aria-label='miniaturas seguintes'
+                  >
+                    <ArrowForwardIos fontSize='inherit' />
+                  </IconButton>
+                </>
+              )}
             </Box>
           )}
         </Box>
       </Grid2>
-      <Grid2 size={6} sx={{ width: { xs: '100%', md: '50%' } }}>
+      <Grid2 size={{ xs: 12, md: 6 }}>
         <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2rem' } }}>{product.name}</Typography>
         <Divider sx={{ mb: 2 }} />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -287,82 +406,14 @@ export default function ProductDetails() {
           ) : (
             <Typography variant="h6" color='secondary' sx={{ fontSize: { xs: '1rem', md: '1.5rem' } }}>{currencyFormat(product.price)}</Typography>
           )}
-        </Box>
 
-        <Box sx={{ mt: 2, mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 900, mb: 1 }}>
-            Artigos semelhantes
-          </Typography>
-
-          {similarLoading && (
-            <Typography color="text.secondary" sx={{ fontSize: '0.95rem' }}>
-              A carregar...
-            </Typography>
-          )}
-
-          {!similarLoading && !visibleSimilar.length && (
-            <Typography color="text.secondary" sx={{ fontSize: '0.95rem' }}>
-              Sem artigos semelhantes para mostrar.
-            </Typography>
-          )}
-
-          {!!visibleSimilar.length && (
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, 1fr)' },
-                gap: 1,
-              }}
+          {isLowStock && (
+            <Typography
+              variant="caption"
+              sx={{ bgcolor: 'warning.main', color: 'common.white', px: 0.75, borderRadius: 0.5, fontWeight: 800 }}
             >
-              {visibleSimilar.map((p, idx) => {
-                const hasDiscount = !!p.discountPercentage && p.discountPercentage > 0;
-                const finalPrice = computeFinalPrice(p.price, p.discountPercentage, p.promotionalPrice);
-
-                return (
-                  <Box
-                    key={`${p.id}-${idx}`}
-                    component={Link}
-                    to={`/catalog/${p.id}`}
-                    sx={{
-                      textDecoration: 'none',
-                      color: 'inherit',
-                      borderRadius: 2,
-                      overflow: 'hidden',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      bgcolor: 'background.paper',
-                      '&:hover': { boxShadow: 2, transform: 'translateY(-1px)' },
-                      transition: 'all 160ms ease',
-                      display: 'block',
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        aspectRatio: '1 / 1',
-                        backgroundImage: `url(${p.pictureUrl})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                      }}
-                    />
-                    <Box sx={{ p: 1 }}>
-                      <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', lineHeight: 1.15 }}>
-                        {p.name}
-                      </Typography>
-                      <Box sx={{ mt: 0.5, display: 'flex', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                        {hasDiscount && (
-                          <Typography sx={{ textDecoration: 'line-through', color: 'text.secondary', fontSize: '0.75rem' }}>
-                            {currencyFormat(p.price)}
-                          </Typography>
-                        )}
-                        <Typography sx={{ fontWeight: 900, fontSize: '0.85rem' }}>
-                          {currencyFormat(finalPrice)}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-                );
-              })}
-            </Box>
+              Produto quase esgotado
+            </Typography>
           )}
         </Box>
 
@@ -382,31 +433,130 @@ export default function ProductDetails() {
           </Table>
         </TableContainer>
         <Grid2 container spacing={2} marginTop={3}>
-          <Grid2 size={6} sx={{ width: { xs: '100%', md: '50%' } }}>
+            <Grid2 size={{ xs: 12, md: 4 }} sx={{ width: { xs: '100%', md: '33.333%' } }}>
             <TextField
               variant="outlined"
               type="number"
-              label='Quantidade no Cesto'
+                label={item ? 'Quantidade no carrinho' : 'Quantidade a adicionar'}
               fullWidth
               value={quantity}
               onChange={handleInputChange}
             />
           </Grid2>
-          <Grid2 size={6} sx={{ width: { xs: '100%', md: '50%' } }}>
+            <Grid2 size={{ xs: 12, md: 4 }} sx={{ width: { xs: '100%', md: '33.333%' } }}>
             <Button
-              onClick={handleUpdateBasket}
-              disabled={quantity === item?.quantity || (!item && quantity === 0)}
-              sx={{height: { xs: '48px', md: '55px' }}}
-              color="primary"
+                onClick={handleAddToBasket}
+                disabled={!item && quantity <= 0}
+                sx={actionButtonSx}
+              color={accentColor}
               size="large"
               variant="contained"
               fullWidth
             >
-              {item ? 'Atualizar' : 'Adicionar ao carrinho'}
+                Adicionar ao carrinho
             </Button>
           </Grid2>
+
+            {item && (
+              <Grid2 size={{ xs: 12, md: 4 }} sx={{ width: { xs: '100%', md: '33.333%' } }}>
+                <Button
+                  onClick={handleUpdateBasket}
+                  disabled={quantity === item.quantity}
+                  sx={{
+                    ...actionButtonSx,
+                    bgcolor: isLight ? 'warning.dark' : 'secondary.dark',
+                    '&:hover': { bgcolor: isLight ? 'warning.main' : 'secondary.main' }
+                  }}
+                  color={accentColor}
+                  size="large"
+                  variant="contained"
+                  fullWidth
+                >
+                  Atualizar quantidade
+                </Button>
+              </Grid2>
+            )}
         </Grid2>
       </Grid2>
+
+        <Grid2 size={12}>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 900, mb: 1 }}>
+              Artigos semelhantes
+            </Typography>
+
+            {similarLoading && (
+              <Typography color="text.secondary" sx={{ fontSize: '0.95rem' }}>
+                A carregar...
+              </Typography>
+            )}
+
+            {!similarLoading && !visibleSimilar.length && (
+              <Typography color="text.secondary" sx={{ fontSize: '0.95rem' }}>
+                Sem artigos semelhantes para mostrar.
+              </Typography>
+            )}
+
+            {!!visibleSimilar.length && (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, 1fr)' },
+                  gap: 1,
+                }}
+              >
+                {visibleSimilar.map((p, idx) => {
+                  const hasDiscount = !!p.discountPercentage && p.discountPercentage > 0;
+                  const finalPrice = computeFinalPrice(p.price, p.discountPercentage, p.promotionalPrice);
+
+                  return (
+                    <Box
+                      key={`${p.id}-${idx}`}
+                      component={Link}
+                      to={`/catalog/${p.id}`}
+                      sx={{
+                        textDecoration: 'none',
+                        color: 'inherit',
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        '&:hover': { boxShadow: 2, transform: 'translateY(-1px)' },
+                        transition: 'all 160ms ease',
+                        display: 'block',
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          aspectRatio: '1 / 1',
+                          backgroundImage: `url(${p.pictureUrl})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                        }}
+                      />
+                      <Box sx={{ p: 1 }}>
+                        <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', lineHeight: 1.15 }}>
+                          {p.name}
+                        </Typography>
+                        <Box sx={{ mt: 0.5, display: 'flex', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                          {hasDiscount && (
+                            <Typography sx={{ textDecoration: 'line-through', color: 'text.secondary', fontSize: '0.75rem' }}>
+                              {currencyFormat(p.price)}
+                            </Typography>
+                          )}
+                          <Typography sx={{ fontWeight: 900, fontSize: '0.85rem' }}>
+                            {currencyFormat(finalPrice)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
+          </Box>
+        </Grid2>
     </Grid2>
   )
 }

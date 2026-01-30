@@ -40,7 +40,8 @@ function App() {
               background: darkMode
                 ? 'radial-gradient(circle, #1d0d03ff, #111B27)'
                 : 'radial-gradient(circle, rgb(255, 255, 255), #ffffffff)',
-              py: 0
+              py: 0,
+              pb: { xs: 4, md: 6 }
             }}
           >
             <Container maxWidth='xl' sx={{ mt: 0 }}>

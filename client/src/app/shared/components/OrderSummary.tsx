@@ -6,6 +6,7 @@ import { FieldValues, useForm } from "react-hook-form";
 import { LoadingButton } from "@mui/lab";
 import { useAddCouponMutation, useRemoveCouponMutation } from "../../../features/basket/basketApi";
 import { Delete } from "@mui/icons-material";
+import { primaryActionSx, secondaryActionSx } from "../styles/actionButtons";
 
 export default function OrderSummary() {
     const theme = useTheme();
@@ -14,17 +15,9 @@ export default function OrderSummary() {
     const freeShippingThresholdLabel = Number.isInteger(freeShippingThresholdEuros)
         ? freeShippingThresholdEuros.toFixed(0)
         : freeShippingThresholdEuros.toFixed(2);
-    // If the primary color is very light (low contrast on white paper), use outlined buttons
-    // so they remain visible in light mode. We check MUI's contrast helper.
-    const primaryContrastText = theme.palette.getContrastText(theme.palette.primary.main);
-    const primaryIsLight = primaryContrastText === theme.palette.common.black;
-    const buttonVariant: 'contained' | 'outlined' = primaryIsLight ? 'outlined' : 'contained';
-    // Force a dark filled Checkout button for light mode so it is always visible on white Paper.
-    const checkoutUsesDarkFill = theme.palette.mode === 'light';
-    const checkoutVariant: 'contained' | 'outlined' = checkoutUsesDarkFill ? 'contained' : buttonVariant;
-    const checkoutSx = checkoutUsesDarkFill
-        ? { bgcolor: `${theme.palette.grey[900]} !important`, color: `${theme.palette.common.white} !important`, '&:hover': { bgcolor: `${theme.palette.grey[800]} !important` }, boxShadow: 'none' }
-        : (buttonVariant === 'contained' ? { color: theme.palette.getContrastText(theme.palette.primary.main) } : {});
+    // Basket → checkout buttons should be consistent:
+    // - light mode: rounded + black
+    // - dark mode: rounded + orange
     const location = useLocation();
     const {register, handleSubmit, formState: {isSubmitting}} = useForm();
     const [addCoupon] = useAddCouponMutation();
@@ -79,21 +72,19 @@ export default function OrderSummary() {
                     <Button
                         component={Link}
                         to='/checkout'
-                        variant={checkoutVariant}
-                        {...(!checkoutUsesDarkFill ? { color: 'primary' } : {})}
+                        variant="contained"
                         fullWidth
-                        disableElevation={checkoutUsesDarkFill}
-                        sx={checkoutSx}
+                        disableElevation
+                        sx={primaryActionSx(theme)}
                     >
                         Finalizar Compra
                     </Button>}
                     <Button
                         component={Link}
                         to='/catalog'
-                        variant={buttonVariant}
-                        color="primary"
+                        variant="outlined"
                         fullWidth
-                        sx={buttonVariant === 'contained' ? { color: theme.palette.getContrastText(theme.palette.primary.main) } : {}}
+                        sx={secondaryActionSx(theme)}
                     >
                         Voltar à Loja
                     </Button>
@@ -130,9 +121,9 @@ export default function OrderSummary() {
                         loading={isSubmitting}
                         type="submit"
                         variant="contained"
-                        color="primary"
                         fullWidth
                         disabled={!!basket?.coupon}
+                        sx={primaryActionSx(theme)}
                     >
                         Usar Código de Voucher
                     </LoadingButton>

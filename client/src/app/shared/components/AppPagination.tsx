@@ -35,6 +35,17 @@ export default function AppPagination({ metadata, onPageChange }: Props) {
                 count={totalPages}
                 page={currentPage}
                 onChange={(_, page) => onPageChange(page)}
+                sx={theme.palette.mode === 'light' ? {
+                    '& .MuiPaginationItem-root': {
+                        color: 'warning.dark',
+                        borderColor: 'rgba(0,0,0,0.12)'
+                    },
+                    '& .MuiPaginationItem-root.Mui-selected': {
+                        bgcolor: 'warning.main',
+                        color: 'common.black',
+                        '&:hover': { bgcolor: 'warning.dark' }
+                    }
+                } : undefined}
             />
         </Box>
     )
