@@ -3,6 +3,7 @@ import { baseQueryWithErrorHandling } from "../../app/api/baseApi";
 import { Basket, Item } from "../../app/models/basket";
 import { Product } from "../../app/models/product";
 import Cookies from 'js-cookie';
+import { toast } from "react-toastify";
 
 function isBasketItem(product: Product | Item): product is Item {
     return (product as Item).quantity !== undefined;
@@ -27,6 +28,7 @@ export const basketApi = createApi({
             },
             onQueryStarted: async ({ product, quantity }, { dispatch, queryFulfilled }) => {
                 let isNewBasket = false;
+                const productName = product.name;
                 const patchResult = dispatch(
                     basketApi.util.updateQueryData('fetchBasket', undefined, (draft) => {
                         const productId = isBasketItem(product) ? product.productId : product.id;
@@ -63,6 +65,10 @@ export const basketApi = createApi({
                     await queryFulfilled;
 
                     if (isNewBasket) dispatch(basketApi.util.invalidateTags(['Basket']))
+
+                    // Green banner confirmation
+                    const qtyLabel = quantity > 1 ? ` (x${quantity})` : '';
+                    toast.success(`${productName} adicionado ao carrinho${qtyLabel}`);
                 } catch (error) {
                     console.log(error);
                     patchResult.undo();
