@@ -53,6 +53,15 @@ export default function ProductDetails() {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
 
+  const requestedVariantId = useMemo<number | null | undefined>(() => {
+    const sp = new URLSearchParams(location.search);
+    const raw = sp.get('variantId');
+    if (raw === null) return undefined;
+    if (raw === '' || raw === 'base') return null;
+    const v = Number(raw);
+    return Number.isFinite(v) ? v : undefined;
+  }, [location.search]);
+
   const item = useMemo(() => {
     return basket?.items.find(x => x.productId === productId && (x.productVariantId ?? null) === (selectedVariantId ?? null));
   }, [basket?.items, productId, selectedVariantId]);
@@ -169,12 +178,16 @@ export default function ProductDetails() {
     }
 
     setSelectedVariantId((current) => {
+      if (requestedVariantId !== undefined) {
+        if (requestedVariantId === null) return null;
+        if (variants.some(v => v.id === requestedVariantId)) return requestedVariantId;
+      }
       if (current && variants.some(v => v.id === current)) return current;
       // If the product has a base color, default to the base (no variant) view.
       if (product.cor && product.cor.trim().length > 0) return null;
       return variants[0].id;
     });
-  }, [product?.id, product, hasVariants, variants]);
+  }, [product?.id, product, hasVariants, variants, requestedVariantId]);
 
   const selectedVariant = useMemo(() => {
     if (!hasVariants) return null;

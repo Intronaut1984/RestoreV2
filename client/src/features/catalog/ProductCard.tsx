@@ -2,7 +2,7 @@ import { Button, Card, CardActions, CardContent, CardMedia, Typography, Box, Ico
 import { useTheme } from "@mui/material/styles";
 import { LoadingButton } from '@mui/lab';
 import { Product } from "../../app/models/product";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAddBasketItemMutation } from "../basket/basketApi";
 import { useAddFavoriteMutation, useRemoveFavoriteMutation } from './favoritesApi';
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -19,12 +19,57 @@ export default function ProductCard({ product }: Props) {
     const [addBasketItem, { isLoading }] = useAddBasketItemMutation();
     const [addFavorite] = useAddFavoriteMutation();
     const [removeFavorite] = useRemoveFavoriteMutation();
+    const navigate = useNavigate();
     const theme = useTheme();
     const isLight = theme.palette.mode === 'light';
     const accentColor: 'warning' | 'secondary' = isLight ? 'warning' : 'secondary';
     const images = [product.pictureUrl, ...(product.secondaryImages ?? [])].filter((x): x is string => !!x);
     const [index, setIndex] = useState(0);
     const [isFav, setIsFav] = useState<boolean>(product.isFavorite ?? false);
+
+    const resolveDotBg = (colorName: string | null | undefined) => {
+        const n = (colorName ?? '').trim().toLowerCase();
+        if (!n) return theme.palette.grey[400];
+
+        if (n.startsWith('#') || n.startsWith('rgb') || n.startsWith('hsl')) return colorName as string;
+        if (n === 'branco' || n === 'white') return theme.palette.common.white;
+        if (n === 'preto' || n === 'black') return theme.palette.common.black;
+        if (n === 'cinzento' || n === 'cinza' || n === 'gray' || n === 'grey') return theme.palette.grey[600];
+        if (n === 'vermelho' || n === 'red') return theme.palette.error.main;
+        if (n === 'azul' || n === 'blue') return theme.palette.primary.main;
+        if (n === 'verde' || n === 'green') return theme.palette.success.main;
+        if (n === 'amarelo' || n === 'yellow') return theme.palette.warning.main;
+        if (n === 'laranja' || n === 'orange') return theme.palette.warning.dark;
+        if (n === 'rosa' || n === 'pink') return theme.palette.secondary.main;
+        if (n === 'roxo' || n === 'purple') return theme.palette.secondary.dark;
+        return theme.palette.grey[400];
+    };
+
+    const colorOptions = (() => {
+        const options: Array<{ kind: 'base' | 'variant'; color: string; variantId?: number; inStock?: boolean }> = [];
+
+        const baseColor = (product.cor ?? '').trim();
+        if (baseColor) options.push({ kind: 'base', color: baseColor });
+
+        const variants = (product.variants ?? [])
+            .filter(v => !!v && typeof v.color === 'string' && v.color.trim().length > 0)
+            .map(v => ({
+                kind: 'variant' as const,
+                color: v.color.trim(),
+                variantId: v.id,
+                inStock: typeof v.quantityInStock === 'number' ? v.quantityInStock > 0 : true
+            }));
+
+        options.push(...variants);
+
+        const seen = new Set<string>();
+        return options.filter(o => {
+            const k = o.color.toLowerCase();
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+        });
+    })();
 
     useEffect(() => {
         if (images.length <= 1) return;
@@ -100,6 +145,40 @@ export default function ProductCard({ product }: Props) {
                 <Typography gutterBottom sx={{ textTransform: 'uppercase' }} variant="subtitle2">
                     {product.name}
                 </Typography>
+
+                {colorOptions.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1 }}>
+                        {colorOptions.map((opt) => (
+                            <Box
+                                key={opt.kind === 'variant' ? `v-${opt.variantId}` : `b-${opt.color}`}
+                                aria-label={`Cor ${opt.color}`}
+                                title={opt.color}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+
+                                    if (opt.kind === 'variant') {
+                                        if (opt.inStock === false) return;
+                                        navigate(`/catalog/${product.id}?variantId=${opt.variantId}`);
+                                    } else {
+                                        navigate(`/catalog/${product.id}`);
+                                    }
+                                }}
+                                sx={{
+                                    width: 14,
+                                    height: 14,
+                                    borderRadius: '50%',
+                                    bgcolor: resolveDotBg(opt.color),
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    cursor: opt.kind === 'variant' && opt.inStock === false ? 'not-allowed' : 'pointer',
+                                    opacity: opt.kind === 'variant' && opt.inStock === false ? 0.5 : 1,
+                                    boxSizing: 'border-box'
+                                }}
+                            />
+                        ))}
+                    </Box>
+                )}
 
                 <Typography variant="h6" sx={{ color: isLight ? 'text.primary' : 'secondary.main', fontSize: { xs: '1rem', sm: '1.25rem' } }}>
                     {product.discountPercentage && product.discountPercentage > 0 ? (

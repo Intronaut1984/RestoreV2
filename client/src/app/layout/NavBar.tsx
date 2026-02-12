@@ -163,7 +163,16 @@ export default function NavBar() {
                 zIndex: (theme) => theme.zIndex.appBar + 10
             }}
         >
-            <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+            <Toolbar
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 2,
+                    minHeight: { xs: 72, md: 88 },
+                    px: { xs: 1, sm: 2 }
+                }}
+            >
                 <Box display='flex' alignItems='center'>
                     {isCatalogRoute && (
                         <IconButton color="inherit" onClick={openFilters} sx={{ display: { xs: 'inline-flex', md: 'none' } }}>
@@ -179,16 +188,17 @@ export default function NavBar() {
                             component='img'
                             src={logoUrl}
                             alt='Logo'
-                            sx={{ height: { xs: 28, md: 40 }, maxWidth: '100%', objectFit: 'contain', display: 'block' }}
+                            sx={{ height: { xs: 56, sm: 64, md: 76 }, maxWidth: '100%', width: 'auto', objectFit: 'contain', display: 'block' }}
                         />
                     </Box>
-                    <IconButton onClick={() => dispatch(setDarkMode())}>
+                    {/* Mobile: keep theme toggle near the logo */}
+                    <IconButton onClick={() => dispatch(setDarkMode())} sx={{ display: { xs: 'inline-flex', md: 'none' } }}>
                         {darkMode ? <DarkMode /> : <LightMode sx={{ color: 'orange' }} />}
                     </IconButton>
                 </Box>
 
                 {/* Desktop search field - Centered */}
-                <Box sx={{ display: { xs: 'none', md: 'flex' }, flex: 1, justifyContent: 'center', alignItems: 'center', maxWidth: 680 }}>
+                <Box sx={{ display: { xs: 'none', md: 'flex' }, flex: 1, justifyContent: 'center', alignItems: 'center', maxWidth: 740 }}>
                     <Box sx={{ display: 'flex', alignItems: 'stretch', width: '100%' }}>
                         <Select
                             size="small"
@@ -218,6 +228,10 @@ export default function NavBar() {
                                 }}
                             />
                         </Box>
+                        {/* Desktop: theme toggle next to quick filter/search */}
+                        <IconButton onClick={() => dispatch(setDarkMode())} sx={{ ml: 1 }}>
+                            {darkMode ? <DarkMode /> : <LightMode sx={{ color: 'orange' }} />}
+                        </IconButton>
                     </Box>
                 </Box>
 

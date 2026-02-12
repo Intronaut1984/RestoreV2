@@ -137,7 +137,7 @@ namespace API.Controllers
             }
 
             // include navigation properties after filtering/sorting to keep EF translation simple
-            query = query.Include(p => p.Campaigns).Include(p => p.Categories);
+            query = query.Include(p => p.Campaigns).Include(p => p.Categories).Include(p => p.Variants);
 
             var products = await PagedList<Product>.ToPagedList(query,
                 productParams.PageNumber, productParams.PageSize);
