@@ -11,13 +11,22 @@ using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace API.Controllers
 {
     public record ProductClickDto(string SessionId);
 
-    public class ProductsController(StoreContext context, IMapper mapper, 
-        ImageService imageService) : BaseApiController
+    public class ProductsController(
+        StoreContext context,
+        IMapper mapper,
+        ImageService imageService,
+        UserManager<User> userManager,
+        IEmailService emailService,
+        IOptions<EmailSettings> emailOptions,
+        ILogger<ProductsController> logger) : BaseApiController
     {
         [HttpGet]
         public async Task<ActionResult<List<Product>>> GetProducts(
@@ -247,6 +256,8 @@ namespace API.Controllers
             product.RatingsCount = stats?.Count ?? 0;
             await context.SaveChangesAsync(ct);
 
+            await TryNotifyAdminsProductReview(product, review, ct);
+
             var dtoOut = new ProductReviewDto
             {
                 Id = review.Id,
@@ -259,6 +270,48 @@ namespace API.Controllers
             };
 
             return Ok(dtoOut);
+        }
+
+        private async Task TryNotifyAdminsProductReview(Product product, ProductReview review, CancellationToken ct)
+        {
+            try
+            {
+                var admins = await userManager.GetUsersInRoleAsync("Admin");
+                var adminEmails = admins
+                    .Select(a => (a.Email ?? string.Empty).Trim())
+                    .Where(e => !string.IsNullOrWhiteSpace(e))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (adminEmails.Count == 0) return;
+
+                var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+                var productUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/catalog/{product.Id}";
+
+                var subject = $"[Avaliação] Produto #{product.Id} - {product.Name}";
+                var html = $"""
+                    <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                      <h2>Restore</h2>
+                      <p><strong>Nova avaliação</strong> do produto <strong>{System.Net.WebUtility.HtmlEncode(product.Name)}</strong>.</p>
+                      <p><strong>Cliente:</strong> {System.Net.WebUtility.HtmlEncode(review.BuyerEmail)}</p>
+                      <p><strong>Classificação:</strong> {review.Rating}/5</p>
+                      <p><strong>Comentário:</strong></p>
+                      <div style='white-space: pre-wrap; border: 1px solid #ddd; padding: 8px; border-radius: 6px'>
+                        {System.Net.WebUtility.HtmlEncode(review.Comment)}
+                      </div>
+                      {(string.IsNullOrWhiteSpace(productUrl) ? string.Empty : $"<p>Ver produto: <a href=\"{productUrl}\">{productUrl}</a></p>")}
+                    </div>
+                    """;
+
+                foreach (var to in adminEmails)
+                {
+                    await emailService.SendEmailAsync(to, subject, html, replyToEmail: review.BuyerEmail);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to notify admins about product review for product {ProductId}", product.Id);
+            }
         }
 
         // Track a view/click on the product details page.

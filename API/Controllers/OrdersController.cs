@@ -17,6 +17,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Hosting;
 using System.IO;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Identity;
 
 namespace API.Controllers;
 
@@ -29,7 +30,8 @@ public class OrdersController(
     IEmailService emailService,
     IOptions<EmailSettings> emailOptions,
     IInvoicePdfService invoicePdfService,
-    IWebHostEnvironment env) : BaseApiController
+    IWebHostEnvironment env,
+    UserManager<User> userManager) : BaseApiController
 {
     private const decimal DefaultRate = 5m;
     private const decimal DefaultFreeShippingThreshold = 100m;
@@ -288,7 +290,62 @@ public class OrdersController(
         var saved = await context.SaveChangesAsync() > 0;
         if (!saved) return BadRequest("Problem saving comment");
 
+        await TryNotifyAdminsOrderComment(order);
+
         return NoContent();
+    }
+
+    private async Task<List<string>> GetAdminEmailsAsync()
+    {
+        try
+        {
+            var admins = await userManager.GetUsersInRoleAsync("Admin");
+            return admins
+                .Select(a => (a.Email ?? string.Empty).Trim())
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load admin emails");
+            return [];
+        }
+    }
+
+    private async Task TryNotifyAdminsOrderComment(Order order)
+    {
+        try
+        {
+            var adminEmails = await GetAdminEmailsAsync();
+            if (adminEmails.Count == 0) return;
+
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/admin/sales/{order.Id}";
+
+            var subject = $"[Avaliação] Encomenda #{order.Id} - Comentário do cliente";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p><strong>Novo comentário</strong> do cliente na encomenda <strong>#{order.Id}</strong>.</p>
+                  <p><strong>Cliente:</strong> {System.Net.WebUtility.HtmlEncode(order.BuyerEmail)}</p>
+                  <p><strong>Comentário:</strong></p>
+                  <div style='white-space: pre-wrap; border: 1px solid #ddd; padding: 8px; border-radius: 6px'>
+                    {System.Net.WebUtility.HtmlEncode(order.CustomerComment ?? string.Empty)}
+                  </div>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver venda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            foreach (var to in adminEmails)
+            {
+                await emailService.SendEmailAsync(to, subject, html, replyToEmail: order.BuyerEmail);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to notify admins about order comment for order {OrderId}", order.Id);
+        }
     }
 
     [HttpGet("{id:int}/incident")]
@@ -523,15 +580,17 @@ public class OrdersController(
     {
         try
         {
-            var adminEmail = (emailOptions.Value.AdminEmail ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(adminEmail))
+            var adminEmails = await GetAdminEmailsAsync();
+            if (adminEmails.Count == 0)
             {
-                adminEmail = (emailOptions.Value.FromEmail ?? string.Empty).Trim();
+                var fallback = (emailOptions.Value.AdminEmail ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(fallback)) fallback = (emailOptions.Value.FromEmail ?? string.Empty).Trim();
+                if (!string.IsNullOrWhiteSpace(fallback)) adminEmails.Add(fallback);
             }
 
-            if (string.IsNullOrWhiteSpace(adminEmail))
+            if (adminEmails.Count == 0)
             {
-                logger.LogWarning("Incident email not sent: EmailSettings.AdminEmail/FromEmail not configured.");
+                logger.LogWarning("Incident email not sent: no admin recipients configured.");
                 return;
             }
 
@@ -566,7 +625,10 @@ public class OrdersController(
                 </div>
                 """;
 
-            await emailService.SendEmailAsync(adminEmail, subject, html);
+                        foreach (var to in adminEmails)
+                        {
+                                await emailService.SendEmailAsync(to, subject, html, replyToEmail: order.BuyerEmail);
+                        }
         }
         catch (Exception ex)
         {
