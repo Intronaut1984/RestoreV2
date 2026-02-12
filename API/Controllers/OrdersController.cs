@@ -14,6 +14,9 @@ using Stripe;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Hosting;
+using System.IO;
+using System.Collections.Generic;
 
 namespace API.Controllers;
 
@@ -25,7 +28,8 @@ public class OrdersController(
     API.Services.DiscountService discountService,
     IEmailService emailService,
     IOptions<EmailSettings> emailOptions,
-    IInvoicePdfService invoicePdfService) : BaseApiController
+    IInvoicePdfService invoicePdfService,
+    IWebHostEnvironment env) : BaseApiController
 {
     private const decimal DefaultRate = 5m;
     private const decimal DefaultFreeShippingThreshold = 100m;
@@ -195,6 +199,11 @@ public class OrdersController(
         var saved = await context.SaveChangesAsync() > 0;
         if (!saved) return BadRequest("Problem updating order status");
 
+        if (newStatus == OrderStatus.PaymentReceived)
+        {
+            await TrySendReceiptEmailIfNeeded(order, CancellationToken.None);
+        }
+
         await TrySendStatusEmail(order, newStatus);
 
         var updated = await context.Orders
@@ -203,6 +212,55 @@ public class OrdersController(
             .FirstOrDefaultAsync();
 
         return updated == null ? Ok() : Ok(updated);
+    }
+
+    private async Task TrySendReceiptEmailIfNeeded(Order order, CancellationToken ct)
+    {
+        try
+        {
+            if (order.ReceiptEmailedAt.HasValue) return;
+            if (order.OrderStatus == OrderStatus.Pending || order.OrderStatus == OrderStatus.PaymentFailed) return;
+
+            var fullOrder = await context.Orders
+                .AsNoTracking()
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == order.Id, ct);
+
+            if (fullOrder == null) return;
+
+            var pdfBytes = await invoicePdfService.GenerateReceiptPdfAsync(fullOrder, ct);
+
+            var subject = $"Recibo da encomenda #{order.Id}";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Segue em anexo o recibo (PDF) da sua encomenda <strong>#{order.Id}</strong>.</p>
+                </div>
+                """;
+
+            var sent = await emailService.SendEmailWithAttachmentsAsync(order.BuyerEmail, subject, html,
+                new[]
+                {
+                    new EmailAttachment
+                    {
+                        FileName = $"recibo-{order.Id}.pdf",
+                        ContentType = "application/pdf",
+                        Content = pdfBytes
+                    }
+                });
+
+            if (!sent) return;
+
+            var toUpdate = await context.Orders.FirstOrDefaultAsync(o => o.Id == order.Id, ct);
+            if (toUpdate == null) return;
+
+            toUpdate.ReceiptEmailedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send receipt email for order {OrderId}", order.Id);
+        }
     }
 
     [HttpPost("{id:int}/comment")]
@@ -225,11 +283,319 @@ public class OrdersController(
 
         order.CustomerComment = comment;
         order.CustomerCommentedAt = DateTime.UtcNow;
+        order.OrderStatus = OrderStatus.Completed;
 
         var saved = await context.SaveChangesAsync() > 0;
         if (!saved) return BadRequest("Problem saving comment");
 
         return NoContent();
+    }
+
+    [HttpGet("{id:int}/incident")]
+    public async Task<ActionResult<OrderIncidentDto>> GetOrderIncident(int id, CancellationToken ct)
+    {
+        var isAdmin = User.IsInRole("Admin");
+        var email = User.GetEmail();
+        if (string.IsNullOrWhiteSpace(email)) return Unauthorized();
+
+        var order = await context.Orders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == id && (isAdmin || o.BuyerEmail == email), ct);
+
+        if (order == null) return NotFound();
+
+        var incident = await context.OrderIncidents
+            .AsNoTracking()
+            .Include(i => i.Attachments)
+            .FirstOrDefaultAsync(i => i.OrderId == id, ct);
+
+        if (incident == null)
+        {
+            return new OrderIncidentDto
+            {
+                Id = null,
+                OrderId = order.Id,
+                BuyerEmail = order.BuyerEmail,
+                Status = IncidentStatus.None,
+                Attachments = []
+            };
+        }
+
+        return new OrderIncidentDto
+        {
+            Id = incident.Id,
+            OrderId = incident.OrderId,
+            BuyerEmail = incident.BuyerEmail,
+            Status = incident.Status,
+            ProductId = incident.ProductId,
+            Description = incident.Description,
+            CreatedAt = incident.CreatedAt,
+            ResolvedAt = incident.ResolvedAt,
+            Attachments = incident.Attachments
+                .OrderBy(a => a.CreatedAt)
+                .Select(a => new OrderIncidentAttachmentDto
+                {
+                    Id = a.Id,
+                    OriginalFileName = a.OriginalFileName,
+                    ContentType = a.ContentType,
+                    Size = a.Size,
+                    CreatedAt = a.CreatedAt
+                })
+                .ToList()
+        };
+    }
+
+    [HttpPost("{id:int}/incident/open")]
+    [RequestSizeLimit(25_000_000)]
+    public async Task<ActionResult> OpenOrderIncident(int id, [FromForm] OpenOrderIncidentDto dto, CancellationToken ct)
+    {
+        if (dto == null) return BadRequest("Dados inválidos");
+
+        var email = User.GetEmail();
+        if (string.IsNullOrWhiteSpace(email)) return Unauthorized();
+
+        var description = (dto.Description ?? string.Empty).Trim();
+        if (description.Length < 10) return BadRequest("Descrição demasiado curta");
+        if (description.Length > 2000) return BadRequest("Descrição demasiado longa");
+
+        var order = await context.Orders
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.Id == id && o.BuyerEmail == email, ct);
+
+        if (order == null) return NotFound();
+
+        if (order.OrderStatus == OrderStatus.Pending || order.OrderStatus == OrderStatus.PaymentFailed)
+            return BadRequest("Só pode abrir incidente após a compra estar concluída");
+
+        var existing = await context.OrderIncidents.AnyAsync(i => i.OrderId == id, ct);
+        if (existing) return BadRequest("Já existe um incidente para esta encomenda");
+
+        if (dto.ProductId.HasValue)
+        {
+            var productId = dto.ProductId.Value;
+            var existsInOrder = order.OrderItems.Any(oi => oi.ItemOrdered.ProductId == productId);
+            if (!existsInOrder) return BadRequest("Produto inválido para esta encomenda");
+        }
+
+        var incident = new OrderIncident
+        {
+            OrderId = order.Id,
+            BuyerEmail = order.BuyerEmail,
+            Status = IncidentStatus.Open,
+            ProductId = dto.ProductId,
+            Description = description,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        context.OrderIncidents.Add(incident);
+        await context.SaveChangesAsync(ct);
+
+        var writtenFiles = new List<string>();
+        try
+        {
+            const int maxFiles = 10;
+            const long maxFileSize = 10_000_000; // 10MB
+
+            var files = dto.Files ?? [];
+            if (files.Count > maxFiles) return BadRequest("Demasiados ficheiros");
+
+            var baseRel = $"Uploads/incidents/{order.Id}/{incident.Id}";
+            var baseAbs = Path.Combine(env.ContentRootPath, "Uploads", "incidents", order.Id.ToString(), incident.Id.ToString());
+            Directory.CreateDirectory(baseAbs);
+
+            foreach (var file in files)
+            {
+                if (file == null || file.Length <= 0) continue;
+                if (file.Length > maxFileSize) return BadRequest("Ficheiro demasiado grande");
+
+                var original = Path.GetFileName(file.FileName);
+                if (string.IsNullOrWhiteSpace(original)) original = "anexo";
+
+                var ext = Path.GetExtension(original);
+                var stored = $"{Guid.NewGuid():N}{ext}";
+                var relPath = $"{baseRel}/{stored}";
+                var absPath = Path.Combine(baseAbs, stored);
+
+                await using (var stream = System.IO.File.Create(absPath))
+                {
+                    await file.CopyToAsync(stream, ct);
+                }
+
+                writtenFiles.Add(absPath);
+
+                context.OrderIncidentAttachments.Add(new OrderIncidentAttachment
+                {
+                    OrderIncidentId = incident.Id,
+                    OriginalFileName = original,
+                    StoredFileName = stored,
+                    ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                    Size = file.Length,
+                    RelativePath = relPath,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            await context.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            // best-effort cleanup
+            try
+            {
+                foreach (var p in writtenFiles)
+                {
+                    if (System.IO.File.Exists(p)) System.IO.File.Delete(p);
+                }
+            }
+            catch { }
+
+            // remove incident record if attachments failed catastrophically
+            try
+            {
+                var toRemove = await context.OrderIncidents.FirstOrDefaultAsync(i => i.Id == incident.Id, ct);
+                if (toRemove != null)
+                {
+                    context.OrderIncidents.Remove(toRemove);
+                    await context.SaveChangesAsync(ct);
+                }
+            }
+            catch { }
+
+            throw;
+        }
+
+        await TrySendIncidentOpenedEmail(order, incident);
+
+        return NoContent();
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("{id:int}/incident/resolve")]
+    public async Task<ActionResult> ResolveOrderIncident(int id, CancellationToken ct)
+    {
+        var incident = await context.OrderIncidents
+            .Include(i => i.Attachments)
+            .FirstOrDefaultAsync(i => i.OrderId == id, ct);
+
+        if (incident == null) return NotFound();
+        if (incident.Status == IncidentStatus.Resolved) return NoContent();
+
+        incident.Status = IncidentStatus.Resolved;
+        incident.ResolvedAt = DateTime.UtcNow;
+
+        var saved = await context.SaveChangesAsync(ct) > 0;
+        if (!saved) return BadRequest("Problem resolving incident");
+
+        // Notify buyer
+        await TrySendIncidentResolvedEmail(incident);
+
+        return NoContent();
+    }
+
+    [HttpGet("{orderId:int}/incident/attachments/{attachmentId:int}")]
+    public async Task<IActionResult> DownloadIncidentAttachment(int orderId, int attachmentId, CancellationToken ct)
+    {
+        var isAdmin = User.IsInRole("Admin");
+        var email = User.GetEmail();
+        if (string.IsNullOrWhiteSpace(email)) return Unauthorized();
+
+        var order = await context.Orders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == orderId && (isAdmin || o.BuyerEmail == email), ct);
+
+        if (order == null) return NotFound();
+
+        var attachment = await context.OrderIncidentAttachments
+            .AsNoTracking()
+            .Include(a => a.OrderIncident)
+            .FirstOrDefaultAsync(a => a.Id == attachmentId && a.OrderIncident != null && a.OrderIncident.OrderId == orderId, ct);
+
+        if (attachment == null) return NotFound();
+
+        var abs = Path.Combine(env.ContentRootPath, attachment.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+        if (!System.IO.File.Exists(abs)) return NotFound();
+
+        var contentType = string.IsNullOrWhiteSpace(attachment.ContentType) ? "application/octet-stream" : attachment.ContentType;
+        return PhysicalFile(abs, contentType, fileDownloadName: attachment.OriginalFileName);
+    }
+
+    private async Task TrySendIncidentOpenedEmail(Order order, OrderIncident incident)
+    {
+        try
+        {
+            var adminEmail = (emailOptions.Value.AdminEmail ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(adminEmail))
+            {
+                adminEmail = (emailOptions.Value.FromEmail ?? string.Empty).Trim();
+            }
+
+            if (string.IsNullOrWhiteSpace(adminEmail))
+            {
+                logger.LogWarning("Incident email not sent: EmailSettings.AdminEmail/FromEmail not configured.");
+                return;
+            }
+
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/admin/sales/{order.Id}";
+
+            var subject = $"[Incidente] Encomenda #{order.Id} - Incidente aberto";
+
+            var items = string.Join("", order.OrderItems.Select(oi => $"<li>{System.Net.WebUtility.HtmlEncode(oi.ItemOrdered.Name)} x {oi.Quantity}</li>"));
+            var productInfo = incident.ProductId.HasValue
+                ? $"<p><strong>Produto:</strong> {incident.ProductId.Value}</p>"
+                : string.Empty;
+
+            var attachmentsCount = await context.OrderIncidentAttachments
+                .AsNoTracking()
+                .CountAsync(a => a.OrderIncidentId == incident.Id, CancellationToken.None);
+
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p><strong>Incidente aberto</strong> na encomenda #{order.Id}</p>
+                  <p><strong>Cliente:</strong> {System.Net.WebUtility.HtmlEncode(order.BuyerEmail)}</p>
+                  {productInfo}
+                  <p><strong>Descrição:</strong></p>
+                  <div style='white-space: pre-wrap; border: 1px solid #ddd; padding: 8px; border-radius: 6px'>
+                    {System.Net.WebUtility.HtmlEncode(incident.Description)}
+                  </div>
+                  <p><strong>Artigos:</strong></p>
+                  <ul>{items}</ul>
+                  <p><strong>Anexos:</strong> {attachmentsCount}</p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver venda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(adminEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send incident opened email for order {OrderId}", order.Id);
+        }
+    }
+
+    private async Task TrySendIncidentResolvedEmail(OrderIncident incident)
+    {
+        try
+        {
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{incident.OrderId}";
+
+            var subject = $"[Incidente] Encomenda #{incident.OrderId} - Incidente resolvido";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>O seu incidente na encomenda <strong>#{incident.OrderId}</strong> foi marcado como <strong>Resolvido</strong>.</p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(incident.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send incident resolved email for order {OrderId}", incident.OrderId);
+        }
     }
 
     private async Task TrySendStatusEmail(Order order, OrderStatus newStatus)
@@ -248,6 +614,7 @@ public class OrdersController(
                 OrderStatus.Delivered => $"Encomenda #{order.Id}: Entregue",
                 OrderStatus.Cancelled => $"Encomenda #{order.Id}: Cancelado",
                 OrderStatus.ReviewRequested => $"Encomenda #{order.Id}: Para avaliação",
+                OrderStatus.Completed => $"Encomenda #{order.Id}: Concluído",
                 _ => $"Atualização da encomenda #{order.Id}"
             };
 
@@ -260,6 +627,7 @@ public class OrdersController(
                 OrderStatus.Delivered => "A sua encomenda foi entregue.",
                 OrderStatus.Cancelled => "A sua encomenda foi cancelada.",
                 OrderStatus.ReviewRequested => "Como correu a sua encomenda? Pode deixar um comentário.",
+                OrderStatus.Completed => "A sua encomenda foi concluída.",
                 _ => "A sua encomenda foi atualizada."
             };
 

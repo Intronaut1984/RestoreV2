@@ -2,8 +2,10 @@ import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQueryWithErrorHandling } from "../../app/api/baseApi";
 import { CreateOrder, Order } from "../../app/models/order";
 import { Pagination } from "../../app/models/pagination";
+import type { OrderIncident } from "../../app/models/orderIncident";
 
 type OrderTag = { type: 'Orders'; id: number | 'LIST' };
+type IncidentTag = { type: 'Incidents'; id: number | 'LIST' };
 
 export type AdminSalesQuery = {
     pageNumber: number;
@@ -18,7 +20,7 @@ export type AdminSalesQuery = {
 export const orderApi = createApi({
     reducerPath: 'orderApi',
     baseQuery: baseQueryWithErrorHandling,
-    tagTypes: ['Orders'],
+    tagTypes: ['Orders', 'Incidents'],
     endpoints: (builder) => ({
         fetchOrders: builder.query<Order[], void>({
             query: () => 'orders',
@@ -78,6 +80,41 @@ export const orderApi = createApi({
                 { type: 'Orders', id: 'LIST' }
             ]
         }),
+        fetchOrderIncident: builder.query<OrderIncident, number>({
+            query: (id) => ({
+                url: `orders/${id}/incident`
+            }),
+            providesTags: (_result, _error, id): IncidentTag[] => [{ type: 'Incidents', id }]
+        }),
+        openOrderIncident: builder.mutation<void, { id: number; productId?: number | null; description: string; files: File[] }>({
+            query: ({ id, productId, description, files }) => {
+                const form = new FormData();
+                form.append('description', description);
+                if (productId) form.append('productId', String(productId));
+                for (const f of files) form.append('files', f);
+                return {
+                    url: `orders/${id}/incident/open`,
+                    method: 'POST',
+                    body: form
+                };
+            },
+            invalidatesTags: (_result, _error, { id }): (OrderTag | IncidentTag)[] => [
+                { type: 'Incidents', id },
+                { type: 'Orders', id },
+                { type: 'Orders', id: 'LIST' }
+            ]
+        }),
+        resolveOrderIncident: builder.mutation<void, { id: number }>({
+            query: ({ id }) => ({
+                url: `orders/${id}/incident/resolve`,
+                method: 'PUT'
+            }),
+            invalidatesTags: (_result, _error, { id }): (OrderTag | IncidentTag)[] => [
+                { type: 'Incidents', id },
+                { type: 'Orders', id },
+                { type: 'Orders', id: 'LIST' }
+            ]
+        }),
         createOrder: builder.mutation<Order, CreateOrder>({
             query: (order) => ({
                 url: 'orders',
@@ -99,6 +136,9 @@ export const {
     useFetchAnyOrderDetailedQuery,
     useUpdateAnyOrderStatusMutation,
     useAddOrderCommentMutation,
+    useFetchOrderIncidentQuery,
+    useOpenOrderIncidentMutation,
+    useResolveOrderIncidentMutation,
     useCreateOrderMutation
 } 
     = orderApi;

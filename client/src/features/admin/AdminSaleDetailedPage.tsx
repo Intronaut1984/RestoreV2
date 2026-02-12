@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { useFetchAnyOrderDetailedQuery } from "../orders/orderApi";
+import { useFetchAnyOrderDetailedQuery, useFetchOrderIncidentQuery, useResolveOrderIncidentMutation } from "../orders/orderApi";
 import {
   Box,
   Button,
@@ -30,6 +30,7 @@ import {
 import { useEffect, useState } from "react";
 import { useUpdateAnyOrderStatusMutation } from "../orders/orderApi";
 import { FetchBaseQueryError } from "@reduxjs/toolkit/query";
+import { getIncidentStatusLabel } from "../../lib/incidentStatus";
 
 function getApiErrorMessage(error: unknown) {
   if (!error) return null;
@@ -51,6 +52,8 @@ export default function AdminSaleDetailedPage() {
     useUpdateAnyOrderStatusMutation();
 
   const { data: order, isLoading } = useFetchAnyOrderDetailedQuery(+id!);
+  const { data: incident, isLoading: isIncidentLoading, refetch: refetchIncident } = useFetchOrderIncidentQuery(+id!);
+  const [resolveIncident, { isLoading: isResolvingIncident, error: resolveIncidentError }] = useResolveOrderIncidentMutation();
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [saved, setSaved] = useState(false);
 
@@ -65,6 +68,7 @@ export default function AdminSaleDetailedPage() {
 
   const apiBaseUrl = ((import.meta.env.VITE_API_URL as string | undefined) ?? '/api/').replace(/\/?$/, '/');
   const receiptUrl = `${apiBaseUrl}orders/all/${order.id}/invoice`;
+  const incidentAttachmentUrl = (attachmentId: number) => `${apiBaseUrl}orders/${order.id}/incident/attachments/${attachmentId}`;
 
   const selectOptions = (() => {
     const base = adminOrderStatusOptions;
@@ -226,6 +230,74 @@ export default function AdminSaleDetailedPage() {
             {format(order.orderDate, "dd MMM yyyy")}
           </Typography>
         </Box>
+      </Box>
+
+      <Divider sx={{ my: 2 }} />
+
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" fontWeight="bold">Incidente</Typography>
+
+        <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
+          <Typography variant="subtitle1" fontWeight="500">Estado</Typography>
+          <Typography variant="body2" fontWeight="300">
+            {isIncidentLoading ? 'A carregar...' : getIncidentStatusLabel(incident?.status)}
+          </Typography>
+        </Box>
+
+        {!isIncidentLoading && incident?.status !== 'None' && incident?.description && (
+          <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
+            <Typography variant="subtitle1" fontWeight="500">Descrição</Typography>
+            <Typography variant="body2" fontWeight="300" sx={{ whiteSpace: 'pre-wrap' }}>
+              {incident.description}
+            </Typography>
+          </Box>
+        )}
+
+        {!isIncidentLoading && (incident?.attachments?.length ?? 0) > 0 && (
+          <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
+            <Typography variant="subtitle1" fontWeight="500">Anexos</Typography>
+            <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {(incident?.attachments ?? []).map((a) => (
+                <Button
+                  key={a.id}
+                  component="a"
+                  href={incidentAttachmentUrl(a.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant='outlined'
+                  sx={{ justifyContent: 'flex-start' }}
+                >
+                  {a.originalFileName}
+                </Button>
+              ))}
+            </Box>
+          </Box>
+        )}
+
+        {resolveIncidentError && (
+          <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+            {getApiErrorMessage(resolveIncidentError)}
+          </Typography>
+        )}
+
+        {!isIncidentLoading && incident?.status === 'Open' && (
+          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              variant='contained'
+              disabled={isResolvingIncident}
+              onClick={async () => {
+                try {
+                  await resolveIncident({ id: order.id }).unwrap();
+                  refetchIncident();
+                } catch {
+                  // handled via resolveIncidentError
+                }
+              }}
+            >
+              Resolver incidente
+            </Button>
+          </Box>
+        )}
       </Box>
 
       {order.customerComment && (

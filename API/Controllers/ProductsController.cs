@@ -208,7 +208,7 @@ namespace API.Controllers
             var eligibleOrder = await context.Orders
                 .AsNoTracking()
                 .Where(o => o.BuyerEmail == email)
-                .Where(o => o.OrderStatus == OrderStatus.Delivered || o.OrderStatus == OrderStatus.ReviewRequested)
+                .Where(o => o.OrderStatus == OrderStatus.Delivered || o.OrderStatus == OrderStatus.ReviewRequested || o.OrderStatus == OrderStatus.Completed)
                 .Where(o => o.OrderItems.Any(oi => oi.ItemOrdered.ProductId == id))
                 .OrderByDescending(o => o.OrderDate)
                 .FirstOrDefaultAsync(ct);

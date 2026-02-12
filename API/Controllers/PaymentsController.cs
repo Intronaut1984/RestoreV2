@@ -3,16 +3,24 @@ using API.Data;
 using API.DTOs;
 using API.Entities.OrderAggregate;
 using API.Extensions;
+using API.RequestHelpers;
 using API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Stripe;
 
 namespace API.Controllers;
 
-public class PaymentsController(PaymentsService paymentsService,
-    StoreContext context, IConfiguration config, ILogger<PaymentsController> logger)
+public class PaymentsController(
+    PaymentsService paymentsService,
+    StoreContext context,
+    IConfiguration config,
+    ILogger<PaymentsController> logger,
+    IEmailService emailService,
+    IInvoicePdfService invoicePdfService,
+    IOptions<EmailSettings> emailOptions)
         : BaseApiController
 {
     [Authorize]
@@ -128,6 +136,56 @@ public class PaymentsController(PaymentsService paymentsService,
         if (basket != null) context.Baskets.Remove(basket);
 
         await context.SaveChangesAsync();
+
+        // Send receipt PDF once after payment is received
+        await TrySendReceiptEmailIfNeeded(order);
+    }
+
+    private async Task TrySendReceiptEmailIfNeeded(Order order)
+    {
+        try
+        {
+            if (order.ReceiptEmailedAt.HasValue) return;
+            if (order.OrderStatus != OrderStatus.PaymentReceived) return;
+
+            var pdfBytes = await invoicePdfService.GenerateReceiptPdfAsync(order, CancellationToken.None);
+
+            var subject = $"Recibo da encomenda #{order.Id}";
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{order.Id}";
+            var extra = string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>";
+
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Pagamento confirmado. Segue em anexo o recibo (PDF) da sua encomenda <strong>#{order.Id}</strong>.</p>
+                  {extra}
+                </div>
+                """;
+
+            var sent = await emailService.SendEmailWithAttachmentsAsync(order.BuyerEmail, subject, html,
+                new[]
+                {
+                    new EmailAttachment
+                    {
+                        FileName = $"recibo-{order.Id}.pdf",
+                        ContentType = "application/pdf",
+                        Content = pdfBytes
+                    }
+                });
+
+            if (!sent) return;
+
+            var toUpdate = await context.Orders.FirstOrDefaultAsync(o => o.Id == order.Id);
+            if (toUpdate == null) return;
+
+            toUpdate.ReceiptEmailedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send receipt email for order {OrderId}", order.Id);
+        }
     }
 
     private async Task IncrementProductSalesCountsAsync(Order order)

@@ -14,6 +14,7 @@ const statusLabels: Record<string, string> = {
   Delivered: "Entregue",
   Cancelled: "Cancelado",
   ReviewRequested: "Para avaliação",
+  Completed: "Concluído",
 };
 
 export function getOrderStatusLabel(status: string | null | undefined) {

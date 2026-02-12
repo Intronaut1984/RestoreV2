@@ -25,10 +25,37 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<Newsletter> Newsletters { get; set; }
     public required DbSet<NewsletterAttachment> NewsletterAttachments { get; set; }
     public required DbSet<ProductReview> ProductReviews { get; set; }
+    public required DbSet<OrderIncident> OrderIncidents { get; set; }
+    public required DbSet<OrderIncidentAttachment> OrderIncidentAttachments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<OrderIncident>(b =>
+        {
+            b.HasIndex(x => x.OrderId).IsUnique();
+            b.Property(x => x.BuyerEmail).IsRequired().HasMaxLength(320);
+            b.Property(x => x.Description).IsRequired().HasMaxLength(2000);
+            b.HasMany(x => x.Attachments)
+                .WithOne(a => a.OrderIncident)
+                .HasForeignKey(a => a.OrderIncidentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<OrderIncidentAttachment>(b =>
+        {
+            b.Property(x => x.OriginalFileName).IsRequired().HasMaxLength(260);
+            b.Property(x => x.StoredFileName).IsRequired().HasMaxLength(260);
+            b.Property(x => x.ContentType).IsRequired().HasMaxLength(128);
+            b.Property(x => x.RelativePath).IsRequired().HasMaxLength(500);
+        });
+
+        builder.Entity<Order>()
+            .HasOne(o => o.Incident)
+            .WithOne(i => i.Order)
+            .HasForeignKey<OrderIncident>(i => i.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<ProductReview>(b =>
         {

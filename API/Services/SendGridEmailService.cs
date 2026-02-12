@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SendGrid;
 using SendGrid.Helpers.Mail;
+using System;
+using System.Collections.Generic;
 
 namespace API.Services;
 
@@ -19,6 +21,15 @@ public class SendGridEmailService : IEmailService
     }
 
     public async Task<bool> SendEmailAsync(string toEmail, string subject, string htmlContent)
+    {
+        return await SendEmailWithAttachmentsAsync(toEmail, subject, htmlContent, Array.Empty<EmailAttachment>());
+    }
+
+    public async Task<bool> SendEmailWithAttachmentsAsync(
+        string toEmail,
+        string subject,
+        string htmlContent,
+        IReadOnlyList<EmailAttachment> attachments)
     {
         if (string.IsNullOrWhiteSpace(_settings.SendGridApiKey))
         {
@@ -37,6 +48,30 @@ public class SendGridEmailService : IEmailService
         var to = new EmailAddress(toEmail);
         var plain = StripHtml(htmlContent);
         var msg = MailHelper.CreateSingleEmail(from, to, subject, plain, htmlContent);
+
+        // Attach files (SendGrid expects base64 content)
+        if (attachments != null)
+        {
+            foreach (var a in attachments)
+            {
+                try
+                {
+                    if (a?.Content == null || a.Content.Length == 0) continue;
+                    // Keep memory bounded: reject very large attachments
+                    if (a.Content.Length > 10 * 1024 * 1024) continue;
+
+                    var name = string.IsNullOrWhiteSpace(a.FileName) ? "attachment" : a.FileName;
+                    var type = string.IsNullOrWhiteSpace(a.ContentType) ? "application/octet-stream" : a.ContentType;
+                    var base64 = Convert.ToBase64String(a.Content);
+
+                    msg.AddAttachment(name, base64, type, "attachment");
+                }
+                catch
+                {
+                    // ignore individual attachment errors; still try to deliver
+                }
+            }
+        }
 
         // If configured for sandbox/dev mode, enable SendGrid sandbox (won't deliver)
         if (_settings.UseSandbox)
