@@ -104,11 +104,16 @@ public class Product
 
     public bool Active { get; set; } = true;
 
+    // Publishing gate: products start as drafts (IsPublished=false) until admin approves.
+    public bool IsPublished { get; set; } = false;
+
     public string? PublicId { get; set; }
 
     // relations
     public List<Campaign>? Campaigns { get; set; }
     public List<Category>? Categories { get; set; }
+
+    public List<ProductVariant> Variants { get; set; } = [];
 
     [NotMapped]
     public bool IsFavorite { get; set; } = false;

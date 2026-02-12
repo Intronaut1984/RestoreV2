@@ -3,16 +3,29 @@ using API.Data;
 using API.DTOs;
 using API.Entities.OrderAggregate;
 using API.Extensions;
+using API.RequestHelpers;
 using API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Stripe;
+using Microsoft.AspNetCore.Identity;
+using API.Entities;
+using System.Linq;
 
 namespace API.Controllers;
 
-public class PaymentsController(PaymentsService paymentsService,
-    StoreContext context, IConfiguration config, ILogger<PaymentsController> logger)
+public class PaymentsController(
+    PaymentsService paymentsService,
+    StoreContext context,
+    IConfiguration config,
+    ILogger<PaymentsController> logger,
+    IEmailService emailService,
+    IInvoicePdfService invoicePdfService,
+    IOptions<EmailSettings> emailOptions,
+    INotificationService notificationService,
+    UserManager<User> userManager)
         : BaseApiController
 {
     [Authorize]
@@ -114,10 +127,14 @@ public class PaymentsController(PaymentsService paymentsService,
         }
 
         logger.LogInformation("Payment received for order {OrderId}: intent amount {Amount}", order.Id, intentAmount);
-        if (order.OrderStatus != OrderStatus.PaymentReceived)
+        // Only transition to PaymentReceived from payment-related states.
+        // Avoid overwriting a fulfillment state if it was set before the webhook arrived.
+        var transitionedToPaymentReceived = false;
+        if (order.OrderStatus == OrderStatus.Pending || order.OrderStatus == OrderStatus.PaymentMismatch || order.OrderStatus == OrderStatus.PaymentFailed)
         {
             await IncrementProductSalesCountsAsync(order);
             order.OrderStatus = OrderStatus.PaymentReceived;
+            transitionedToPaymentReceived = true;
         }
 
         var basket = await context.Baskets.FirstOrDefaultAsync(x => 
@@ -126,6 +143,140 @@ public class PaymentsController(PaymentsService paymentsService,
         if (basket != null) context.Baskets.Remove(basket);
 
         await context.SaveChangesAsync();
+
+        if (transitionedToPaymentReceived)
+        {
+            await TrySendProcessingConfirmationEmail(order);
+
+            await notificationService.TryCreateForEmailAsync(
+                order.BuyerEmail,
+                "Pagamento confirmado",
+                $"Pagamento confirmado. A encomenda #{order.Id} está a ser processada.",
+                $"/orders/{order.Id}");
+
+            await TryNotifyAdminsPaymentReceivedAsync(order);
+        }
+
+        // Send receipt PDF once after payment is received
+        await TrySendReceiptEmailIfNeeded(order);
+    }
+
+    private async Task TryNotifyAdminsPaymentReceivedAsync(Order order)
+    {
+        try
+        {
+            var admins = await userManager.GetUsersInRoleAsync("Admin");
+            var adminEmails = admins
+                .Select(a => (a.Email ?? string.Empty).Trim())
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (adminEmails.Count == 0) return;
+
+            foreach (var to in adminEmails)
+            {
+                await notificationService.TryCreateForEmailAsync(
+                    to,
+                    "Pagamento recebido",
+                    $"Pagamento recebido para a encomenda #{order.Id}.",
+                    $"/admin/sales/{order.Id}");
+            }
+
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var url = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/admin/sales/{order.Id}";
+            var subject = $"[Venda] Pagamento recebido (Encomenda #{order.Id})";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Pagamento confirmado para a encomenda <strong>#{order.Id}</strong>.</p>
+                  <p><strong>Cliente:</strong> {System.Net.WebUtility.HtmlEncode(order.BuyerEmail)}</p>
+                  {(string.IsNullOrWhiteSpace(url) ? string.Empty : $"<p>Ver venda: <a href=\"{url}\">{url}</a></p>")}
+                </div>
+                """;
+
+            foreach (var to in adminEmails)
+            {
+                await emailService.SendEmailAsync(to, subject, html, replyToEmail: order.BuyerEmail);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to notify admins about payment received for order {OrderId}", order.Id);
+        }
+    }
+
+    private async Task TrySendProcessingConfirmationEmail(Order order)
+    {
+        try
+        {
+            if (order.OrderStatus != OrderStatus.PaymentReceived) return;
+
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{order.Id}";
+
+            var subject = $"Encomenda #{order.Id}: Em processamento";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Pagamento confirmado. A sua encomenda <strong>#{order.Id}</strong> está a ser processada.</p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(order.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send processing confirmation email for order {OrderId}", order.Id);
+        }
+    }
+
+    private async Task TrySendReceiptEmailIfNeeded(Order order)
+    {
+        try
+        {
+            if (order.ReceiptEmailedAt.HasValue) return;
+            if (order.OrderStatus != OrderStatus.PaymentReceived) return;
+
+            var pdfBytes = await invoicePdfService.GenerateReceiptPdfAsync(order, CancellationToken.None);
+
+            var subject = $"Recibo da encomenda #{order.Id}";
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{order.Id}";
+            var extra = string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>";
+
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Pagamento confirmado. Segue em anexo o recibo (PDF) da sua encomenda <strong>#{order.Id}</strong>.</p>
+                  {extra}
+                </div>
+                """;
+
+            var sent = await emailService.SendEmailWithAttachmentsAsync(order.BuyerEmail, subject, html,
+                new[]
+                {
+                    new EmailAttachment
+                    {
+                        FileName = $"recibo-{order.Id}.pdf",
+                        ContentType = "application/pdf",
+                        Content = pdfBytes
+                    }
+                });
+
+            if (!sent) return;
+
+            var toUpdate = await context.Orders.FirstOrDefaultAsync(o => o.Id == order.Id);
+            if (toUpdate == null) return;
+
+            toUpdate.ReceiptEmailedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send receipt email for order {OrderId}", order.Id);
+        }
     }
 
     private async Task IncrementProductSalesCountsAsync(Order order)

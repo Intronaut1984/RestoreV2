@@ -50,4 +50,21 @@ export type Product = {
     categories?: { id: number; name: string }[] | null
     campaigns?: { id: number; name: string }[] | null
     isFavorite?: boolean | null
+    // publishing gate (admin sees drafts)
+    isPublished?: boolean | null
+    // color variants (each can override stock/photo/description/price)
+    variants?: ProductVariant[] | null
+}
+
+export type ProductVariant = {
+    id: number
+    productId?: number
+    color: string
+    quantityInStock: number
+    priceOverride?: number | null
+    descriptionOverride?: string | null
+    pictureUrl?: string | null
+    publicId?: string | null
+    createdAt?: string | null
+    updatedAt?: string | null
 }

@@ -23,7 +23,7 @@ public class BasketController(StoreContext context,
     }
 
     [HttpPost]
-    public async Task<ActionResult<BasketDto>> AddItemToBasket(int productId, int quantity)
+    public async Task<ActionResult<BasketDto>> AddItemToBasket(int productId, int quantity, int? variantId = null)
     {
         var basket = await RetrieveBasket();
 
@@ -33,7 +33,24 @@ public class BasketController(StoreContext context,
 
         if (product == null) return BadRequest("Problem adding item to basket");
 
-        basket.AddItem(product, quantity);
+        ProductVariant? variant = null;
+        if (variantId.HasValue)
+        {
+            variant = await context.ProductVariants
+                .FirstOrDefaultAsync(v => v.Id == variantId.Value && v.ProductId == productId);
+            if (variant == null) return BadRequest("Variante inválida");
+        }
+        else
+        {
+            // Backwards-compatible behavior: if product has variants but no variant was chosen,
+            // default to the first variant.
+            variant = await context.ProductVariants
+                .Where(v => v.ProductId == productId)
+                .OrderBy(v => v.Id)
+                .FirstOrDefaultAsync();
+        }
+
+        basket.AddItem(product, quantity, variant);
 
         var result = await context.SaveChangesAsync() > 0;
 
@@ -43,13 +60,13 @@ public class BasketController(StoreContext context,
     }
 
     [HttpDelete]
-    public async Task<ActionResult> RemoveBasketItem(int productId, int quantity)
+    public async Task<ActionResult> RemoveBasketItem(int productId, int quantity, int? variantId = null)
     {
         var basket = await RetrieveBasket();
 
         if (basket == null) return BadRequest("Unable to retrieve basket");
 
-        basket.RemoveItem(productId, quantity);
+        basket.RemoveItem(productId, quantity, variantId);
 
         var result = await context.SaveChangesAsync() > 0;
 
@@ -123,6 +140,8 @@ public class BasketController(StoreContext context,
         return await context.Baskets
             .Include(x => x.Items)
             .ThenInclude(x => x.Product)
+            .Include(x => x.Items)
+            .ThenInclude(x => x.ProductVariant)
             .FirstOrDefaultAsync(x => x.BasketId == Request.Cookies["basketId"]);
     }
 }

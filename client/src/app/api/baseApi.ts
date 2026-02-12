@@ -21,10 +21,17 @@ const sleep = () => new Promise(resolve => setTimeout(resolve, 1000));
 
 export const baseQueryWithErrorHandling = async (args: string | FetchArgs, api: BaseQueryApi,
     extraOptions: Record<string, unknown>) => {
-    api.dispatch(startLoading());
+    const requestUrl = typeof args === 'string' ? args : (args.url ?? '');
+    const suppressGlobalLoading = requestUrl.startsWith('notifications');
+
+    if (!suppressGlobalLoading) {
+        api.dispatch(startLoading());
+    }
     if (import.meta.env.DEV) await sleep();
     const result = await customBaseQuery(args, api, extraOptions);
-    api.dispatch(stopLoading());
+    if (!suppressGlobalLoading) {
+        api.dispatch(stopLoading());
+    }
     if (result.error) {
         console.log(result.error);
 

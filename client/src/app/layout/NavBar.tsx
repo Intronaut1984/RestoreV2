@@ -1,5 +1,5 @@
 import { AppBar, Badge, Box, IconButton, LinearProgress, List, ListItem, Toolbar, Typography, Menu, MenuItem, useTheme, useMediaQuery, Drawer, Select, SelectChangeEvent } from "@mui/material";
-import { DarkMode, LightMode, ShoppingCart, AccountCircle, FilterList as FilterListIcon, Search as SearchIcon, FavoriteBorder } from '@mui/icons-material';
+import { DarkMode, LightMode, ShoppingCart, AccountCircle, FilterList as FilterListIcon, Search as SearchIcon, FavoriteBorder, NotificationsNone } from '@mui/icons-material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import { useFetchFavoritesQuery, useRemoveFavoriteMutation } from '../../features/catalog/favoritesApi';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -16,6 +16,7 @@ import Search from '../../features/catalog/Search';
 import { useGetLogoQuery } from '../../features/admin/logoApi';
 import { computeFinalPrice, currencyFormat } from "../../lib/util";
 import { setHasDiscount, setOrderBy } from "../../features/catalog/catalogSlice";
+import { useGetNotificationsQuery, useGetUnreadCountQuery, useMarkAllReadMutation, useMarkReadMutation } from "../../features/notifications/notificationsApi";
 
 const midLinks: { title: string; path: string }[] = [
     // Removed navigation links (Loja, Sobre, Promoções, etc.)
@@ -37,6 +38,22 @@ const navStyles = {
 
 export default function NavBar() {
     const {data: user} = useUserInfoQuery();
+    const { data: unreadCount } = useGetUnreadCountQuery(undefined, {
+        skip: !user,
+        pollingInterval: user ? 10000 : 0,
+        refetchOnFocus: true,
+        refetchOnReconnect: true
+    });
+    const [markAllRead] = useMarkAllReadMutation();
+    const [markRead] = useMarkReadMutation();
+    const [anchorNotificationsEl, setAnchorNotificationsEl] = useState<null | HTMLElement>(null);
+    const notificationsOpen = Boolean(anchorNotificationsEl);
+    const { data: notifications } = useGetNotificationsQuery(20, {
+        skip: !user || !notificationsOpen,
+        refetchOnFocus: true,
+        refetchOnReconnect: true,
+        refetchOnMountOrArgChange: true
+    });
     const { isLoading, darkMode } = useAppSelector(state => state.ui);
     const dispatch = useAppDispatch();
     const { data: basket } = useFetchBasketQuery();
@@ -47,6 +64,16 @@ export default function NavBar() {
             return localStorage.getItem('logoUrl') ?? '';
         } catch {
             return '';
+        }
+    });
+    const [cachedLogoScale, setCachedLogoScale] = useState<number>(() => {
+        try {
+            const raw = localStorage.getItem('logoScale');
+            if (!raw) return 1;
+            const v = Number(raw);
+            return Number.isFinite(v) && v > 0 ? v : 1;
+        } catch {
+            return 1;
         }
     });
     const [removeFavorite] = useRemoveFavoriteMutation();
@@ -125,16 +152,25 @@ export default function NavBar() {
     }, [generos, anos, orderBy, searchTerm, isMobile, closeFilters]);
 
     useEffect(() => {
-        if (!logoData?.url) return;
+        if (!logoData?.url && typeof logoData?.scale !== 'number') return;
         try {
-            localStorage.setItem('logoUrl', logoData.url);
-            setCachedLogoUrl(logoData.url);
+            if (logoData?.url) {
+                localStorage.setItem('logoUrl', logoData.url);
+                setCachedLogoUrl(logoData.url);
+            }
+            if (typeof logoData?.scale === 'number' && Number.isFinite(logoData.scale) && logoData.scale > 0) {
+                localStorage.setItem('logoScale', String(logoData.scale));
+                setCachedLogoScale(logoData.scale);
+            }
         } catch {
             // ignore
         }
-    }, [logoData?.url]);
+    }, [logoData?.url, logoData?.scale]);
 
     const logoUrl = logoData?.url || cachedLogoUrl || '/images/logo.png';
+    const logoScale = (typeof logoData?.scale === 'number' && Number.isFinite(logoData.scale) && logoData.scale > 0)
+        ? logoData.scale
+        : cachedLogoScale;
 
     return (
         <AppBar
@@ -146,7 +182,16 @@ export default function NavBar() {
                 zIndex: (theme) => theme.zIndex.appBar + 10
             }}
         >
-            <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+            <Toolbar
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 2,
+                    minHeight: { xs: 72, md: 88 },
+                    px: { xs: 1, sm: 2 }
+                }}
+            >
                 <Box display='flex' alignItems='center'>
                     {isCatalogRoute && (
                         <IconButton color="inherit" onClick={openFilters} sx={{ display: { xs: 'inline-flex', md: 'none' } }}>
@@ -162,16 +207,27 @@ export default function NavBar() {
                             component='img'
                             src={logoUrl}
                             alt='Logo'
-                            sx={{ height: { xs: 28, md: 40 }, maxWidth: '100%', objectFit: 'contain', display: 'block' }}
+                            sx={{
+                                height: {
+                                    xs: Math.round(56 * logoScale),
+                                    sm: Math.round(64 * logoScale),
+                                    md: Math.round(76 * logoScale)
+                                },
+                                maxWidth: '100%',
+                                width: 'auto',
+                                objectFit: 'contain',
+                                display: 'block'
+                            }}
                         />
                     </Box>
-                    <IconButton onClick={() => dispatch(setDarkMode())}>
+                    {/* Mobile: keep theme toggle near the logo */}
+                    <IconButton onClick={() => dispatch(setDarkMode())} sx={{ display: { xs: 'inline-flex', md: 'none' } }}>
                         {darkMode ? <DarkMode /> : <LightMode sx={{ color: 'orange' }} />}
                     </IconButton>
                 </Box>
 
                 {/* Desktop search field - Centered */}
-                <Box sx={{ display: { xs: 'none', md: 'flex' }, flex: 1, justifyContent: 'center', alignItems: 'center', maxWidth: 680 }}>
+                <Box sx={{ display: { xs: 'none', md: 'flex' }, flex: 1, justifyContent: 'center', alignItems: 'center', maxWidth: 740 }}>
                     <Box sx={{ display: 'flex', alignItems: 'stretch', width: '100%' }}>
                         <Select
                             size="small"
@@ -201,6 +257,10 @@ export default function NavBar() {
                                 }}
                             />
                         </Box>
+                        {/* Desktop: theme toggle next to quick filter/search */}
+                        <IconButton onClick={() => dispatch(setDarkMode())} sx={{ ml: 1 }}>
+                            {darkMode ? <DarkMode /> : <LightMode sx={{ color: 'orange' }} />}
+                        </IconButton>
                     </Box>
                 </Box>
 
@@ -210,6 +270,80 @@ export default function NavBar() {
                             <FavoriteBorder />
                         </Badge>
                     </IconButton>
+
+                    {user && (
+                        <IconButton
+                            size="large"
+                            sx={{ color: 'inherit' }}
+                            onClick={(e) => setAnchorNotificationsEl(e.currentTarget)}
+                            aria-label="notifications"
+                        >
+                            <Badge badgeContent={unreadCount ?? 0} color={theme.palette.mode === 'light' ? 'warning' : 'secondary'}>
+                                <NotificationsNone />
+                            </Badge>
+                        </IconButton>
+                    )}
+
+                    <Menu
+                        anchorEl={anchorNotificationsEl}
+                        open={notificationsOpen}
+                        onClose={() => setAnchorNotificationsEl(null)}
+                        sx={{ zIndex: (theme) => theme.zIndex.appBar + 30 }}
+                    >
+                        <MenuItem
+                            onClick={async () => {
+                                try {
+                                    await markAllRead().unwrap();
+                                } catch {
+                                    // handled by baseApi
+                                } finally {
+                                    setAnchorNotificationsEl(null);
+                                }
+                            }}
+                            disabled={!user || (unreadCount ?? 0) === 0}
+                        >
+                            Marcar todas como lidas
+                        </MenuItem>
+
+                        {(!notifications || notifications.length === 0) ? (
+                            <MenuItem disabled>
+                                Sem notificações
+                            </MenuItem>
+                        ) : (
+                            notifications.map(n => (
+                                <MenuItem
+                                    key={n.id}
+                                    onClick={async () => {
+                                        try {
+                                            if (!n.isRead) await markRead(n.id).unwrap();
+                                        } catch {
+                                            // handled by baseApi
+                                        } finally {
+                                            setAnchorNotificationsEl(null);
+                                            if (n.url) navigate(n.url);
+                                        }
+                                    }}
+                                    sx={{
+                                        maxWidth: 360,
+                                        whiteSpace: 'normal',
+                                        alignItems: 'flex-start'
+                                    }}
+                                >
+                                    <Box>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: n.isRead ? 400 : 700 }}>
+                                            {n.title}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {n.message}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {new Date(n.createdAt).toLocaleString()}
+                                        </Typography>
+                                    </Box>
+                                </MenuItem>
+                            ))
+                        )}
+                    </Menu>
 
                     <IconButton component={Link} to='/basket' size="large" sx={{ color: 'inherit' }}>
                         <Badge badgeContent={itemCount} color={theme.palette.mode === 'light' ? 'warning' : 'secondary'}>

@@ -4,11 +4,12 @@ import { baseQueryWithErrorHandling } from "../../app/api/baseApi";
 import { ProductParams } from "../../app/models/productParams";
 import { filterEmptyValues } from "../../lib/util";
 import { Pagination } from "../../app/models/pagination";
+import { ProductReview } from "../../app/models/productReview";
 
 export const catalogApi = createApi({
     reducerPath: 'catalogApi',
     baseQuery: baseQueryWithErrorHandling,
-    tagTypes: ['Products','Filters'],
+    tagTypes: ['Products','Filters','ProductReviews'],
     endpoints: (builder) => ({
         fetchProducts: builder.query<{items: Product[], pagination: Pagination}, ProductParams>({
             query: (productParams) => {
@@ -92,6 +93,32 @@ export const catalogApi = createApi({
         ,
             providesTags: (_result, _error, id) => [{ type: 'Products', id }]
         }),
+        fetchProductReviews: builder.query<ProductReview[], number>({
+            query: (productId) => `products/${productId}/reviews`,
+            providesTags: (_result, _error, id) => [{ type: 'ProductReviews', id }]
+        }),
+        createProductReview: builder.mutation<ProductReview, { productId: number; rating: number; comment: string }>({
+            query: ({ productId, rating, comment }) => ({
+                url: `products/${productId}/reviews`,
+                method: 'POST',
+                body: { rating, comment }
+            }),
+            invalidatesTags: (_result, _error, { productId }) => [
+                { type: 'ProductReviews', id: productId },
+                { type: 'Products', id: productId }
+            ]
+        }),
+        replyProductReview: builder.mutation<ProductReview, { productId: number; reviewId: number; reply: string }>({
+            query: ({ productId, reviewId, reply }) => ({
+                url: `products/${productId}/reviews/${reviewId}/reply`,
+                method: 'PUT',
+                body: { reply }
+            }),
+            invalidatesTags: (_result, _error, { productId }) => [
+                { type: 'ProductReviews', id: productId },
+                { type: 'Products', id: productId }
+            ]
+        }),
         recordProductClick: builder.mutation<void, { productId: number; sessionId: string }>({
             query: ({ productId, sessionId }) => ({
                 url: `products/${productId}/click`,
@@ -119,5 +146,13 @@ export const catalogApi = createApi({
     })
 });
 
-export const { useFetchProductDetailsQuery, useFetchProductsQuery, useFetchFiltersQuery, useRecordProductClickMutation } 
+export const {
+    useFetchProductDetailsQuery,
+    useFetchProductsQuery,
+    useFetchFiltersQuery,
+    useRecordProductClickMutation,
+    useFetchProductReviewsQuery,
+    useCreateProductReviewMutation,
+    useReplyProductReviewMutation
+} 
     = catalogApi;

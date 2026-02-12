@@ -128,6 +128,14 @@ export default function UserMenu({ user }: Props) {
                 </MenuItem>}
 
                 {user.roles.includes('Admin') &&
+                <MenuItem component={Link} to='/admin/sales' onClick={handleClose}>
+                    <ListItemIcon>
+                        <Inventory />
+                    </ListItemIcon>
+                    <ListItemText>Vendas (Admin)</ListItemText>
+                </MenuItem>}
+
+                {user.roles.includes('Admin') &&
                 <MenuItem component={Link} to='/admin/newsletters' onClick={handleClose}>
                     <ListItemIcon>
                         <Inventory />

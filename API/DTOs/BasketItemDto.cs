@@ -3,6 +3,8 @@ namespace API.DTOs;
 public class BasketItemDto
 {
     public int ProductId { get; set; }
+    public int? ProductVariantId { get; set; }
+    public string? VariantColor { get; set; }
     public required string Name { get; set; }
     // Price in euros (decimal) to match frontend numeric representation
     public decimal Price { get; set; }

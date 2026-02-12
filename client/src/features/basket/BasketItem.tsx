@@ -42,6 +42,12 @@ export default function BasketItem({ item }: Props) {
                 <Box sx={{display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0}}>
                     <Typography variant="h6" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</Typography>
 
+                    {!!item.variantColor && (
+                        <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                            Cor: {item.variantColor}
+                        </Typography>
+                    )}
+
                     <Box sx={{display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap'}}>
                         {item.discountPercentage ? (
                             <>
@@ -73,7 +79,7 @@ export default function BasketItem({ item }: Props) {
 
                     <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
                         <IconButton 
-                            onClick={() => removeBasketItem({productId: item.productId, quantity: 1})}
+                            onClick={() => removeBasketItem({productId: item.productId, variantId: item.productVariantId ?? null, quantity: 1})}
                             color="error" 
                             size="small" 
                             sx={{border: 1, borderRadius: 1, minWidth: 0, p: 0.5}}
@@ -94,7 +100,7 @@ export default function BasketItem({ item }: Props) {
             </Box>
 
             <IconButton
-                onClick={() => removeBasketItem({productId: item.productId, quantity: item.quantity})}
+                onClick={() => removeBasketItem({productId: item.productId, variantId: item.productVariantId ?? null, quantity: item.quantity})}
                 color='error'
                 size="small" 
                 sx={{

@@ -67,8 +67,14 @@ export const adminApi = createApi({
             }
         ,
             invalidatesTags: (_result, _error, id) => [{ type: 'Products', id }, { type: 'Products', id: 'LIST' }, 'Filters']
-        })
-        ,
+        }),
+        publishProduct: builder.mutation<void, number>({
+            query: (id: number) => ({
+                url: `products/${id}/publish`,
+                method: 'PUT'
+            }),
+            invalidatesTags: (_result, _error, id) => [{ type: 'Products', id }, { type: 'Products', id: 'LIST' }, 'Filters']
+        }),
         getCampaigns: builder.query<Campaign[], void>({
             query: () => ({ url: 'campaigns' }),
             providesTags: ['Filters']
@@ -96,6 +102,7 @@ export const adminApi = createApi({
 export const {
     useCreateProductMutation,
     useUpdateProductMutation,
+    usePublishProductMutation,
     useDeleteProductMutation,
     useGetCampaignsQuery,
     useDeleteCampaignMutation,

@@ -1,26 +1,51 @@
 using API.Data;
 using API.DTOs;
 using API.Entities;
+using API.Entities.OrderAggregate;
 using API.Extensions;
 using API.RequestHelpers;
 using API.Services;
 using AutoMapper;
+using System;
 using System.Linq;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace API.Controllers
 {
     public record ProductClickDto(string SessionId);
 
-    public class ProductsController(StoreContext context, IMapper mapper, 
-        ImageService imageService) : BaseApiController
+    public class ProductsController(
+        StoreContext context,
+        IMapper mapper,
+        ImageService imageService,
+        UserManager<User> userManager,
+        IEmailService emailService,
+        IOptions<EmailSettings> emailOptions,
+        ILogger<ProductsController> logger,
+        INotificationService notificationService) : BaseApiController
     {
+        private sealed class VariantUpsert
+        {
+            public int? Id { get; set; }
+            public string? Key { get; set; }
+            public string? Color { get; set; }
+            public int QuantityInStock { get; set; }
+            public decimal? PriceOverride { get; set; }
+            public string? DescriptionOverride { get; set; }
+        }
+
         [HttpGet]
         public async Task<ActionResult<List<Product>>> GetProducts(
             [FromQuery] ProductParams productParams)
         {
+            var isAdmin = User?.Identity?.IsAuthenticated == true && User.IsInRole("Admin");
+
             // Start with base query applying search and scalar filters.
             // Sorting is applied later because some sorts may depend on other tables (e.g. clicks).
             var query = context.Products
@@ -37,6 +62,13 @@ namespace API.Controllers
                     productParams.Materiais,
                     productParams.Tamanhos)
                 .AsQueryable();
+
+            // Customers should only see published products.
+            // We keep Active for internal/admin usage, but avoid accidentally hiding the whole catalog.
+            if (!isAdmin)
+            {
+                query = query.Where(p => p.IsPublished);
+            }
 
             // Parse category and campaign id strings into lists
             var categoryList = new List<int>();
@@ -105,7 +137,7 @@ namespace API.Controllers
             }
 
             // include navigation properties after filtering/sorting to keep EF translation simple
-            query = query.Include(p => p.Campaigns).Include(p => p.Categories);
+            query = query.Include(p => p.Campaigns).Include(p => p.Categories).Include(p => p.Variants);
 
             var products = await PagedList<Product>.ToPagedList(query,
                 productParams.PageNumber, productParams.PageSize);
@@ -136,13 +168,21 @@ namespace API.Controllers
         [HttpGet("{id}")] // api/products/2
         public async Task<ActionResult<Product>> GetProduct(int id)
         {
+            var isAdmin = User?.Identity?.IsAuthenticated == true && User.IsInRole("Admin");
+
             // include campaigns and categories so the returned product contains related data
             var product = await context.Products
                 .Include(p => p.Campaigns)
                 .Include(p => p.Categories)
+                .Include(p => p.Variants)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null) return NotFound();
+
+            if (!isAdmin)
+            {
+                if (!product.IsPublished) return NotFound();
+            }
 
             if (User?.Identity?.IsAuthenticated ?? false)
             {
@@ -155,6 +195,235 @@ namespace API.Controllers
             }
 
             return product;
+        }
+
+        [HttpGet("{id:int}/reviews")]
+        [AllowAnonymous]
+        public async Task<ActionResult<List<ProductReviewDto>>> GetProductReviews(int id, CancellationToken ct)
+        {
+            var exists = await context.Products.AsNoTracking().AnyAsync(p => p.Id == id, ct);
+            if (!exists) return NotFound();
+
+            var reviews = await context.ProductReviews
+                .AsNoTracking()
+                .Where(r => r.ProductId == id)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new ProductReviewDto
+                {
+                    Id = r.Id,
+                    ProductId = r.ProductId,
+                    OrderId = r.OrderId,
+                    BuyerEmail = r.BuyerEmail,
+                    Rating = r.Rating,
+                    Comment = r.Comment,
+                    AdminReply = r.AdminReply,
+                    AdminRepliedAt = r.AdminRepliedAt,
+                    CreatedAt = r.CreatedAt
+                })
+                .ToListAsync(ct);
+
+            return reviews;
+        }
+
+        [HttpPost("{id:int}/reviews")]
+        [Authorize]
+        public async Task<ActionResult<ProductReviewDto>> CreateProductReview(int id, [FromBody] CreateProductReviewDto dto, CancellationToken ct)
+        {
+            if (dto == null) return BadRequest("Dados inválidos");
+
+            var rating = dto.Rating;
+            if (rating < 1 || rating > 5) return BadRequest("Classificação inválida");
+
+            var comment = (dto.Comment ?? string.Empty).Trim();
+            if (comment.Length < 3) return BadRequest("Comentário demasiado curto");
+            if (comment.Length > 1000) return BadRequest("Comentário demasiado longo");
+
+            var product = await context.Products.FirstOrDefaultAsync(p => p.Id == id, ct);
+            if (product == null) return NotFound();
+
+            var email = User.GetEmail();
+            if (string.IsNullOrWhiteSpace(email)) return Unauthorized();
+
+            // Only allow reviews from real buyers, after delivery/review request.
+            var eligibleOrder = await context.Orders
+                .AsNoTracking()
+                .Where(o => o.BuyerEmail == email)
+                .Where(o => o.OrderStatus == OrderStatus.Delivered || o.OrderStatus == OrderStatus.ReviewRequested || o.OrderStatus == OrderStatus.Completed)
+                .Where(o => o.OrderItems.Any(oi => oi.ItemOrdered.ProductId == id))
+                .OrderByDescending(o => o.OrderDate)
+                .FirstOrDefaultAsync(ct);
+
+            if (eligibleOrder == null)
+                return BadRequest("Só pode avaliar produtos que comprou e recebeu");
+
+            var already = await context.ProductReviews
+                .AsNoTracking()
+                .AnyAsync(r => r.ProductId == id && r.BuyerEmail == email && r.OrderId == eligibleOrder.Id, ct);
+
+            if (already) return BadRequest("Já avaliou este produto nesta encomenda");
+
+            var review = new ProductReview
+            {
+                ProductId = id,
+                OrderId = eligibleOrder.Id,
+                BuyerEmail = email,
+                Rating = rating,
+                Comment = comment,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.ProductReviews.Add(review);
+            await context.SaveChangesAsync(ct);
+
+            // Update product cached rating stats (AverageRating/RatingsCount)
+            var stats = await context.ProductReviews
+                .AsNoTracking()
+                .Where(r => r.ProductId == id)
+                .GroupBy(_ => 1)
+                .Select(g => new { Avg = g.Average(x => x.Rating), Count = g.Count() })
+                .FirstOrDefaultAsync(ct);
+
+            product.AverageRating = stats == null ? null : Math.Round(stats.Avg, 2);
+            product.RatingsCount = stats?.Count ?? 0;
+            await context.SaveChangesAsync(ct);
+
+            await TryNotifyAdminsProductReview(product, review, ct);
+
+            var dtoOut = new ProductReviewDto
+            {
+                Id = review.Id,
+                ProductId = review.ProductId,
+                OrderId = review.OrderId,
+                BuyerEmail = review.BuyerEmail,
+                Rating = review.Rating,
+                Comment = review.Comment,
+                AdminReply = review.AdminReply,
+                AdminRepliedAt = review.AdminRepliedAt,
+                CreatedAt = review.CreatedAt
+            };
+
+            return Ok(dtoOut);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPut("{id:int}/reviews/{reviewId:int}/reply")]
+        public async Task<ActionResult<ProductReviewDto>> ReplyToProductReview(int id, int reviewId, [FromBody] ReplyTextDto dto, CancellationToken ct)
+        {
+            var reply = (dto?.Reply ?? string.Empty).Trim();
+            if (reply.Length < 3) return BadRequest("Resposta demasiado curta");
+            if (reply.Length > 2000) return BadRequest("Resposta demasiado longa");
+
+            var review = await context.ProductReviews
+                .FirstOrDefaultAsync(r => r.Id == reviewId && r.ProductId == id, ct);
+
+            if (review == null) return NotFound();
+
+            review.AdminReply = reply;
+            review.AdminRepliedAt = DateTime.UtcNow;
+
+            var saved = await context.SaveChangesAsync(ct) > 0;
+            if (!saved) return BadRequest("Problem saving reply");
+
+            await notificationService.TryCreateForEmailAsync(
+                review.BuyerEmail,
+                "Resposta à sua avaliação",
+                $"Respondemos à sua avaliação do produto #{review.ProductId}.",
+                $"/catalog/{review.ProductId}",
+                ct);
+
+            await TrySendProductReviewReplyEmailAsync(review, reply);
+
+            return Ok(new ProductReviewDto
+            {
+                Id = review.Id,
+                ProductId = review.ProductId,
+                OrderId = review.OrderId,
+                BuyerEmail = review.BuyerEmail,
+                Rating = review.Rating,
+                Comment = review.Comment,
+                AdminReply = review.AdminReply,
+                AdminRepliedAt = review.AdminRepliedAt,
+                CreatedAt = review.CreatedAt
+            });
+        }
+
+        private async Task TrySendProductReviewReplyEmailAsync(ProductReview review, string reply)
+        {
+            try
+            {
+                var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+                var productUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/catalog/{review.ProductId}";
+
+                var subject = $"Resposta à sua avaliação (Produto #{review.ProductId})";
+                var html = $"""
+                    <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                      <h2>Restore</h2>
+                      <p>Recebeu uma resposta à sua avaliação:</p>
+                      <div style='white-space: pre-wrap; border: 1px solid #ddd; padding: 8px; border-radius: 6px'>
+                        {System.Net.WebUtility.HtmlEncode(reply)}
+                      </div>
+                      {(string.IsNullOrWhiteSpace(productUrl) ? string.Empty : $"<p>Ver produto: <a href=\"{productUrl}\">{productUrl}</a></p>")}
+                    </div>
+                    """;
+
+                await emailService.SendEmailAsync(review.BuyerEmail, subject, html);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send product review reply email for review {ReviewId}", review.Id);
+            }
+        }
+
+        private async Task TryNotifyAdminsProductReview(Product product, ProductReview review, CancellationToken ct)
+        {
+            try
+            {
+                var admins = await userManager.GetUsersInRoleAsync("Admin");
+                var adminEmails = admins
+                    .Select(a => (a.Email ?? string.Empty).Trim())
+                    .Where(e => !string.IsNullOrWhiteSpace(e))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (adminEmails.Count == 0) return;
+
+                foreach (var to in adminEmails)
+                {
+                    await notificationService.TryCreateForEmailAsync(
+                        to,
+                        "Nova avaliação",
+                        $"Nova avaliação no produto #{product.Id}.",
+                        $"/catalog/{product.Id}",
+                        ct);
+                }
+
+                var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+                var productUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/catalog/{product.Id}";
+
+                var subject = $"[Avaliação] Produto #{product.Id} - {product.Name}";
+                var html = $"""
+                    <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                      <h2>Restore</h2>
+                      <p><strong>Nova avaliação</strong> do produto <strong>{System.Net.WebUtility.HtmlEncode(product.Name)}</strong>.</p>
+                      <p><strong>Cliente:</strong> {System.Net.WebUtility.HtmlEncode(review.BuyerEmail)}</p>
+                      <p><strong>Classificação:</strong> {review.Rating}/5</p>
+                      <p><strong>Comentário:</strong></p>
+                      <div style='white-space: pre-wrap; border: 1px solid #ddd; padding: 8px; border-radius: 6px'>
+                        {System.Net.WebUtility.HtmlEncode(review.Comment)}
+                      </div>
+                      {(string.IsNullOrWhiteSpace(productUrl) ? string.Empty : $"<p>Ver produto: <a href=\"{productUrl}\">{productUrl}</a></p>")}
+                    </div>
+                    """;
+
+                foreach (var to in adminEmails)
+                {
+                    await emailService.SendEmailAsync(to, subject, html, replyToEmail: review.BuyerEmail);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to notify admins about product review for product {ProductId}", product.Id);
+            }
         }
 
         // Track a view/click on the product details page.
@@ -245,11 +514,22 @@ namespace API.Controllers
                 .Distinct()
                 .ToListAsync();
 
-            var cores = await context.Products
+            var coresFromProducts = await context.Products
                 .Where(p => p.Cor != null)
                 .Select(p => p.Cor)
                 .Distinct()
                 .ToListAsync();
+
+            var coresFromVariants = await context.ProductVariants
+                .Select(v => v.Color)
+                .Distinct()
+                .ToListAsync();
+
+            var cores = coresFromProducts
+                .Concat(coresFromVariants)
+                .Where(c => c != null)
+                .Distinct()
+                .ToList();
 
             var materiais = await context.Products
                 .Where(p => p.Material != null)
@@ -272,6 +552,7 @@ namespace API.Controllers
         {
 
             var product = mapper.Map<Product>(productDto);
+            product.IsPublished = false;
 
             if (productDto.File != null)
             {
@@ -316,6 +597,68 @@ namespace API.Controllers
                 }
             }
 
+            // Handle variants (colors)
+            var variantsJson = (productDto.VariantsJson ?? string.Empty).Trim();
+            if (!string.IsNullOrWhiteSpace(variantsJson))
+            {
+                List<VariantUpsert>? variants;
+                try
+                {
+                    variants = JsonSerializer.Deserialize<List<VariantUpsert>>(variantsJson,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                }
+                catch
+                {
+                    return BadRequest("Invalid variantsJson");
+                }
+
+                variants ??= [];
+
+                var files = productDto.VariantFiles ?? [];
+                var keys = productDto.VariantFileKeys ?? [];
+                var fileByKey = new Dictionary<string, IFormFile>(StringComparer.OrdinalIgnoreCase);
+                for (var i = 0; i < Math.Min(files.Count, keys.Count); i++)
+                {
+                    var k = (keys[i] ?? string.Empty).Trim();
+                    if (string.IsNullOrWhiteSpace(k)) continue;
+                    fileByKey[k] = files[i];
+                }
+
+                product.Variants = [];
+
+                foreach (var v in variants)
+                {
+                    var color = (v.Color ?? string.Empty).Trim();
+                    if (string.IsNullOrWhiteSpace(color))
+                        return BadRequest("Variant color is required");
+
+                    var variant = new ProductVariant
+                    {
+                        Product = product,
+                        Color = color,
+                        QuantityInStock = Math.Max(0, v.QuantityInStock),
+                        PriceOverride = v.PriceOverride,
+                        DescriptionOverride = string.IsNullOrWhiteSpace(v.DescriptionOverride) ? null : v.DescriptionOverride.Trim(),
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    var key = (v.Key ?? string.Empty).Trim();
+                    if (!string.IsNullOrWhiteSpace(key) && fileByKey.TryGetValue(key, out var file) && file != null)
+                    {
+                        var imageResult = await imageService.AddImageAsync(file);
+                        if (imageResult.Error != null) return BadRequest(imageResult.Error.Message);
+
+                        variant.PictureUrl = imageResult.SecureUrl.AbsoluteUri;
+                        variant.PublicId = imageResult.PublicId;
+                    }
+
+                    product.Variants.Add(variant);
+                }
+
+                // Keep product-level stock as total for existing UIs
+                product.QuantityInStock = product.Variants.Sum(x => x.QuantityInStock);
+            }
+
             // assign campaigns and categories if provided
             if (productDto.CampaignIds != null && productDto.CampaignIds.Any())
             {
@@ -347,6 +690,7 @@ namespace API.Controllers
             var product = await context.Products
                 .Include(p => p.Campaigns)
                 .Include(p => p.Categories)
+                .Include(p => p.Variants)
                 .FirstOrDefaultAsync(p => p.Id == updateProductDto.Id);
 
             if (product == null) return NotFound();
@@ -447,6 +791,106 @@ namespace API.Controllers
                 }
             }
 
+            // Handle variants updates if provided
+            var variantsJson = (updateProductDto.VariantsJson ?? string.Empty).Trim();
+            if (!string.IsNullOrWhiteSpace(variantsJson))
+            {
+                List<VariantUpsert>? variants;
+                try
+                {
+                    variants = JsonSerializer.Deserialize<List<VariantUpsert>>(variantsJson,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                }
+                catch
+                {
+                    return BadRequest("Invalid variantsJson");
+                }
+
+                variants ??= [];
+
+                var files = updateProductDto.VariantFiles ?? [];
+                var keys = updateProductDto.VariantFileKeys ?? [];
+                var fileByKey = new Dictionary<string, IFormFile>(StringComparer.OrdinalIgnoreCase);
+                for (var i = 0; i < Math.Min(files.Count, keys.Count); i++)
+                {
+                    var k = (keys[i] ?? string.Empty).Trim();
+                    if (string.IsNullOrWhiteSpace(k)) continue;
+                    fileByKey[k] = files[i];
+                }
+
+                product.Variants ??= [];
+
+                var existingById = product.Variants
+                    .Where(x => x.Id > 0)
+                    .ToDictionary(x => x.Id, x => x);
+
+                var keepIds = new HashSet<int>();
+
+                foreach (var v in variants)
+                {
+                    var color = (v.Color ?? string.Empty).Trim();
+                    if (string.IsNullOrWhiteSpace(color))
+                        return BadRequest("Variant color is required");
+
+                    ProductVariant variant;
+                    if (v.Id.HasValue && v.Id.Value > 0 && existingById.TryGetValue(v.Id.Value, out var existing))
+                    {
+                        variant = existing;
+                        keepIds.Add(variant.Id);
+                    }
+                    else
+                    {
+                        variant = new ProductVariant
+                        {
+                            Product = product,
+                            Color = color,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        product.Variants.Add(variant);
+                    }
+
+                    variant.Color = color;
+                    variant.QuantityInStock = Math.Max(0, v.QuantityInStock);
+                    variant.PriceOverride = v.PriceOverride;
+                    variant.DescriptionOverride = string.IsNullOrWhiteSpace(v.DescriptionOverride) ? null : v.DescriptionOverride.Trim();
+                    variant.UpdatedAt = DateTime.UtcNow;
+
+                    var key = (v.Key ?? string.Empty).Trim();
+                    if (!string.IsNullOrWhiteSpace(key) && fileByKey.TryGetValue(key, out var file) && file != null)
+                    {
+                        var imageResult = await imageService.AddImageAsync(file);
+                        if (imageResult.Error != null) return BadRequest(imageResult.Error.Message);
+
+                        if (!string.IsNullOrEmpty(variant.PublicId))
+                        {
+                            try { await imageService.DeleteImageAsync(variant.PublicId); } catch { }
+                        }
+
+                        variant.PictureUrl = imageResult.SecureUrl.AbsoluteUri;
+                        variant.PublicId = imageResult.PublicId;
+                    }
+                }
+
+                // Remove variants not present in payload
+                var toRemove = product.Variants
+                    .Where(x => x.Id > 0)
+                    .Where(x => !keepIds.Contains(x.Id))
+                    .ToList();
+
+                foreach (var r in toRemove)
+                {
+                    if (!string.IsNullOrEmpty(r.PublicId))
+                    {
+                        try { await imageService.DeleteImageAsync(r.PublicId); } catch { }
+                    }
+                    product.Variants.Remove(r);
+                    context.ProductVariants.Remove(r);
+                }
+
+                // Keep product-level stock as total for existing UIs
+                product.QuantityInStock = product.Variants.Sum(x => x.QuantityInStock);
+            }
+
             // update campaigns/categories if provided. Also treat the presence of the
             // keys in the multipart form as an explicit update (even when empty)
             if (updateProductDto.CampaignIds != null || (formData != null && formData.ContainsKey("campaignIds_present")))
@@ -494,15 +938,43 @@ namespace API.Controllers
         }
 
         [Authorize(Roles = "Admin")]
+        [HttpPut("{id:int}/publish")]
+        public async Task<ActionResult> PublishProduct(int id)
+        {
+            var product = await context.Products.FirstOrDefaultAsync(p => p.Id == id);
+            if (product == null) return NotFound();
+
+            product.IsPublished = true;
+            product.UpdatedAt = DateTime.UtcNow;
+
+            var saved = await context.SaveChangesAsync() > 0;
+            if (!saved) return BadRequest("Problem publishing product");
+
+            return NoContent();
+        }
+
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id:int}")]
         public async Task<ActionResult> DeleteProduct(int id)
         {
-            var product = await context.Products.FindAsync(id);
+            var product = await context.Products
+                .Include(p => p.Variants)
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null) return NotFound();
 
             if (!string.IsNullOrEmpty(product.PublicId))
                     await imageService.DeleteImageAsync(product.PublicId);
+
+            // delete any variant images from Cloudinary
+            if (product.Variants != null && product.Variants.Count > 0)
+            {
+                foreach (var v in product.Variants)
+                {
+                    if (string.IsNullOrWhiteSpace(v.PublicId)) continue;
+                    try { await imageService.DeleteImageAsync(v.PublicId); } catch { }
+                }
+            }
 
             // delete any secondary images from Cloudinary
             if (product.SecondaryImagePublicIds != null && product.SecondaryImagePublicIds.Any())

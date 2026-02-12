@@ -19,6 +19,18 @@ import genres from "../../lib/genres";
 type PreviewFile = File & { preview: string };
 type SecondaryPreviewFile = File & { preview: string };
 
+type VariantDraft = {
+    id?: number;
+    key: string;
+    color: string;
+    quantityInStock: number;
+    priceOverride?: number | null;
+    descriptionOverride?: string | null;
+    file?: File | null;
+    preview?: string | null;
+    existingPictureUrl?: string | null;
+};
+
 type Props = {
     setEditMode: (value: boolean) => void;
     product: Product | null;
@@ -36,6 +48,10 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
     const [removedSecondaryImages, setRemovedSecondaryImages] = useState<string[]>([]);
     const [removedSecondaryUploads, setRemovedSecondaryUploads] = useState<string[]>([]);
 
+    const [variantsDraft, setVariantsDraft] = useState<VariantDraft[]>([]);
+    const [variantsError, setVariantsError] = useState<string | null>(null);
+    const variantPrevRef = useRef<string[]>([]);
+
     const watchFile = watch("file");
     const watchSecondaryFiles = watch('secondaryFiles') as unknown as SecondaryPreviewFile[] | undefined;
     const secondaryPrevRef = useRef<SecondaryPreviewFile[]>([]);
@@ -48,6 +64,25 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
     const [selectedCategories, setSelectedCategories] = useState<Array<Category | string>>(product?.categories ?? []);
     const [categoryInput, setCategoryInput] = useState<string>('');
     const [selectedCampaigns, setSelectedCampaigns] = useState<{ id: number; name: string }[]>(product?.campaigns ?? []);
+
+    const newVariantKey = () => {
+        const id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        return `v-${id}`;
+    };
+
+    // Product-level stock is independent from variant stock.
+
+    useEffect(() => {
+        // On unmount, revoke any variant previews
+        return () => {
+            for (const url of variantPrevRef.current) {
+                try { URL.revokeObjectURL(url); } catch { }
+            }
+            variantPrevRef.current = [];
+        };
+    }, []);
     
     const isBook = (cats: Array<Category | string> | null | undefined) => {
         return (cats ?? []).some(c => {
@@ -169,6 +204,24 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                 setSelectedCampaigns(product.campaigns as { id: number; name: string }[]);
                 setValue('campaignIds', product.campaigns.map(c => c.id));
             }
+
+            const drafts: VariantDraft[] = (product.variants ?? []).map((v) => ({
+                id: v.id,
+                key: `v-${v.id}`,
+                color: v.color,
+                quantityInStock: v.quantityInStock,
+                priceOverride: (v.priceOverride ?? null) as unknown as number | null,
+                descriptionOverride: (v.descriptionOverride ?? null) as string | null,
+                existingPictureUrl: (v.pictureUrl ?? null) as string | null,
+                file: null,
+                preview: null
+            }));
+            setVariantsDraft(drafts);
+            setVariantsError(null);
+        }
+        else {
+            setVariantsDraft([]);
+            setVariantsError(null);
         }
     }, [product, reset, setValue]);
 
@@ -244,6 +297,8 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
 
     const onSubmit = async (data: CreateProductSchema) => {
         try {
+            setVariantsError(null);
+
             // Ensure any pending (typed) categories are created on the server before submitting
             const pendingCategories = selectedCategories.filter(c => typeof c === 'string').map(s => s as string);
             // include any typed-but-not-confirmed category from the input box
@@ -274,8 +329,52 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
             const existingCampaignIds = (selectedCampaigns ?? []).map(c => (c as { id: number }).id);
             const finalCampaignIds: number[] = [...existingCampaignIds];
 
+            const usingVariants = (variantsDraft?.length ?? 0) > 0 || ((product?.variants?.length ?? 0) > 0);
+            const variantPayload = (variantsDraft ?? []).map(v => {
+                const color = (v.color ?? '').trim();
+                return {
+                    id: v.id,
+                    key: v.key,
+                    color,
+                    quantityInStock: Math.max(0, Number(v.quantityInStock) || 0),
+                    priceOverride: v.priceOverride ?? null,
+                    descriptionOverride: (v.descriptionOverride ?? '').trim() || null
+                };
+            });
+
+            if ((variantsDraft?.length ?? 0) > 0) {
+                const baseColor = (data.cor ?? '').trim();
+                if (!baseColor) {
+                    setError('cor', { type: 'manual', message: 'Indica a cor principal do produto.' });
+                    return;
+                }
+
+                if (variantPayload.some(v => !v.color)) {
+                    setVariantsError('Cada variação precisa de uma cor.');
+                    return;
+                }
+
+                const normalizedBase = baseColor.toLowerCase();
+                const normalizedVariants = variantPayload.map(v => v.color.toLowerCase());
+                const unique = new Set(normalizedVariants);
+                if (unique.size !== normalizedVariants.length) {
+                    setVariantsError('As cores das variações devem ser únicas.');
+                    return;
+                }
+
+                if (normalizedVariants.includes(normalizedBase)) {
+                    setVariantsError('A cor principal não deve ser repetida nas variações.');
+                    return;
+                }
+            }
+
             // build submission payload ensuring categoryIds/campaignIds contain the created/existing ids
-            const submissionData = { ...data, categoryIds: finalCategoryIds, campaignIds: finalCampaignIds } as unknown as FieldValues;
+            const submissionData = {
+                ...data,
+                categoryIds: finalCategoryIds,
+                campaignIds: finalCampaignIds,
+                // quantityInStock stays independent even if variants exist
+            } as unknown as FieldValues;
             const formData = createFormData(submissionData);
 
             // ensure explicit sentinel keys are present when user cleared selections so the server
@@ -304,6 +403,16 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
             // map discount percentage to backend expected key
             if (data.descontoPercentagem !== undefined) {
                 formData.append('discountPercentage', String(data.descontoPercentagem));
+            }
+
+            if (usingVariants) {
+                formData.append('variantsJson', JSON.stringify(variantPayload));
+                for (const v of (variantsDraft ?? [])) {
+                    if (v.file) {
+                        formData.append('variantFiles', v.file);
+                        formData.append('variantFileKeys', v.key);
+                    }
+                }
             }
 
             if (product) {
@@ -489,7 +598,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                     )}
 
                     {/* Clothing / Toy fields: show when category looks like clothing or toy */}
-                    {isClothingOrToy(selectedCategories) && (
+                    {isClothingOrToy(selectedCategories) && (variantsDraft?.length ?? 0) === 0 && (
                         <>
                             <Grid item xs={12} md={6}>
                                 <AppTextInput control={control} name="cor" label="Cor / Color" />
@@ -507,7 +616,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                     )}
 
                     {/* Tecnologia fields */}
-                    {isTechnology(selectedCategories) && (
+                    {isTechnology(selectedCategories) && (variantsDraft?.length ?? 0) === 0 && (
                         <>
                             <Grid item xs={12} md={6}>
                                 <AppTextInput control={control} name="tipo" label="Tipo (ex.: Telemóvel, Portátil, Consola)" />
@@ -531,7 +640,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                     )}
 
                     {/* Brinquedos fields */}
-                    {isToy(selectedCategories) && (
+                    {isToy(selectedCategories) && (variantsDraft?.length ?? 0) === 0 && (
                         <>
                             <Grid item xs={12} md={6}>
                                 <AppTextInput control={control} name="marca" label="Marca / Brand" />
@@ -557,6 +666,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             control={control}
                             name="price"
                             label="Preço"
+                            helperText="Em cêntimos (ex: 1299 = €12,99)"
                         />
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -586,7 +696,181 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
                             control={control}
                             name="quantityInStock"
                             label="Quantidade em Stock"
+                            helperText={(variantsDraft?.length ?? 0) > 0 ? 'Independente do stock por cor' : undefined}
                         />
+                    </Grid>
+
+                    <Grid item xs={12}>
+                        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                                <Typography variant="subtitle1" fontWeight={700}>
+                                    Variações por cor (opcional)
+                                </Typography>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => {
+                                        setVariantsError(null);
+                                        setVariantsDraft((prev) => [
+                                            ...prev,
+                                            {
+                                                key: newVariantKey(),
+                                                color: '',
+                                                quantityInStock: 0,
+                                                priceOverride: null,
+                                                descriptionOverride: null,
+                                                file: null,
+                                                preview: null,
+                                                existingPictureUrl: null
+                                            }
+                                        ]);
+                                    }}
+                                >
+                                    Adicionar cor
+                                </Button>
+                            </Box>
+
+                            {variantsError && (
+                                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                                    {variantsError}
+                                </Typography>
+                            )}
+
+                            {(variantsDraft ?? []).length === 0 ? (
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                    Sem variações. O produto usa apenas o stock e a imagem principais.
+                                </Typography>
+                            ) : (
+                                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={12} md={4}>
+                                            <AppTextInput
+                                                control={control}
+                                                name="cor"
+                                                label="Cor principal"
+                                                helperText="Esta é a cor do produto principal (sem variação)."
+                                            />
+                                        </Grid>
+                                    </Grid>
+
+                                    {variantsDraft.map((v, idx) => {
+                                        const previewUrl = v.preview || v.existingPictureUrl || undefined;
+
+                                        return (
+                                            <Box key={v.key} sx={{ borderTop: idx === 0 ? 0 : 1, borderColor: 'divider', pt: idx === 0 ? 0 : 2 }}>
+                                                <Grid container spacing={2}>
+                                                    <Grid item xs={12} md={3}>
+                                                        <TextField
+                                                            fullWidth
+                                                            label="Cor"
+                                                            value={v.color}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+                                                                setVariantsDraft((prev) => prev.map(x => x.key === v.key ? { ...x, color: value } : x));
+                                                            }}
+                                                        />
+                                                    </Grid>
+                                                    <Grid item xs={12} md={2}>
+                                                        <TextField
+                                                            fullWidth
+                                                            type="number"
+                                                            label="Stock"
+                                                            value={v.quantityInStock}
+                                                            onChange={(e) => {
+                                                                const value = Math.max(0, Number(e.target.value) || 0);
+                                                                setVariantsDraft((prev) => prev.map(x => x.key === v.key ? { ...x, quantityInStock: value } : x));
+                                                            }}
+                                                        />
+                                                    </Grid>
+                                                    <Grid item xs={12} md={3}>
+                                                        <TextField
+                                                            fullWidth
+                                                            type="number"
+                                                            label="Preço (opcional)"
+                                                            value={v.priceOverride ?? ''}
+                                                            onChange={(e) => {
+                                                                const raw = e.target.value;
+                                                                const value = raw === '' ? null : Math.max(0, Number(raw) || 0);
+                                                                setVariantsDraft((prev) => prev.map(x => x.key === v.key ? { ...x, priceOverride: value } : x));
+                                                            }}
+                                                            helperText="Em cêntimos (ex: 1299 = €12,99)"
+                                                        />
+                                                    </Grid>
+                                                    <Grid item xs={12} md={4}>
+                                                        <TextField
+                                                            fullWidth
+                                                            label="Descrição (opcional)"
+                                                            value={v.descriptionOverride ?? ''}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+                                                                setVariantsDraft((prev) => prev.map(x => x.key === v.key ? { ...x, descriptionOverride: value } : x));
+                                                            }}
+                                                        />
+                                                    </Grid>
+
+                                                    <Grid item xs={12} md={8}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                                            <Button component="label" variant="outlined" size="small">
+                                                                Foto (opcional)
+                                                                <input
+                                                                    type="file"
+                                                                    hidden
+                                                                    accept="image/*"
+                                                                    onChange={(e) => {
+                                                                        const file = e.target.files?.[0];
+                                                                        if (!file) return;
+
+                                                                        const newPreview = URL.createObjectURL(file);
+                                                                        variantPrevRef.current.push(newPreview);
+
+                                                                        setVariantsDraft((prev) => prev.map(x => {
+                                                                            if (x.key !== v.key) return x;
+                                                                            if (x.preview) {
+                                                                                try { URL.revokeObjectURL(x.preview); } catch { }
+                                                                            }
+                                                                            return { ...x, file, preview: newPreview };
+                                                                        }));
+
+                                                                        (e.target as HTMLInputElement).value = '';
+                                                                    }}
+                                                                />
+                                                            </Button>
+
+                                                            {previewUrl && (
+                                                                <img
+                                                                    src={previewUrl}
+                                                                    alt={v.color || 'variant'}
+                                                                    style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8 }}
+                                                                />
+                                                            )}
+                                                        </Box>
+                                                    </Grid>
+
+                                                    <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                        <Button
+                                                            color="error"
+                                                            variant="outlined"
+                                                            size="small"
+                                                            onClick={() => {
+                                                                setVariantsDraft((prev) => {
+                                                                    const found = prev.find(x => x.key === v.key);
+                                                                    if (found?.preview) {
+                                                                        try { URL.revokeObjectURL(found.preview); } catch { }
+                                                                    }
+                                                                    return prev.filter(x => x.key !== v.key);
+                                                                });
+                                                            }}
+                                                        >
+                                                            Remover
+                                                        </Button>
+                                                    </Grid>
+                                                </Grid>
+                                            </Box>
+                                        );
+                                    })}
+                                </Box>
+                            )}
+                        </Box>
                     </Grid>
 
                     <Grid item xs={12}>

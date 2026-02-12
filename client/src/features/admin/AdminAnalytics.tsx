@@ -18,11 +18,13 @@ import { useFetchFiltersQuery } from '../catalog/catalogApi';
 import {
   useClicksTimeSeriesQuery,
   useCorrelationQuery,
+  useSalesAmountTimeSeriesQuery,
   useSalesTimeSeriesQuery,
   useTopClicksQuery,
   useTopSoldQuery,
   type AnalyticsQuery,
 } from './analyticsApi';
+import { currencyFormat } from '../../lib/util';
 
 const toIso = (d: Date) => d.toISOString();
 
@@ -100,6 +102,7 @@ export default function AdminAnalytics() {
   const { data: topSold = [] } = useTopSoldQuery(query);
   const { data: topClicks = [] } = useTopClicksQuery(query);
   const { data: salesSeries = [] } = useSalesTimeSeriesQuery(query);
+  const { data: salesAmountSeries = [] } = useSalesAmountTimeSeriesQuery(query);
   const { data: clicksSeries = [] } = useClicksTimeSeriesQuery(query);
   const { data: corr = [] } = useCorrelationQuery({ ...query, take: 80 });
 
@@ -206,6 +209,24 @@ export default function AdminAnalytics() {
                   <Tooltip />
                   <Legend />
                   <Line type="monotone" dataKey="value" name="Vendas (qty)" stroke="#2e7d32" dot={false} />
+                </LineChart>
+              )}
+            </MeasuredChart>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2, height: 320, display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="h6" sx={{ mb: 1 }}>Total de vendas (€)</Typography>
+            <MeasuredChart minHeight={220}>
+              {({ width, height }) => (
+                <LineChart width={width} height={height} data={salesAmountSeries} margin={{ left: 10, right: 20, top: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" hide />
+                  <YAxis tickFormatter={(v) => currencyFormat(Number(v))} />
+                  <Tooltip formatter={(v) => currencyFormat(Number(v))} />
+                  <Legend />
+                  <Line type="monotone" dataKey="value" name="Vendas (€)" stroke="#0288d1" dot={false} />
                 </LineChart>
               )}
             </MeasuredChart>

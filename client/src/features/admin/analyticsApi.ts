@@ -33,6 +33,9 @@ export const analyticsApi = createApi({
     salesTimeSeries: builder.query<TimeSeriesPoint[], AnalyticsQuery>({
       query: (q) => ({ url: 'analytics/sales-timeseries', params: buildParams(q) }),
     }),
+    salesAmountTimeSeries: builder.query<TimeSeriesPoint[], AnalyticsQuery>({
+      query: (q) => ({ url: 'analytics/sales-amount-timeseries', params: buildParams(q) }),
+    }),
     topClicks: builder.query<ProductCount[], AnalyticsQuery>({
       query: (q) => ({ url: 'analytics/top-clicks', params: buildParams(q) }),
     }),
@@ -48,6 +51,7 @@ export const analyticsApi = createApi({
 export const {
   useTopSoldQuery,
   useSalesTimeSeriesQuery,
+  useSalesAmountTimeSeriesQuery,
   useTopClicksQuery,
   useClicksTimeSeriesQuery,
   useCorrelationQuery,

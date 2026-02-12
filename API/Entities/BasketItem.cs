@@ -12,6 +12,9 @@ public class BasketItem
     public int ProductId { get; set; }
     public required Product Product { get; set; }
 
+    public int? ProductVariantId { get; set; }
+    public ProductVariant? ProductVariant { get; set; }
+
     public int BasketId { get; set; }
     public Basket Basket { get; set; } = null!;
 }

@@ -25,7 +25,7 @@ export const createProductSchema = z.object({
     precoPromocional: z.coerce.number().optional(),
     descontoPercentagem: z.coerce.number().optional(),
     quantityInStock: z.coerce.number({required_error: 'Quantity is required'})
-        .min(1, 'Quantity must be at least 1'),
+        .min(0, 'Quantity must be at least 0'),
     pictureUrl: z.string().optional(),
     file: fileSchema.optional(),
     // allow multiple secondary files to be attached at creation

@@ -8,6 +8,8 @@ export type Basket = {
 
 export type Item = {
   productId: number
+  productVariantId?: number | null
+  variantColor?: string | null
   name: string
   price: number
   pictureUrl: string

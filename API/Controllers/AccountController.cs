@@ -51,6 +51,8 @@ public class AccountController(
 
         await signInManager.UserManager.AddToRoleAsync(user, "Member");
 
+        await TrySendWelcomeEmailAsync(user);
+
         return Ok();
     }
 
@@ -284,6 +286,7 @@ public class AccountController(
 
              // Find or create user
              var user = await signInManager.UserManager.FindByEmailAsync(email);
+             var created = false;
              if (user == null)
              {
                  user = new User { UserName = email, Email = email, NewsletterOptIn = false };
@@ -294,6 +297,8 @@ public class AccountController(
                          ModelState.AddModelError(error.Code, error.Description);
                      return ValidationProblem();
                  }
+
+                 created = true;
              }
 
              // Ensure roles exist for Google users
@@ -316,11 +321,68 @@ public class AccountController(
              // Sign in the user (cookie-based)
              await signInManager.SignInAsync(user, isPersistent: false);
 
+             if (created)
+             {
+                 await TrySendWelcomeEmailAsync(user);
+             }
+
              return Ok();
          }
          catch (Exception ex)
          {
              return Unauthorized($"Token validation failed: {ex.Message}");
+         }
+     }
+
+     private string? TryGetFrontendUrl()
+     {
+         var frontendUrl = (_emailSettings.FrontendUrl ?? string.Empty).TrimEnd('/');
+         if (!string.IsNullOrWhiteSpace(frontendUrl)) return frontendUrl;
+
+         var origin = Request.Headers.Origin.ToString().TrimEnd('/');
+         if (!string.IsNullOrWhiteSpace(origin)) return origin;
+
+         if (Request.Host.HasValue)
+         {
+             return $"{Request.Scheme}://{Request.Host}".TrimEnd('/');
+         }
+
+         return null;
+     }
+
+     private async Task TrySendWelcomeEmailAsync(User user)
+     {
+         try
+         {
+             if (string.IsNullOrWhiteSpace(user.Email)) return;
+
+             var frontendUrl = TryGetFrontendUrl();
+             if (string.IsNullOrWhiteSpace(frontendUrl))
+             {
+                 _logger.LogWarning("Welcome email skipped: FrontendUrl is not configured and could not be inferred from request.");
+                 return;
+             }
+
+             var subject = "Bem-vindo(a)!";
+             var html = $@"
+<div style=""font-family: Arial, sans-serif; color:#111827;"">
+    <h2 style=""margin:0 0 12px 0;"">Bem-vindo(a)!</h2>
+    <p style=""margin:0 0 16px 0;"">A sua conta foi criada com sucesso.</p>
+    <p style=""margin:0 0 16px 0;"">
+        <a href=""{frontendUrl}"" style=""display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:10px 14px;border-radius:8px;"">Visitar a loja</a>
+  </p>
+    <p style=""margin:0;font-size:12px;color:#6b7280;"">Se não reconhece este registo, por favor contacte o suporte.</p>
+</div>";
+
+             var sent = await _emailService.SendEmailAsync(user.Email, subject, html);
+             if (!sent)
+             {
+                 _logger.LogWarning("Welcome email failed to send for {Email}. Check EmailSettings configuration.", user.Email);
+             }
+         }
+         catch (Exception ex)
+         {
+             _logger.LogWarning(ex, "Welcome email failed unexpectedly.");
          }
      }
 
