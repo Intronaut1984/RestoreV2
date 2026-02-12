@@ -19,7 +19,8 @@ export default function RequireAuth() {
         '/admin/logo',
         '/admin/heroblocks',
         '/admin/analytics',
-        '/admin/newsletters'
+        '/admin/newsletters',
+        '/admin/sales'
     ]
 
     if (adminRoutePrefixes.some(p => location.pathname.startsWith(p)) && !user.roles.includes('Admin')) {

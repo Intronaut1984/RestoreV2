@@ -17,6 +17,9 @@ public class Order
     public OrderStatus OrderStatus { get; set; } = OrderStatus.Pending;
     public required PaymentSummary PaymentSummary { get; set; }
 
+    public string? CustomerComment { get; set; }
+    public DateTime? CustomerCommentedAt { get; set; }
+
     public long GetTotal()
     {
         return Subtotal + DeliveryFee - Discount;

@@ -22,6 +22,8 @@ public static class OrderExtensions
             Discount = order.Discount,
             OrderStatus = order.OrderStatus.ToString(),
             Total = order.GetTotal(),
+            CustomerComment = order.CustomerComment,
+            CustomerCommentedAt = order.CustomerCommentedAt,
             OrderItems = order.OrderItems.Select(item => new OrderItemDto
             {
                 ProductId = item.ItemOrdered.ProductId,
@@ -48,6 +50,8 @@ public static class OrderExtensions
             Discount = order.Discount,
             OrderStatus = order.OrderStatus.ToString(),
             Total = order.GetTotal(),
+            CustomerComment = order.CustomerComment,
+            CustomerCommentedAt = order.CustomerCommentedAt,
             OrderItems = order.OrderItems.Select(item => new OrderItemDto
             {
                 ProductId = item.ItemOrdered.ProductId,

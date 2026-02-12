@@ -28,6 +28,8 @@ import AdminShippingRate from "../../features/admin/AdminShippingRate";
 import HeroBlocksAdmin from "../../features/admin/HeroBlocksAdmin";
 import AdminAnalytics from "../../features/admin/AdminAnalytics";
 import AdminNewsletters from "../../features/admin/AdminNewsletters";
+import AdminSalesPage from "../../features/admin/AdminSalesPage";
+import AdminSaleDetailedPage from "../../features/admin/AdminSaleDetailedPage";
 import ProfilePage from "../../features/account/ProfilePage";
 import ForgotPassword from "../../features/account/ForgotPassword";
 import ResetPassword from "../../features/account/ResetPassword";
@@ -52,6 +54,8 @@ export const router = createBrowserRouter([
                 {path: 'admin/shipping-rate', element: <AdminShippingRate />},
                 {path: 'admin/analytics', element: <AdminAnalytics />},
                 {path: 'admin/newsletters', element: <AdminNewsletters />},
+                {path: 'admin/sales', element: <AdminSalesPage />},
+                {path: 'admin/sales/:id', element: <AdminSaleDetailedPage />},
             ]},
             {path: '', element: <HomePage />},
             {path: 'catalog', element: <Catalog />},

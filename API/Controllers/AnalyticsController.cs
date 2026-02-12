@@ -31,7 +31,7 @@ public class AnalyticsController(StoreContext context) : BaseApiController
 
             var query = context.Orders
                 .AsNoTracking()
-                .Where(o => o.OrderStatus == OrderStatus.PaymentReceived && o.OrderDate >= start && o.OrderDate <= end)
+                .Where(o => o.OrderStatus != OrderStatus.Pending && o.OrderStatus != OrderStatus.PaymentFailed && o.OrderDate >= start && o.OrderDate <= end)
                 .SelectMany(o => o.OrderItems)
                 .Select(oi => new { oi.ItemOrdered.ProductId, oi.ItemOrdered.Name, oi.ItemOrdered.PictureUrl, oi.Quantity });
 
@@ -86,7 +86,7 @@ public class AnalyticsController(StoreContext context) : BaseApiController
 
         var itemsQuery = context.Orders
             .AsNoTracking()
-            .Where(o => o.OrderStatus == OrderStatus.PaymentReceived && o.OrderDate >= start && o.OrderDate <= end)
+            .Where(o => o.OrderStatus != OrderStatus.Pending && o.OrderStatus != OrderStatus.PaymentFailed && o.OrderDate >= start && o.OrderDate <= end)
             .SelectMany(o => o.OrderItems.Select(oi => new { o.OrderDate, oi.ItemOrdered.ProductId, oi.Quantity }));
 
         if (filteredProductIds != null)
@@ -97,6 +97,36 @@ public class AnalyticsController(StoreContext context) : BaseApiController
         var points = rows
             .GroupBy(r => Bucket(r.OrderDate, interval))
             .Select(g => new TimeSeriesPoint(g.Key, g.Sum(x => (long)x.Quantity)))
+            .OrderBy(x => x.Date)
+            .ToList();
+
+        return points;
+    }
+
+    [HttpGet("sales-amount-timeseries")]
+    public async Task<ActionResult<List<TimeSeriesPoint>>> GetSalesAmountTimeSeries(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] string interval = "day",
+        [FromQuery] string? categoryIds = null)
+    {
+        var (start, end) = NormalizeRange(from, to);
+        var catIds = ParseIds(categoryIds);
+        var filteredProductIds = await FilterProductIdsByCategories(catIds);
+
+        var itemsQuery = context.Orders
+            .AsNoTracking()
+            .Where(o => o.OrderStatus != OrderStatus.Pending && o.OrderStatus != OrderStatus.PaymentFailed && o.OrderDate >= start && o.OrderDate <= end)
+            .SelectMany(o => o.OrderItems.Select(oi => new { o.OrderDate, oi.ItemOrdered.ProductId, oi.Quantity, oi.Price }));
+
+        if (filteredProductIds != null)
+            itemsQuery = itemsQuery.Where(x => filteredProductIds.Contains(x.ProductId));
+
+        var rows = await itemsQuery.ToListAsync();
+
+        var points = rows
+            .GroupBy(r => Bucket(r.OrderDate, interval))
+            .Select(g => new TimeSeriesPoint(g.Key, g.Sum(x => x.Price * (long)x.Quantity)))
             .OrderBy(x => x.Date)
             .ToList();
 
@@ -200,7 +230,7 @@ public class AnalyticsController(StoreContext context) : BaseApiController
         // Sales per product
         var salesItemsQ = context.Orders
             .AsNoTracking()
-            .Where(o => o.OrderStatus == OrderStatus.PaymentReceived && o.OrderDate >= start && o.OrderDate <= end)
+            .Where(o => o.OrderStatus != OrderStatus.Pending && o.OrderStatus != OrderStatus.PaymentFailed && o.OrderDate >= start && o.OrderDate <= end)
             .SelectMany(o => o.OrderItems.Select(oi => new { oi.ItemOrdered.ProductId, oi.Quantity }));
 
         if (filteredProductIds != null)

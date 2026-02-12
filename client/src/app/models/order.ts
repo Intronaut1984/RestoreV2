@@ -11,6 +11,8 @@ export interface Order {
     total: number
     orderStatus: string
     paymentSummary: PaymentSummary
+    customerComment?: string | null
+    customerCommentedAt?: string | null
   }
   
   export interface ShippingAddress {

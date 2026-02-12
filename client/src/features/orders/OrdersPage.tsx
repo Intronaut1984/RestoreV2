@@ -3,6 +3,7 @@ import { useFetchOrdersQuery } from "./orderApi"
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { formatOrderAmount } from "../../lib/util";
+import { getOrderStatusLabel } from "../../lib/orderStatus";
 
 export default function OrdersPage() {
     const {data: orders, isLoading} = useFetchOrdersQuery();
@@ -82,7 +83,7 @@ export default function OrdersPage() {
                                     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{formatOrderAmount(order.total)}</Box>
                                 </TableCell>
                                 <TableCell>
-                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{order.orderStatus}</Box>
+                                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block' }}>{getOrderStatusLabel(order.orderStatus)}</Box>
                                 </TableCell>
                             </TableRow>
                         ))}

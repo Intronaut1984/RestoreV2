@@ -114,7 +114,9 @@ public class PaymentsController(PaymentsService paymentsService,
         }
 
         logger.LogInformation("Payment received for order {OrderId}: intent amount {Amount}", order.Id, intentAmount);
-        if (order.OrderStatus != OrderStatus.PaymentReceived)
+        // Only transition to PaymentReceived from payment-related states.
+        // Avoid overwriting a fulfillment state if it was set before the webhook arrived.
+        if (order.OrderStatus == OrderStatus.Pending || order.OrderStatus == OrderStatus.PaymentMismatch || order.OrderStatus == OrderStatus.PaymentFailed)
         {
             await IncrementProductSalesCountsAsync(order);
             order.OrderStatus = OrderStatus.PaymentReceived;

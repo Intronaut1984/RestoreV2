@@ -17,4 +17,7 @@ public class OrderDto
     public long Total { get; set; }
     public required string OrderStatus { get; set; }
     public required PaymentSummary PaymentSummary { get; set; }
+
+    public string? CustomerComment { get; set; }
+    public DateTime? CustomerCommentedAt { get; set; }
 }
