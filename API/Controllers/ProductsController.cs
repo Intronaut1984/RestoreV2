@@ -1,10 +1,12 @@
 using API.Data;
 using API.DTOs;
 using API.Entities;
+using API.Entities.OrderAggregate;
 using API.Extensions;
 using API.RequestHelpers;
 using API.Services;
 using AutoMapper;
+using System;
 using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -155,6 +157,108 @@ namespace API.Controllers
             }
 
             return product;
+        }
+
+        [HttpGet("{id:int}/reviews")]
+        [AllowAnonymous]
+        public async Task<ActionResult<List<ProductReviewDto>>> GetProductReviews(int id, CancellationToken ct)
+        {
+            var exists = await context.Products.AsNoTracking().AnyAsync(p => p.Id == id, ct);
+            if (!exists) return NotFound();
+
+            var reviews = await context.ProductReviews
+                .AsNoTracking()
+                .Where(r => r.ProductId == id)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new ProductReviewDto
+                {
+                    Id = r.Id,
+                    ProductId = r.ProductId,
+                    OrderId = r.OrderId,
+                    BuyerEmail = r.BuyerEmail,
+                    Rating = r.Rating,
+                    Comment = r.Comment,
+                    CreatedAt = r.CreatedAt
+                })
+                .ToListAsync(ct);
+
+            return reviews;
+        }
+
+        [HttpPost("{id:int}/reviews")]
+        [Authorize]
+        public async Task<ActionResult<ProductReviewDto>> CreateProductReview(int id, [FromBody] CreateProductReviewDto dto, CancellationToken ct)
+        {
+            if (dto == null) return BadRequest("Dados inválidos");
+
+            var rating = dto.Rating;
+            if (rating < 1 || rating > 5) return BadRequest("Classificação inválida");
+
+            var comment = (dto.Comment ?? string.Empty).Trim();
+            if (comment.Length < 3) return BadRequest("Comentário demasiado curto");
+            if (comment.Length > 1000) return BadRequest("Comentário demasiado longo");
+
+            var product = await context.Products.FirstOrDefaultAsync(p => p.Id == id, ct);
+            if (product == null) return NotFound();
+
+            var email = User.GetEmail();
+            if (string.IsNullOrWhiteSpace(email)) return Unauthorized();
+
+            // Only allow reviews from real buyers, after delivery/review request.
+            var eligibleOrder = await context.Orders
+                .AsNoTracking()
+                .Where(o => o.BuyerEmail == email)
+                .Where(o => o.OrderStatus == OrderStatus.Delivered || o.OrderStatus == OrderStatus.ReviewRequested)
+                .Where(o => o.OrderItems.Any(oi => oi.ItemOrdered.ProductId == id))
+                .OrderByDescending(o => o.OrderDate)
+                .FirstOrDefaultAsync(ct);
+
+            if (eligibleOrder == null)
+                return BadRequest("Só pode avaliar produtos que comprou e recebeu");
+
+            var already = await context.ProductReviews
+                .AsNoTracking()
+                .AnyAsync(r => r.ProductId == id && r.BuyerEmail == email && r.OrderId == eligibleOrder.Id, ct);
+
+            if (already) return BadRequest("Já avaliou este produto nesta encomenda");
+
+            var review = new ProductReview
+            {
+                ProductId = id,
+                OrderId = eligibleOrder.Id,
+                BuyerEmail = email,
+                Rating = rating,
+                Comment = comment,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.ProductReviews.Add(review);
+            await context.SaveChangesAsync(ct);
+
+            // Update product cached rating stats (AverageRating/RatingsCount)
+            var stats = await context.ProductReviews
+                .AsNoTracking()
+                .Where(r => r.ProductId == id)
+                .GroupBy(_ => 1)
+                .Select(g => new { Avg = g.Average(x => x.Rating), Count = g.Count() })
+                .FirstOrDefaultAsync(ct);
+
+            product.AverageRating = stats == null ? null : Math.Round(stats.Avg, 2);
+            product.RatingsCount = stats?.Count ?? 0;
+            await context.SaveChangesAsync(ct);
+
+            var dtoOut = new ProductReviewDto
+            {
+                Id = review.Id,
+                ProductId = review.ProductId,
+                OrderId = review.OrderId,
+                BuyerEmail = review.BuyerEmail,
+                Rating = review.Rating,
+                Comment = review.Comment,
+                CreatedAt = review.CreatedAt
+            };
+
+            return Ok(dtoOut);
         }
 
         // Track a view/click on the product details page.

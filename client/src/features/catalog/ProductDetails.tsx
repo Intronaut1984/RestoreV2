@@ -1,14 +1,15 @@
 import { Link, useParams } from "react-router-dom"
-import { Button, Divider, Grid2, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton, useTheme } from "@mui/material";
+import { Button, Divider, Grid2, Rating, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton, useTheme } from "@mui/material";
 import { ArrowBackIosNew, ArrowForwardIos } from '@mui/icons-material'
 import { currencyFormat, computeFinalPrice } from "../../lib/util";
-import { useFetchProductDetailsQuery, useFetchProductsQuery, useRecordProductClickMutation } from "./catalogApi";
+import { useCreateProductReviewMutation, useFetchProductDetailsQuery, useFetchProductReviewsQuery, useFetchProductsQuery, useRecordProductClickMutation } from "./catalogApi";
 import { useAddBasketItemMutation, useFetchBasketQuery, useRemoveBasketItemMutation } from "../basket/basketApi";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useCookieConsent } from "../../app/layout/cookieConsent";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { ProductParams } from "../../app/models/productParams";
 import { Product } from "../../app/models/product";
+import { useUserInfoQuery } from "../account/accountApi";
 
 const baseProductParams: ProductParams = {
   pageNumber: 1,
@@ -41,6 +42,7 @@ function shuffle<T>(arr: T[]): T[] {
 export default function ProductDetails() {
   const { id } = useParams();
   const theme = useTheme();
+  const { data: user } = useUserInfoQuery();
   const [recordClick] = useRecordProductClickMutation();
   const { analyticsAllowed } = useCookieConsent();
   const [removeBasketItem] = useRemoveBasketItemMutation();
@@ -55,6 +57,13 @@ export default function ProductDetails() {
   }, [item]);
 
   const {data: product, isLoading} = useFetchProductDetailsQuery(productId)
+  const { data: reviews = [], isLoading: reviewsLoading } = useFetchProductReviewsQuery(productId);
+  const [createReview, { isLoading: isSubmittingReview }] = useCreateProductReviewMutation();
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [reviewRating, setReviewRating] = useState<number | null>(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSaved, setReviewSaved] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const primaryCategoryId = product?.categories?.[0]?.id ?? null;
 
@@ -128,6 +137,10 @@ export default function ProductDetails() {
   }, [productId, recordClick, analyticsAllowed]);
 
   if (!product || isLoading) return <div>Loading...</div>
+
+  const ratingValue = typeof product.averageRating === 'number' ? product.averageRating : 0;
+  const ratingsCount = typeof product.ratingsCount === 'number' ? product.ratingsCount : 0;
+  const visibleReviews = showAllReviews ? reviews : reviews.slice(0, 4);
 
   const isLight = theme.palette.mode === 'light';
   const accentColor: 'warning' | 'secondary' = isLight ? 'warning' : 'secondary';
@@ -396,6 +409,14 @@ export default function ProductDetails() {
       <Grid2 size={{ xs: 12, md: 6 }}>
         <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2rem' } }}>{product.name}</Typography>
         <Divider sx={{ mb: 2 }} />
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <Rating value={ratingValue} precision={0.1} readOnly />
+          <Typography variant="body2" color="text.secondary">
+            {ratingsCount > 0 ? `${ratingValue.toFixed(1)} (${ratingsCount})` : 'Sem avaliações'}
+          </Typography>
+        </Box>
+
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           {product.discountPercentage && product.discountPercentage > 0 ? (
             <>
@@ -477,6 +498,126 @@ export default function ProductDetails() {
               </Grid2>
             )}
         </Grid2>
+      </Grid2>
+
+      <Grid2 size={12}>
+        <Box sx={{ mt: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 900, mb: 1 }}>
+            Avaliações
+          </Typography>
+
+          {reviewsLoading ? (
+            <Typography color="text.secondary" sx={{ fontSize: '0.95rem' }}>
+              A carregar...
+            </Typography>
+          ) : reviews.length === 0 ? (
+            <Typography color="text.secondary" sx={{ fontSize: '0.95rem' }}>
+              Sem avaliações.
+            </Typography>
+          ) : (
+            <>
+              <Box sx={{ display: 'grid', gap: 1 }}>
+                {visibleReviews.map((r) => (
+                  <Box key={r.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'center' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                        <Rating value={r.rating} readOnly size="small" />
+                        <Typography variant="body2" color="text.secondary" noWrap>
+                          {r.buyerEmail}
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(r.createdAt).toLocaleDateString()}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {r.comment}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              {reviews.length > 4 && !showAllReviews && (
+                <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button variant="outlined" onClick={() => setShowAllReviews(true)}>
+                    Ver mais
+                  </Button>
+                </Box>
+              )}
+            </>
+          )}
+
+          {user && (
+            <Box sx={{ mt: 2, border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+              <Typography variant="subtitle1" fontWeight={700}>
+                Deixar avaliação
+              </Typography>
+
+              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Rating
+                  value={reviewRating}
+                  onChange={(_, value) => {
+                    setReviewSaved(false);
+                    setReviewError(null);
+                    setReviewRating(value);
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary">
+                  {reviewRating ? `${reviewRating}/5` : ''}
+                </Typography>
+              </Box>
+
+              <TextField
+                value={reviewComment}
+                onChange={(e) => {
+                  setReviewSaved(false);
+                  setReviewError(null);
+                  setReviewComment(e.target.value);
+                }}
+                placeholder="Escreva o seu comentário..."
+                multiline
+                minRows={3}
+                fullWidth
+                sx={{ mt: 1 }}
+              />
+
+              {reviewError && (
+                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                  {reviewError}
+                </Typography>
+              )}
+              {reviewSaved && (
+                <Typography variant="body2" sx={{ mt: 1, color: 'green' }}>
+                  Avaliação enviada com sucesso.
+                </Typography>
+              )}
+
+              <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  disabled={isSubmittingReview || !reviewRating || reviewComment.trim().length < 3}
+                  onClick={async () => {
+                    setReviewSaved(false);
+                    setReviewError(null);
+                    try {
+                      await createReview({
+                        productId: product.id,
+                        rating: reviewRating ?? 5,
+                        comment: reviewComment
+                      }).unwrap();
+                      setReviewComment('');
+                      setReviewSaved(true);
+                    } catch (e) {
+                      setReviewError(typeof e === 'string' ? e : 'Não foi possível enviar a avaliação');
+                    }
+                  }}
+                >
+                  Enviar avaliação
+                </Button>
+              </Box>
+            </Box>
+          )}
+        </Box>
       </Grid2>
 
         <Grid2 size={12}>

@@ -24,10 +24,24 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<HeroBlockImage> HeroBlockImages { get; set; }
     public required DbSet<Newsletter> Newsletters { get; set; }
     public required DbSet<NewsletterAttachment> NewsletterAttachments { get; set; }
+    public required DbSet<ProductReview> ProductReviews { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<ProductReview>(b =>
+        {
+            b.HasIndex(x => x.ProductId);
+            b.HasIndex(x => new { x.ProductId, x.BuyerEmail, x.OrderId }).IsUnique();
+            b.Property(x => x.BuyerEmail).IsRequired();
+            b.Property(x => x.Comment).IsRequired();
+            b.HasCheckConstraint("CK_ProductReviews_Rating", "[Rating] >= 1 AND [Rating] <= 5");
+            b.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         builder.Entity<User>()
             .Property(u => u.NewsletterOptIn)
