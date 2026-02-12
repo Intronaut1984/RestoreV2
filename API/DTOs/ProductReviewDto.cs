@@ -10,5 +10,7 @@ public class ProductReviewDto
     public required string BuyerEmail { get; set; }
     public int Rating { get; set; }
     public required string Comment { get; set; }
+    public string? AdminReply { get; set; }
+    public DateTime? AdminRepliedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }

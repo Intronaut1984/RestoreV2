@@ -15,6 +15,8 @@ export type OrderIncident = {
   status: IncidentStatus;
   productId?: number | null;
   description?: string | null;
+  adminReply?: string | null;
+  adminRepliedAt?: string | null;
   createdAt?: string | null;
   resolvedAt?: string | null;
   attachments: OrderIncidentAttachment[];

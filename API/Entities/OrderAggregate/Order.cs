@@ -20,6 +20,9 @@ public class Order
     public string? CustomerComment { get; set; }
     public DateTime? CustomerCommentedAt { get; set; }
 
+    public string? AdminCommentReply { get; set; }
+    public DateTime? AdminCommentRepliedAt { get; set; }
+
     public OrderIncident? Incident { get; set; }
 
     public DateTime? ReceiptEmailedAt { get; set; }

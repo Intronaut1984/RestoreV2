@@ -108,6 +108,17 @@ export const catalogApi = createApi({
                 { type: 'Products', id: productId }
             ]
         }),
+        replyProductReview: builder.mutation<ProductReview, { productId: number; reviewId: number; reply: string }>({
+            query: ({ productId, reviewId, reply }) => ({
+                url: `products/${productId}/reviews/${reviewId}/reply`,
+                method: 'PUT',
+                body: { reply }
+            }),
+            invalidatesTags: (_result, _error, { productId }) => [
+                { type: 'ProductReviews', id: productId },
+                { type: 'Products', id: productId }
+            ]
+        }),
         recordProductClick: builder.mutation<void, { productId: number; sessionId: string }>({
             query: ({ productId, sessionId }) => ({
                 url: `products/${productId}/click`,
@@ -141,6 +152,7 @@ export const {
     useFetchFiltersQuery,
     useRecordProductClickMutation,
     useFetchProductReviewsQuery,
-    useCreateProductReviewMutation
+    useCreateProductReviewMutation,
+    useReplyProductReviewMutation
 } 
     = catalogApi;

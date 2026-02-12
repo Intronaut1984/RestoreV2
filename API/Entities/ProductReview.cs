@@ -18,5 +18,8 @@ public class ProductReview
 
     public required string Comment { get; set; }
 
+    public string? AdminReply { get; set; }
+    public DateTime? AdminRepliedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

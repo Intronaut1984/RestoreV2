@@ -1,5 +1,11 @@
 import { Link, useParams } from "react-router-dom";
-import { useFetchAnyOrderDetailedQuery, useFetchOrderIncidentQuery, useResolveOrderIncidentMutation } from "../orders/orderApi";
+import {
+  useFetchAnyOrderDetailedQuery,
+  useFetchOrderIncidentQuery,
+  useResolveOrderIncidentMutation,
+  useReplyOrderIncidentMutation,
+  useReplyOrderCommentMutation,
+} from "../orders/orderApi";
 import {
   Box,
   Button,
@@ -13,6 +19,7 @@ import {
   TableCell,
   TableContainer,
   TableRow,
+  TextField,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
@@ -54,12 +61,25 @@ export default function AdminSaleDetailedPage() {
   const { data: order, isLoading } = useFetchAnyOrderDetailedQuery(+id!);
   const { data: incident, isLoading: isIncidentLoading, refetch: refetchIncident } = useFetchOrderIncidentQuery(+id!);
   const [resolveIncident, { isLoading: isResolvingIncident, error: resolveIncidentError }] = useResolveOrderIncidentMutation();
+  const [replyIncident, { isLoading: isReplyingIncident, error: replyIncidentError }] = useReplyOrderIncidentMutation();
+  const [replyComment, { isLoading: isReplyingComment, error: replyCommentError }] = useReplyOrderCommentMutation();
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [saved, setSaved] = useState(false);
+  const [incidentReplyText, setIncidentReplyText] = useState('');
+  const [commentReplyText, setCommentReplyText] = useState('');
+  const [replySaved, setReplySaved] = useState(false);
 
   useEffect(() => {
     if (order?.orderStatus) setSelectedStatus(order.orderStatus);
   }, [order?.orderStatus]);
+
+  useEffect(() => {
+    setIncidentReplyText(incident?.adminReply ?? '');
+  }, [incident?.adminReply]);
+
+  useEffect(() => {
+    setCommentReplyText(order?.adminCommentReply ?? '');
+  }, [order?.adminCommentReply]);
 
   if (isLoading)
     return <Typography variant="h5">A carregar encomenda...</Typography>;
@@ -253,6 +273,56 @@ export default function AdminSaleDetailedPage() {
           </Box>
         )}
 
+        {!isIncidentLoading && incident?.status !== 'None' && (
+          <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
+            <Typography variant="subtitle1" fontWeight="500">Resposta ao cliente</Typography>
+
+            {incident?.adminReply && (
+              <Typography variant="body2" fontWeight="300" sx={{ whiteSpace: 'pre-wrap', mt: 1 }}>
+                {incident.adminReply}
+              </Typography>
+            )}
+
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              sx={{ mt: 1 }}
+              value={incidentReplyText}
+              onChange={(e) => {
+                setReplySaved(false);
+                setIncidentReplyText(e.target.value);
+              }}
+              placeholder="Escreva a resposta ao cliente"
+            />
+
+            {replyIncidentError && (
+              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                {getApiErrorMessage(replyIncidentError)}
+              </Typography>
+            )}
+
+            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant='contained'
+                disabled={isReplyingIncident || !incidentReplyText.trim()}
+                onClick={async () => {
+                  try {
+                    setReplySaved(false);
+                    await replyIncident({ id: order.id, reply: incidentReplyText.trim() }).unwrap();
+                    setReplySaved(true);
+                    refetchIncident();
+                  } catch {
+                    // handled via replyIncidentError
+                  }
+                }}
+              >
+                Enviar resposta
+              </Button>
+            </Box>
+          </Box>
+        )}
+
         {!isIncidentLoading && (incident?.attachments?.length ?? 0) > 0 && (
           <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
             <Typography variant="subtitle1" fontWeight="500">Anexos</Typography>
@@ -313,6 +383,59 @@ export default function AdminSaleDetailedPage() {
                   {format(order.customerCommentedAt, 'dd MMM yyyy')}
                 </Typography>
               )}
+            </Box>
+
+            <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
+              <Typography variant="subtitle1" fontWeight="500">Resposta ao cliente</Typography>
+
+              {order.adminCommentReply && (
+                <Typography variant="body2" fontWeight="300" sx={{ whiteSpace: 'pre-wrap', mt: 1 }}>
+                  {order.adminCommentReply}
+                </Typography>
+              )}
+
+              <TextField
+                fullWidth
+                multiline
+                minRows={3}
+                sx={{ mt: 1 }}
+                value={commentReplyText}
+                onChange={(e) => {
+                  setReplySaved(false);
+                  setCommentReplyText(e.target.value);
+                }}
+                placeholder="Escreva a resposta ao comentário do cliente"
+              />
+
+              {replyCommentError && (
+                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                  {getApiErrorMessage(replyCommentError)}
+                </Typography>
+              )}
+
+              {replySaved && (
+                <Typography variant="body2" sx={{ mt: 1, color: 'green' }}>
+                  Resposta enviada.
+                </Typography>
+              )}
+
+              <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant='contained'
+                  disabled={isReplyingComment || !commentReplyText.trim()}
+                  onClick={async () => {
+                    try {
+                      setReplySaved(false);
+                      await replyComment({ id: order.id, reply: commentReplyText.trim() }).unwrap();
+                      setReplySaved(true);
+                    } catch {
+                      // handled via replyCommentError
+                    }
+                  }}
+                >
+                  Enviar resposta
+                </Button>
+              </Box>
             </Box>
           </Box>
         </>

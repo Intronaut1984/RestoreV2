@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router-dom"
 import { Button, Divider, Grid2, Rating, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton, useTheme } from "@mui/material";
 import { ArrowBackIosNew, ArrowForwardIos } from '@mui/icons-material'
 import { currencyFormat, computeFinalPrice } from "../../lib/util";
-import { useCreateProductReviewMutation, useFetchProductDetailsQuery, useFetchProductReviewsQuery, useFetchProductsQuery, useRecordProductClickMutation } from "./catalogApi";
+import { useCreateProductReviewMutation, useFetchProductDetailsQuery, useFetchProductReviewsQuery, useFetchProductsQuery, useRecordProductClickMutation, useReplyProductReviewMutation } from "./catalogApi";
 import { useAddBasketItemMutation, useFetchBasketQuery, useRemoveBasketItemMutation } from "../basket/basketApi";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useCookieConsent } from "../../app/layout/cookieConsent";
@@ -59,11 +59,18 @@ export default function ProductDetails() {
   const {data: product, isLoading} = useFetchProductDetailsQuery(productId)
   const { data: reviews = [], isLoading: reviewsLoading } = useFetchProductReviewsQuery(productId);
   const [createReview, { isLoading: isSubmittingReview }] = useCreateProductReviewMutation();
+  const [replyReview, { isLoading: isReplyingReview }] = useReplyProductReviewMutation();
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [reviewRating, setReviewRating] = useState<number | null>(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaved, setReviewSaved] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const isAdmin = user?.roles?.includes('Admin') ?? false;
+  const [replyingReviewId, setReplyingReviewId] = useState<number | null>(null);
+  const [adminReplyText, setAdminReplyText] = useState('');
+  const [adminReplyError, setAdminReplyError] = useState<string | null>(null);
+  const [adminReplySaved, setAdminReplySaved] = useState(false);
 
   const primaryCategoryId = product?.categories?.[0]?.id ?? null;
 
@@ -80,11 +87,13 @@ export default function ProductDetails() {
 
   const { data: similarData, isLoading: similarLoading } = useFetchProductsQuery(similarParams);
 
+  const currentProductId = product?.id;
+
   const similarProducts = useMemo(() => {
-    if (!product) return [] as Product[];
-    const items = (similarData?.items ?? []).filter(p => p.id !== product.id);
+    if (!currentProductId) return [] as Product[];
+    const items = (similarData?.items ?? []).filter(p => p.id !== currentProductId);
     return shuffle(items).slice(0, 16);
-  }, [similarData?.items, product?.id]);
+  }, [similarData?.items, currentProductId]);
 
   const [similarPage, setSimilarPage] = useState(0);
   useEffect(() => {
@@ -533,6 +542,97 @@ export default function ProductDetails() {
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
                       {r.comment}
                     </Typography>
+
+                    {!!r.adminReply && (
+                      <Box sx={{ mt: 1, border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
+                        <Typography variant="subtitle2" fontWeight={800}>
+                          Resposta da loja
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                          {r.adminReply}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {isAdmin && (
+                      <Box sx={{ mt: 1 }}>
+                        {replyingReviewId !== r.id ? (
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <Button
+                              variant="outlined"
+                              onClick={() => {
+                                setAdminReplySaved(false);
+                                setAdminReplyError(null);
+                                setReplyingReviewId(r.id);
+                                setAdminReplyText(r.adminReply ?? '');
+                              }}
+                            >
+                              {r.adminReply ? 'Editar resposta' : 'Responder'}
+                            </Button>
+                          </Box>
+                        ) : (
+                          <>
+                            <TextField
+                              value={adminReplyText}
+                              onChange={(e) => {
+                                setAdminReplySaved(false);
+                                setAdminReplyError(null);
+                                setAdminReplyText(e.target.value);
+                              }}
+                              placeholder="Escreva a resposta ao cliente..."
+                              multiline
+                              minRows={3}
+                              fullWidth
+                              sx={{ mt: 1 }}
+                            />
+
+                            {adminReplyError && (
+                              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                                {adminReplyError}
+                              </Typography>
+                            )}
+                            {adminReplySaved && (
+                              <Typography variant="body2" sx={{ mt: 1, color: 'green' }}>
+                                Resposta enviada.
+                              </Typography>
+                            )}
+
+                            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                              <Button
+                                variant="outlined"
+                                onClick={() => {
+                                  setReplyingReviewId(null);
+                                  setAdminReplyError(null);
+                                }}
+                              >
+                                Cancelar
+                              </Button>
+                              <Button
+                                variant="contained"
+                                disabled={isReplyingReview || adminReplyText.trim().length < 3}
+                                onClick={async () => {
+                                  setAdminReplySaved(false);
+                                  setAdminReplyError(null);
+                                  try {
+                                    await replyReview({
+                                      productId: product.id,
+                                      reviewId: r.id,
+                                      reply: adminReplyText.trim()
+                                    }).unwrap();
+                                    setAdminReplySaved(true);
+                                    setReplyingReviewId(null);
+                                  } catch (e) {
+                                    setAdminReplyError(typeof e === 'string' ? e : 'Não foi possível enviar a resposta');
+                                  }
+                                }}
+                              >
+                                Enviar resposta
+                              </Button>
+                            </Box>
+                          </>
+                        )}
+                      </Box>
+                    )}
                   </Box>
                 ))}
               </Box>

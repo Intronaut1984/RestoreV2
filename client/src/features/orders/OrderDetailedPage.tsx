@@ -155,6 +155,15 @@ export default function OrderDetailedPage() {
                     </Box>
                 )}
 
+                {!isIncidentLoading && incident?.status !== 'None' && incident?.adminReply && (
+                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
+                        <Typography variant='subtitle1' fontWeight='500'>Resposta do suporte</Typography>
+                        <Typography variant='body2' fontWeight='300' sx={{ whiteSpace: 'pre-wrap' }}>
+                            {incident.adminReply}
+                        </Typography>
+                    </Box>
+                )}
+
                 {!isIncidentLoading && (incident?.attachments?.length ?? 0) > 0 && (
                     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
                         <Typography variant='subtitle1' fontWeight='500'>Anexos</Typography>
@@ -276,6 +285,15 @@ export default function OrderDetailedPage() {
                                     {format(order.customerCommentedAt, 'dd MMM yyyy')}
                                 </Typography>
                             )}
+                        </Box>
+                    )}
+
+                    {order.adminCommentReply && (
+                        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
+                            <Typography variant='subtitle1' fontWeight='500'>Resposta da loja</Typography>
+                            <Typography variant='body2' fontWeight='300' sx={{ whiteSpace: 'pre-wrap' }}>
+                                {order.adminCommentReply}
+                            </Typography>
                         </Box>
                     )}
 

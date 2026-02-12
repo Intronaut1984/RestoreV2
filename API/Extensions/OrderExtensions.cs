@@ -24,6 +24,8 @@ public static class OrderExtensions
             Total = order.GetTotal(),
             CustomerComment = order.CustomerComment,
             CustomerCommentedAt = order.CustomerCommentedAt,
+            AdminCommentReply = order.AdminCommentReply,
+            AdminCommentRepliedAt = order.AdminCommentRepliedAt,
             OrderItems = order.OrderItems.Select(item => new OrderItemDto
             {
                 ProductId = item.ItemOrdered.ProductId,
@@ -52,6 +54,8 @@ public static class OrderExtensions
             Total = order.GetTotal(),
             CustomerComment = order.CustomerComment,
             CustomerCommentedAt = order.CustomerCommentedAt,
+            AdminCommentReply = order.AdminCommentReply,
+            AdminCommentRepliedAt = order.AdminCommentRepliedAt,
             OrderItems = order.OrderItems.Select(item => new OrderItemDto
             {
                 ProductId = item.ItemOrdered.ProductId,

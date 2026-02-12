@@ -12,6 +12,8 @@ public class OrderIncidentDto
     public IncidentStatus Status { get; set; } = IncidentStatus.None;
     public int? ProductId { get; set; }
     public string? Description { get; set; }
+    public string? AdminReply { get; set; }
+    public DateTime? AdminRepliedAt { get; set; }
     public DateTime? CreatedAt { get; set; }
     public DateTime? ResolvedAt { get; set; }
     public List<OrderIncidentAttachmentDto> Attachments { get; set; } = [];

@@ -187,6 +187,8 @@ namespace API.Controllers
                     BuyerEmail = r.BuyerEmail,
                     Rating = r.Rating,
                     Comment = r.Comment,
+                    AdminReply = r.AdminReply,
+                    AdminRepliedAt = r.AdminRepliedAt,
                     CreatedAt = r.CreatedAt
                 })
                 .ToListAsync(ct);
@@ -266,10 +268,74 @@ namespace API.Controllers
                 BuyerEmail = review.BuyerEmail,
                 Rating = review.Rating,
                 Comment = review.Comment,
+                AdminReply = review.AdminReply,
+                AdminRepliedAt = review.AdminRepliedAt,
                 CreatedAt = review.CreatedAt
             };
 
             return Ok(dtoOut);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPut("{id:int}/reviews/{reviewId:int}/reply")]
+        public async Task<ActionResult<ProductReviewDto>> ReplyToProductReview(int id, int reviewId, [FromBody] ReplyTextDto dto, CancellationToken ct)
+        {
+            var reply = (dto?.Reply ?? string.Empty).Trim();
+            if (reply.Length < 3) return BadRequest("Resposta demasiado curta");
+            if (reply.Length > 2000) return BadRequest("Resposta demasiado longa");
+
+            var review = await context.ProductReviews
+                .FirstOrDefaultAsync(r => r.Id == reviewId && r.ProductId == id, ct);
+
+            if (review == null) return NotFound();
+
+            review.AdminReply = reply;
+            review.AdminRepliedAt = DateTime.UtcNow;
+
+            var saved = await context.SaveChangesAsync(ct) > 0;
+            if (!saved) return BadRequest("Problem saving reply");
+
+            await TrySendProductReviewReplyEmailAsync(review, reply);
+
+            return Ok(new ProductReviewDto
+            {
+                Id = review.Id,
+                ProductId = review.ProductId,
+                OrderId = review.OrderId,
+                BuyerEmail = review.BuyerEmail,
+                Rating = review.Rating,
+                Comment = review.Comment,
+                AdminReply = review.AdminReply,
+                AdminRepliedAt = review.AdminRepliedAt,
+                CreatedAt = review.CreatedAt
+            });
+        }
+
+        private async Task TrySendProductReviewReplyEmailAsync(ProductReview review, string reply)
+        {
+            try
+            {
+                var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+                var productUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/catalog/{review.ProductId}";
+
+                var subject = $"Resposta à sua avaliação (Produto #{review.ProductId})";
+                var html = $"""
+                    <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                      <h2>Restore</h2>
+                      <p>Recebeu uma resposta à sua avaliação:</p>
+                      <div style='white-space: pre-wrap; border: 1px solid #ddd; padding: 8px; border-radius: 6px'>
+                        {System.Net.WebUtility.HtmlEncode(reply)}
+                      </div>
+                      {(string.IsNullOrWhiteSpace(productUrl) ? string.Empty : $"<p>Ver produto: <a href=\"{productUrl}\">{productUrl}</a></p>")}
+                    </div>
+                    """;
+
+                await emailService.SendEmailAsync(review.BuyerEmail, subject, html);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send product review reply email for review {ReviewId}", review.Id);
+            }
         }
 
         private async Task TryNotifyAdminsProductReview(Product product, ProductReview review, CancellationToken ct)

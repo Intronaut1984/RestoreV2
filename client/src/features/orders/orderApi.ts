@@ -115,6 +115,29 @@ export const orderApi = createApi({
                 { type: 'Orders', id: 'LIST' }
             ]
         }),
+        replyOrderIncident: builder.mutation<void, { id: number; reply: string }>({
+            query: ({ id, reply }) => ({
+                url: `orders/${id}/incident/reply`,
+                method: 'PUT',
+                body: { reply }
+            }),
+            invalidatesTags: (_result, _error, { id }): (OrderTag | IncidentTag)[] => [
+                { type: 'Incidents', id },
+                { type: 'Orders', id },
+                { type: 'Orders', id: 'LIST' }
+            ]
+        }),
+        replyOrderComment: builder.mutation<Order, { id: number; reply: string }>({
+            query: ({ id, reply }) => ({
+                url: `orders/all/${id}/comment/reply`,
+                method: 'PUT',
+                body: { reply }
+            }),
+            invalidatesTags: (_result, _error, { id }): OrderTag[] => [
+                { type: 'Orders', id },
+                { type: 'Orders', id: 'LIST' }
+            ]
+        }),
         createOrder: builder.mutation<Order, CreateOrder>({
             query: (order) => ({
                 url: 'orders',
@@ -139,6 +162,8 @@ export const {
     useFetchOrderIncidentQuery,
     useOpenOrderIncidentMutation,
     useResolveOrderIncidentMutation,
+    useReplyOrderIncidentMutation,
+    useReplyOrderCommentMutation,
     useCreateOrderMutation
 } 
     = orderApi;

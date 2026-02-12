@@ -295,6 +295,36 @@ public class OrdersController(
         return NoContent();
     }
 
+    [Authorize(Roles = "Admin")]
+    [HttpPut("all/{id:int}/comment/reply")]
+    public async Task<ActionResult<OrderDto>> ReplyToOrderComment(int id, [FromBody] ReplyTextDto dto, CancellationToken ct)
+    {
+        var reply = (dto?.Reply ?? string.Empty).Trim();
+        if (reply.Length < 3) return BadRequest("Resposta demasiado curta");
+        if (reply.Length > 2000) return BadRequest("Resposta demasiado longa");
+
+        var order = await context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(order.CustomerComment))
+            return BadRequest("Esta encomenda não tem comentário do cliente");
+
+        order.AdminCommentReply = reply;
+        order.AdminCommentRepliedAt = DateTime.UtcNow;
+
+        var saved = await context.SaveChangesAsync(ct) > 0;
+        if (!saved) return BadRequest("Problem saving reply");
+
+        await TrySendOrderCommentReplyEmail(order, reply);
+
+        var updated = await context.Orders
+            .ProjectToDto()
+            .Where(o => o.Id == id)
+            .FirstOrDefaultAsync(ct);
+
+        return updated == null ? Ok() : Ok(updated);
+    }
+
     private async Task<List<string>> GetAdminEmailsAsync()
     {
         try
@@ -386,6 +416,8 @@ public class OrdersController(
             Status = incident.Status,
             ProductId = incident.ProductId,
             Description = incident.Description,
+            AdminReply = incident.AdminReply,
+            AdminRepliedAt = incident.AdminRepliedAt,
             CreatedAt = incident.CreatedAt,
             ResolvedAt = incident.ResolvedAt,
             Attachments = incident.Attachments
@@ -400,6 +432,29 @@ public class OrdersController(
                 })
                 .ToList()
         };
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("{id:int}/incident/reply")]
+    public async Task<ActionResult> ReplyToOrderIncident(int id, [FromBody] ReplyTextDto dto, CancellationToken ct)
+    {
+        var reply = (dto?.Reply ?? string.Empty).Trim();
+        if (reply.Length < 3) return BadRequest("Resposta demasiado curta");
+        if (reply.Length > 2000) return BadRequest("Resposta demasiado longa");
+
+        var incident = await context.OrderIncidents
+            .FirstOrDefaultAsync(i => i.OrderId == id, ct);
+
+        if (incident == null) return NotFound();
+
+        incident.AdminReply = reply;
+        incident.AdminRepliedAt = DateTime.UtcNow;
+
+        var saved = await context.SaveChangesAsync(ct) > 0;
+        if (!saved) return BadRequest("Problem saving reply");
+
+        await TrySendIncidentReplyEmail(incident, reply);
+        return Ok();
     }
 
     [HttpPost("{id:int}/incident/open")]
@@ -660,6 +715,60 @@ public class OrdersController(
         }
     }
 
+    private async Task TrySendIncidentReplyEmail(OrderIncident incident, string reply)
+    {
+        try
+        {
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{incident.OrderId}";
+
+            var subject = $"[Incidente] Encomenda #{incident.OrderId} - Resposta do suporte";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Recebeu uma resposta ao seu incidente na encomenda <strong>#{incident.OrderId}</strong>:</p>
+                  <div style='white-space: pre-wrap; border: 1px solid #ddd; padding: 8px; border-radius: 6px'>
+                    {System.Net.WebUtility.HtmlEncode(reply)}
+                  </div>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(incident.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send incident reply email for order {OrderId}", incident.OrderId);
+        }
+    }
+
+    private async Task TrySendOrderCommentReplyEmail(Order order, string reply)
+    {
+        try
+        {
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{order.Id}";
+
+            var subject = $"Encomenda #{order.Id} - Resposta ao seu comentário";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Recebeu uma resposta ao seu comentário da encomenda <strong>#{order.Id}</strong>:</p>
+                  <div style='white-space: pre-wrap; border: 1px solid #ddd; padding: 8px; border-radius: 6px'>
+                    {System.Net.WebUtility.HtmlEncode(reply)}
+                  </div>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(order.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send order comment reply email for order {OrderId}", order.Id);
+        }
+    }
+
     private async Task TrySendStatusEmail(Order order, OrderStatus newStatus)
     {
         try
@@ -669,7 +778,7 @@ public class OrdersController(
 
             var subject = newStatus switch
             {
-                OrderStatus.PaymentReceived => $"Encomenda #{order.Id}: A aguardar",
+                OrderStatus.PaymentReceived => $"Encomenda #{order.Id}: Em processamento",
                 OrderStatus.Processing => $"Encomenda #{order.Id}: Em processamento",
                 OrderStatus.Processed => $"Encomenda #{order.Id}: Processado",
                 OrderStatus.Shipped => $"Encomenda #{order.Id}: Enviado",
@@ -682,7 +791,7 @@ public class OrdersController(
 
             var headline = newStatus switch
             {
-                OrderStatus.PaymentReceived => "A sua encomenda está a aguardar tratamento.",
+                OrderStatus.PaymentReceived => "A sua encomenda está a ser processada.",
                 OrderStatus.Processing => "A sua encomenda está em processamento.",
                 OrderStatus.Processed => "A sua encomenda foi processada.",
                 OrderStatus.Shipped => "A sua encomenda foi enviada.",
@@ -842,6 +951,12 @@ public class OrdersController(
         var result = await context.SaveChangesAsync() > 0;
 
         if (!result) return BadRequest("Problem creating order");
+
+        if (order.OrderStatus == OrderStatus.PaymentReceived)
+        {
+            await TrySendStatusEmail(order, OrderStatus.PaymentReceived);
+            await TrySendReceiptEmailIfNeeded(order, CancellationToken.None);
+        }
 
         return CreatedAtAction(nameof(GetOrderDetails), new { id = order.Id }, order.ToDto());
     }

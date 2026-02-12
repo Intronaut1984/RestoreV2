@@ -124,10 +124,12 @@ public class PaymentsController(
         logger.LogInformation("Payment received for order {OrderId}: intent amount {Amount}", order.Id, intentAmount);
         // Only transition to PaymentReceived from payment-related states.
         // Avoid overwriting a fulfillment state if it was set before the webhook arrived.
+        var transitionedToPaymentReceived = false;
         if (order.OrderStatus == OrderStatus.Pending || order.OrderStatus == OrderStatus.PaymentMismatch || order.OrderStatus == OrderStatus.PaymentFailed)
         {
             await IncrementProductSalesCountsAsync(order);
             order.OrderStatus = OrderStatus.PaymentReceived;
+            transitionedToPaymentReceived = true;
         }
 
         var basket = await context.Baskets.FirstOrDefaultAsync(x => 
@@ -137,8 +139,39 @@ public class PaymentsController(
 
         await context.SaveChangesAsync();
 
+        if (transitionedToPaymentReceived)
+        {
+            await TrySendProcessingConfirmationEmail(order);
+        }
+
         // Send receipt PDF once after payment is received
         await TrySendReceiptEmailIfNeeded(order);
+    }
+
+    private async Task TrySendProcessingConfirmationEmail(Order order)
+    {
+        try
+        {
+            if (order.OrderStatus != OrderStatus.PaymentReceived) return;
+
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{order.Id}";
+
+            var subject = $"Encomenda #{order.Id}: Em processamento";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Pagamento confirmado. A sua encomenda <strong>#{order.Id}</strong> está a ser processada.</p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(order.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send processing confirmation email for order {OrderId}", order.Id);
+        }
     }
 
     private async Task TrySendReceiptEmailIfNeeded(Order order)

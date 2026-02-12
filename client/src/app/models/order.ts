@@ -13,6 +13,8 @@ export interface Order {
     paymentSummary: PaymentSummary
     customerComment?: string | null
     customerCommentedAt?: string | null
+    adminCommentReply?: string | null
+    adminCommentRepliedAt?: string | null
   }
   
   export interface ShippingAddress {

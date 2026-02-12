@@ -19,6 +19,9 @@ public class OrderIncident
 
     public required string Description { get; set; }
 
+    public string? AdminReply { get; set; }
+    public DateTime? AdminRepliedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ResolvedAt { get; set; }
 
