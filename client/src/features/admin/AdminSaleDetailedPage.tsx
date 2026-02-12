@@ -14,6 +14,9 @@ import {
   InputLabel,
   MenuItem,
   Select,
+  Step,
+  StepButton,
+  Stepper,
   Table,
   TableBody,
   TableCell,
@@ -33,6 +36,7 @@ import { secondaryActionSx } from "../../app/shared/styles/actionButtons";
 import {
   adminOrderStatusOptions,
   getOrderStatusLabel,
+  getOrderStatusSx,
 } from "../../lib/orderStatus";
 import { useEffect, useState } from "react";
 import { useUpdateAnyOrderStatusMutation } from "../orders/orderApi";
@@ -98,6 +102,17 @@ export default function AdminSaleDetailedPage() {
       ? base
       : [{ value: order.orderStatus, label: getOrderStatusLabel(order.orderStatus) }, ...base];
   })();
+
+  const progressStatuses = [
+    "PaymentReceived",
+    "Processing",
+    "Processed",
+    "Shipped",
+    "Delivered",
+    "ReviewRequested",
+    "Completed",
+  ];
+  const activeProgressStep = progressStatuses.indexOf(order.orderStatus);
 
   return (
     <Box sx={{ maxWidth: "md", mx: "auto", px: 1 }}>
@@ -182,13 +197,31 @@ export default function AdminSaleDetailedPage() {
           <Typography variant="subtitle1" fontWeight="500">
             Estado da encomenda
           </Typography>
-          <Typography variant="body2" fontWeight="300">
+          <Typography variant="body2" fontWeight="300" sx={{ ...getOrderStatusSx(order.orderStatus) }}>
             {getOrderStatusLabel(order.orderStatus)}
           </Typography>
         </Box>
 
         <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
           <Typography variant="subtitle1" fontWeight="500">Atualizar estado</Typography>
+
+          <Box sx={{ mt: 1 }}>
+            <Stepper nonLinear activeStep={activeProgressStep} alternativeLabel>
+              {progressStatuses.map((s) => (
+                <Step key={s}>
+                  <StepButton
+                    onClick={() => {
+                      setSaved(false);
+                      setSelectedStatus(s);
+                    }}
+                  >
+                    {getOrderStatusLabel(s)}
+                  </StepButton>
+                </Step>
+              ))}
+            </Stepper>
+          </Box>
+
           <FormControl fullWidth sx={{ mt: 1 }}>
             <InputLabel id="admin-order-status-label">Estado</InputLabel>
             <Select

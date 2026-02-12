@@ -18,7 +18,7 @@ function getApiErrorMessage(error: unknown, fallback: string) {
 
     return fallback;
 }
-import { getOrderStatusLabel } from "../../lib/orderStatus";
+import { getOrderStatusLabel, getOrderStatusSx } from "../../lib/orderStatus";
 import { useState } from "react";
 import { getIncidentStatusLabel } from "../../lib/incidentStatus";
 
@@ -100,7 +100,7 @@ export default function OrderDetailedPage() {
                 </Box>
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
                     <Typography variant='subtitle1' fontWeight='500'>Estado da encomenda</Typography>
-                    <Typography variant='body2' fontWeight='300'>{getOrderStatusLabel(order.orderStatus)}</Typography>
+                    <Typography variant='body2' fontWeight='300' sx={{ ...getOrderStatusSx(order.orderStatus) }}>{getOrderStatusLabel(order.orderStatus)}</Typography>
                 </Box>
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
                     <Typography variant='subtitle1' fontWeight='500'>Data da encomenda</Typography>

@@ -22,6 +22,14 @@ export function getOrderStatusLabel(status: string | null | undefined) {
   return statusLabels[status] ?? status;
 }
 
+export function getOrderStatusSx(status: string | null | undefined) {
+  const palette = status === "Completed" ? "success" : "warning";
+  return {
+    color: `${palette}.main`,
+    borderColor: `${palette}.main`,
+  } as const;
+}
+
 export const adminOrderStatusOptions: OrderStatusOption[] = [
   { value: "PaymentReceived", label: statusLabels.PaymentReceived },
   { value: "Processing", label: statusLabels.Processing },
@@ -30,4 +38,5 @@ export const adminOrderStatusOptions: OrderStatusOption[] = [
   { value: "Delivered", label: statusLabels.Delivered },
   { value: "Cancelled", label: statusLabels.Cancelled },
   { value: "ReviewRequested", label: statusLabels.ReviewRequested },
+  { value: "Completed", label: statusLabels.Completed },
 ];

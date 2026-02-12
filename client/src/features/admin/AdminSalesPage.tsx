@@ -18,11 +18,11 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { format, subDays } from "date-fns";
-import { formatOrderAmount } from "../../lib/util";
+import { emailToUsername, formatOrderAmount } from "../../lib/util";
 import { useFetchAllSalesQuery } from "../orders/orderApi";
 import AppPagination from "../../app/shared/components/AppPagination";
 import { useState } from "react";
-import { adminOrderStatusOptions, getOrderStatusLabel } from "../../lib/orderStatus";
+import { adminOrderStatusOptions, getOrderStatusLabel, getOrderStatusSx } from "../../lib/orderStatus";
 import { useGetCategoriesQuery } from "./adminApi";
 
 export default function AdminSalesPage() {
@@ -80,6 +80,7 @@ export default function AdminSalesPage() {
             <TableHead>
               <TableRow>
                 <TableCell align="center">Encomenda</TableCell>
+                <TableCell>Produto</TableCell>
                 <TableCell>Cliente</TableCell>
                 <TableCell>Data</TableCell>
                 <TableCell>Desconto</TableCell>
@@ -92,6 +93,9 @@ export default function AdminSalesPage() {
                 <TableRow key={`skeleton-${i}`}>
                   <TableCell align="center">
                     <Skeleton variant="rectangular" width={64} height={32} />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton width="70%" />
                   </TableCell>
                   <TableCell>
                     <Skeleton width="80%" />
@@ -239,6 +243,7 @@ export default function AdminSalesPage() {
           <TableHead>
             <TableRow>
               <TableCell align="center">Encomenda</TableCell>
+              <TableCell>Produto</TableCell>
               <TableCell>Cliente</TableCell>
               <TableCell>Data</TableCell>
               <TableCell>Desconto</TableCell>
@@ -268,6 +273,29 @@ export default function AdminSalesPage() {
                   </Box>
                 </TableCell>
                 <TableCell>
+                  <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, display: 'inline-block', minWidth: 220 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {order.orderItems?.[0]?.pictureUrl && (
+                        <img
+                          src={order.orderItems[0].pictureUrl}
+                          alt={order.orderItems[0].name}
+                          style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6 }}
+                        />
+                      )}
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" noWrap>
+                          {order.orderItems?.[0]?.name ?? '-'}
+                        </Typography>
+                        {order.orderItems && order.orderItems.length > 1 && (
+                          <Typography variant="caption" color="text.secondary">
+                            +{order.orderItems.length - 1} artigo(s)
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </Box>
+                </TableCell>
+                <TableCell>
                   <Box
                     sx={{
                       border: 1,
@@ -277,7 +305,7 @@ export default function AdminSalesPage() {
                       display: "inline-block",
                     }}
                   >
-                    {order.buyerEmail}
+                    {emailToUsername(order.buyerEmail)}
                   </Box>
                 </TableCell>
                 <TableCell>
@@ -329,10 +357,10 @@ export default function AdminSalesPage() {
                   <Box
                     sx={{
                       border: 1,
-                      borderColor: "divider",
                       borderRadius: 2,
                       p: 1,
                       display: "inline-block",
+                      ...getOrderStatusSx(order.orderStatus),
                     }}
                   >
                     {getOrderStatusLabel(order.orderStatus)}

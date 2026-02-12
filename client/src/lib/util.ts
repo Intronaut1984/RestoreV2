@@ -58,3 +58,10 @@ export function handleApiError<T extends FieldValues>(
         })
     }
 }
+
+export function emailToUsername(email: string | null | undefined) {
+    if (!email) return '-';
+    const at = email.indexOf('@');
+    if (at <= 0) return email;
+    return email.slice(0, at);
+}

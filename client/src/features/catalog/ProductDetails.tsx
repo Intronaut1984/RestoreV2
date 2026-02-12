@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom"
 import { Button, Divider, Grid2, Rating, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton, useTheme } from "@mui/material";
 import { ArrowBackIosNew, ArrowForwardIos } from '@mui/icons-material'
-import { currencyFormat, computeFinalPrice } from "../../lib/util";
+import { currencyFormat, computeFinalPrice, emailToUsername } from "../../lib/util";
 import { useCreateProductReviewMutation, useFetchProductDetailsQuery, useFetchProductReviewsQuery, useFetchProductsQuery, useRecordProductClickMutation, useReplyProductReviewMutation } from "./catalogApi";
 import { useAddBasketItemMutation, useFetchBasketQuery, useRemoveBasketItemMutation } from "../basket/basketApi";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -532,7 +532,7 @@ export default function ProductDetails() {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
                         <Rating value={r.rating} readOnly size="small" />
                         <Typography variant="body2" color="text.secondary" noWrap>
-                          {r.buyerEmail}
+                          {emailToUsername(r.buyerEmail)}
                         </Typography>
                       </Box>
                       <Typography variant="caption" color="text.secondary">
