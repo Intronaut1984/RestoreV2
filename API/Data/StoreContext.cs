@@ -34,6 +34,13 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
     {
         base.OnModelCreating(builder);
 
+        builder.Entity<Logo>(b =>
+        {
+            b.Property(x => x.Url).IsRequired().HasMaxLength(500);
+            b.Property(x => x.PublicId).HasMaxLength(200);
+            b.Property(x => x.Scale).HasPrecision(5, 2).HasDefaultValue(1.00m);
+        });
+
         builder.Entity<ProductVariant>(b =>
         {
             b.HasIndex(x => x.ProductId);

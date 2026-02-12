@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Globalization;
 using API.DTOs;
 using API.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -19,34 +20,54 @@ public class LogoController(API.Data.StoreContext context, ImageService imageSer
             var logo = context.Logos.FirstOrDefault();
             if (logo == null)
             {
-                return Ok(new LogoDto { Url = "/images/logo.png" });
+                return Ok(new LogoDto { Url = "/images/logo.png", Scale = 1.0m });
             }
 
-            return Ok(new LogoDto { Url = logo.Url });
+            return Ok(new LogoDto { Url = logo.Url, Scale = logo.Scale });
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load Logo from database");
-            return Ok(new LogoDto { Url = "/images/logo.png" });
+            return Ok(new LogoDto { Url = "/images/logo.png", Scale = 1.0m });
         }
     }
 
     [Authorize(Roles = "Admin")]
     [HttpPut]
-    public async Task<ActionResult> UpdateLogo([FromForm] LogoDto dto)
+    public async Task<ActionResult> UpdateLogo([FromForm] LogoUpdateDto dto)
     {
         if (dto == null) return BadRequest("Invalid payload");
 
         var logo = context.Logos.FirstOrDefault();
         if (logo == null)
         {
-            logo = new API.Entities.Logo { Url = "/images/logo.png", PublicId = null };
+            logo = new API.Entities.Logo { Url = "/images/logo.png", PublicId = null, Scale = 1.0m };
             context.Logos.Add(logo);
             await context.SaveChangesAsync();
             // Re-fetch after insert to ensure we have the permanent ID
             logo = context.Logos.FirstOrDefault();
             if (logo == null)
                 return BadRequest("Failed to create logo");
+        }
+
+        decimal? scale = null;
+        if (!string.IsNullOrWhiteSpace(dto.Scale))
+        {
+            var s = dto.Scale.Trim();
+            // Multipart/form-data decimal parsing can be culture-sensitive.
+            // Accept both "1.25" and "1,25" reliably.
+            if (decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out var inv))
+                scale = inv;
+            else if (decimal.TryParse(s, NumberStyles.Number, CultureInfo.CurrentCulture, out var cur))
+                scale = cur;
+            else if (decimal.TryParse(s.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out var normalized))
+                scale = normalized;
+        }
+
+        if (scale.HasValue)
+        {
+            var clamped = Math.Clamp(scale.Value, 0.50m, 3.00m);
+            logo.Scale = clamped;
         }
 
         // Handle file upload if provided

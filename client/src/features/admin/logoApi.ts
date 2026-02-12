@@ -4,6 +4,7 @@ import { baseQueryWithErrorHandling } from "../../app/api/baseApi";
 export interface LogoDto {
     url?: string;
     file?: File;
+    scale?: number;
 }
 
 export const logoApi = createApi({
@@ -11,7 +12,7 @@ export const logoApi = createApi({
     baseQuery: baseQueryWithErrorHandling,
     tagTypes: ['Logo'],
     endpoints: (builder) => ({
-        getLogo: builder.query<{ url: string }, void>({
+        getLogo: builder.query<{ url: string; scale?: number }, void>({
             query: () => 'logo',
             providesTags: ['Logo']
         }),

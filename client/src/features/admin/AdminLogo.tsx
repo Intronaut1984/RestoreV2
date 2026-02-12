@@ -1,4 +1,4 @@
-import { Box, Button, TextField, Typography } from "@mui/material";
+import { Box, Button, Slider, TextField, Typography } from "@mui/material";
 import { useGetLogoQuery, useUpdateLogoMutation } from "./logoApi";
 import { useState, useEffect } from "react";
 import { LoadingButton } from "@mui/lab";
@@ -10,10 +10,12 @@ export default function AdminLogo() {
     const [updateLogo, { isLoading: isUpdating }] = useUpdateLogoMutation();
     const [logoUrl, setLogoUrl] = useState('');
     const [selectedFile, setSelectedFile] = useState<PreviewFile | null>(null);
+    const [logoScale, setLogoScale] = useState<number>(1);
 
     useEffect(() => {
         if (data) {
             setLogoUrl(data.url || '/images/logo.png');
+            setLogoScale(typeof data.scale === 'number' && Number.isFinite(data.scale) ? data.scale : 1);
         }
     }, [data]);
 
@@ -48,7 +50,13 @@ export default function AdminLogo() {
                 formData.append('url', logoUrl);
             }
 
-            if (formData.get('file') || formData.get('url')) {
+            formData.append('scale', String(logoScale));
+
+            const scaleChanged = typeof data?.scale === 'number'
+                ? Math.abs((data.scale ?? 1) - logoScale) > 0.001
+                : Math.abs(1 - logoScale) > 0.001;
+
+            if (formData.get('file') || formData.get('url') || scaleChanged) {
                 await updateLogo(formData).unwrap();
                 setSelectedFile(null);
                 // Reset input
@@ -114,14 +122,14 @@ export default function AdminLogo() {
                 </Box>
 
                 {/* Preview Section */}
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
                     <Typography variant="body2">Pré-visualização:</Typography>
                     <Box
                         component="img"
                         src={selectedFile?.preview || logoUrl}
                         alt="Logo Preview"
                         sx={{
-                            height: 60,
+                            height: Math.round(60 * logoScale),
                             display: 'block',
                             border: '1px solid #ccc',
                             borderRadius: 1,
@@ -132,13 +140,35 @@ export default function AdminLogo() {
                     />
                 </Box>
 
+                {/* Scale control */}
+                <Box sx={{ maxWidth: 520 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        Tamanho do logo na barra: {Math.round(logoScale * 100)}%
+                    </Typography>
+                    <Slider
+                        value={logoScale}
+                        min={0.5}
+                        max={3}
+                        step={0.05}
+                        valueLabelDisplay="auto"
+                        valueLabelFormat={(v) => `${Math.round(v * 100)}%`}
+                        onChange={(_, value) => {
+                            const v = Array.isArray(value) ? value[0] : value;
+                            setLogoScale(typeof v === 'number' && Number.isFinite(v) ? v : 1);
+                        }}
+                    />
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        Ajusta proporcionalmente (sem esticar na horizontal/vertical).
+                    </Typography>
+                </Box>
+
                 {/* Save Button */}
                 <Box>
                     <LoadingButton
                         variant="contained"
                         onClick={handleSave}
                         loading={isUpdating}
-                        disabled={!selectedFile && logoUrl === data?.url}
+                        disabled={!selectedFile && logoUrl === data?.url && (typeof data?.scale === 'number' ? Math.abs((data.scale ?? 1) - logoScale) <= 0.001 : Math.abs(1 - logoScale) <= 0.001)}
                     >
                         Salvar
                     </LoadingButton>

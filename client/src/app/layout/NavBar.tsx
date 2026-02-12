@@ -66,6 +66,16 @@ export default function NavBar() {
             return '';
         }
     });
+    const [cachedLogoScale, setCachedLogoScale] = useState<number>(() => {
+        try {
+            const raw = localStorage.getItem('logoScale');
+            if (!raw) return 1;
+            const v = Number(raw);
+            return Number.isFinite(v) && v > 0 ? v : 1;
+        } catch {
+            return 1;
+        }
+    });
     const [removeFavorite] = useRemoveFavoriteMutation();
     const [favoritesOpen, setFavoritesOpen] = useState(false);
     const { data: filtersData } = useFetchFiltersQuery();
@@ -142,16 +152,25 @@ export default function NavBar() {
     }, [generos, anos, orderBy, searchTerm, isMobile, closeFilters]);
 
     useEffect(() => {
-        if (!logoData?.url) return;
+        if (!logoData?.url && typeof logoData?.scale !== 'number') return;
         try {
-            localStorage.setItem('logoUrl', logoData.url);
-            setCachedLogoUrl(logoData.url);
+            if (logoData?.url) {
+                localStorage.setItem('logoUrl', logoData.url);
+                setCachedLogoUrl(logoData.url);
+            }
+            if (typeof logoData?.scale === 'number' && Number.isFinite(logoData.scale) && logoData.scale > 0) {
+                localStorage.setItem('logoScale', String(logoData.scale));
+                setCachedLogoScale(logoData.scale);
+            }
         } catch {
             // ignore
         }
-    }, [logoData?.url]);
+    }, [logoData?.url, logoData?.scale]);
 
     const logoUrl = logoData?.url || cachedLogoUrl || '/images/logo.png';
+    const logoScale = (typeof logoData?.scale === 'number' && Number.isFinite(logoData.scale) && logoData.scale > 0)
+        ? logoData.scale
+        : cachedLogoScale;
 
     return (
         <AppBar
@@ -188,7 +207,17 @@ export default function NavBar() {
                             component='img'
                             src={logoUrl}
                             alt='Logo'
-                            sx={{ height: { xs: 56, sm: 64, md: 76 }, maxWidth: '100%', width: 'auto', objectFit: 'contain', display: 'block' }}
+                            sx={{
+                                height: {
+                                    xs: Math.round(56 * logoScale),
+                                    sm: Math.round(64 * logoScale),
+                                    md: Math.round(76 * logoScale)
+                                },
+                                maxWidth: '100%',
+                                width: 'auto',
+                                objectFit: 'contain',
+                                display: 'block'
+                            }}
                         />
                     </Box>
                     {/* Mobile: keep theme toggle near the logo */}
