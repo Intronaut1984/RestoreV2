@@ -10,6 +10,8 @@ export interface Order {
     discount: number
     total: number
     orderStatus: string
+    trackingNumber?: string | null
+    trackingAddedAt?: string | null
     paymentSummary: PaymentSummary
     customerComment?: string | null
     customerCommentedAt?: string | null
@@ -29,6 +31,8 @@ export interface Order {
   
   export interface OrderItem {
     productId: number
+    productVariantId?: number | null
+    variantColor?: string | null
     name: string
     pictureUrl: string
     price: number

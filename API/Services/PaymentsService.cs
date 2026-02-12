@@ -28,8 +28,11 @@ public class PaymentsService(IConfiguration config, DiscountService discountServ
         {
             var product = item.Product;
 
+            // If a variant exists, its PriceOverride becomes the base price.
+            var basePrice = item.ProductVariant?.PriceOverride ?? product.Price;
+
             // Determine unit price in the same scale as stored values (assume euros unless heuristic below detects cents)
-            decimal unitPrice = product.PromotionalPrice ?? product.Price;
+            decimal unitPrice = product.PromotionalPrice ?? basePrice;
 
             if (product.DiscountPercentage.HasValue && (product.PromotionalPrice == null))
             {
@@ -41,7 +44,8 @@ public class PaymentsService(IConfiguration config, DiscountService discountServ
         }
 
         // Heuristic: if prices look unusually large (e.g. any unit price > 1000 or subtotal > 1000), they may already be cents.
-        bool pricesLikelyInCents = basket.Items.Any(x => (x.Product.PromotionalPrice ?? x.Product.Price) > 1000M) || subtotalDecimal > 1000M;
+        bool pricesLikelyInCents = basket.Items.Any(x =>
+            (x.Product.PromotionalPrice ?? x.ProductVariant?.PriceOverride ?? x.Product.Price) > 1000M) || subtotalDecimal > 1000M;
 
         long subtotal;
         if (pricesLikelyInCents)

@@ -69,6 +69,17 @@ export const orderApi = createApi({
                 { type: 'Orders', id: 'LIST' }
             ]
         }),
+        updateAnyOrderTracking: builder.mutation<Order, { id: number; trackingNumber: string }>({
+            query: ({ id, trackingNumber }) => ({
+                url: `orders/all/${id}/tracking`,
+                method: 'PUT',
+                body: { trackingNumber }
+            }),
+            invalidatesTags: (_result, _error, { id }): OrderTag[] => [
+                { type: 'Orders', id },
+                { type: 'Orders', id: 'LIST' }
+            ]
+        }),
         addOrderComment: builder.mutation<void, { id: number; comment: string }>({
             query: ({ id, comment }) => ({
                 url: `orders/${id}/comment`,
@@ -158,6 +169,7 @@ export const {
     useFetchOrderDetailedQuery,
     useFetchAnyOrderDetailedQuery,
     useUpdateAnyOrderStatusMutation,
+    useUpdateAnyOrderTrackingMutation,
     useAddOrderCommentMutation,
     useFetchOrderIncidentQuery,
     useOpenOrderIncidentMutation,

@@ -27,6 +27,9 @@ public class Order
 
     public DateTime? ReceiptEmailedAt { get; set; }
 
+    public string? TrackingNumber { get; set; }
+    public DateTime? TrackingAddedAt { get; set; }
+
     public long GetTotal()
     {
         return Subtotal + DeliveryFee - Discount;

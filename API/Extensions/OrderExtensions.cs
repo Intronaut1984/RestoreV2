@@ -22,6 +22,8 @@ public static class OrderExtensions
             Discount = order.Discount,
             OrderStatus = order.OrderStatus.ToString(),
             Total = order.GetTotal(),
+            TrackingNumber = order.TrackingNumber,
+            TrackingAddedAt = order.TrackingAddedAt,
             CustomerComment = order.CustomerComment,
             CustomerCommentedAt = order.CustomerCommentedAt,
             AdminCommentReply = order.AdminCommentReply,
@@ -29,6 +31,8 @@ public static class OrderExtensions
             OrderItems = order.OrderItems.Select(item => new OrderItemDto
             {
                 ProductId = item.ItemOrdered.ProductId,
+                ProductVariantId = item.ItemOrdered.ProductVariantId,
+                VariantColor = item.ItemOrdered.VariantColor,
                 Name = item.ItemOrdered.Name,
                 PictureUrl = item.ItemOrdered.PictureUrl,
                 Price = item.Price,
@@ -52,6 +56,8 @@ public static class OrderExtensions
             Discount = order.Discount,
             OrderStatus = order.OrderStatus.ToString(),
             Total = order.GetTotal(),
+            TrackingNumber = order.TrackingNumber,
+            TrackingAddedAt = order.TrackingAddedAt,
             CustomerComment = order.CustomerComment,
             CustomerCommentedAt = order.CustomerCommentedAt,
             AdminCommentReply = order.AdminCommentReply,
@@ -59,6 +65,8 @@ public static class OrderExtensions
             OrderItems = order.OrderItems.Select(item => new OrderItemDto
             {
                 ProductId = item.ItemOrdered.ProductId,
+                ProductVariantId = item.ItemOrdered.ProductVariantId,
+                VariantColor = item.ItemOrdered.VariantColor,
                 Name = item.ItemOrdered.Name,
                 PictureUrl = item.ItemOrdered.PictureUrl,
                 Price = item.Price,

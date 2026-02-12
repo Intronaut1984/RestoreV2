@@ -10,6 +10,7 @@ namespace API.Data;
 public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(options)
 {
     public required DbSet<Product> Products { get; set; }
+    public required DbSet<ProductVariant> ProductVariants { get; set; }
     public required DbSet<ProductClick> ProductClicks { get; set; }
     public required DbSet<Favorite> Favorites { get; set; }
     public required DbSet<Campaign> Campaigns { get; set; }
@@ -32,6 +33,19 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<ProductVariant>(b =>
+        {
+            b.HasIndex(x => x.ProductId);
+            b.Property(x => x.Color).IsRequired().HasMaxLength(100);
+            b.Property(x => x.PictureUrl).HasMaxLength(500);
+            b.Property(x => x.PublicId).HasMaxLength(200);
+            b.Property(x => x.PriceOverride).HasPrecision(18, 2);
+            b.HasOne(x => x.Product)
+                .WithMany(p => p.Variants)
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         builder.Entity<UserNotification>(b =>
         {

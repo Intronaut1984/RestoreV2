@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Hosting;
 using System.IO;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Identity;
+using System.Net;
 
 namespace API.Controllers;
 
@@ -219,6 +220,65 @@ public class OrdersController(
             .ProjectToDto()
             .Where(x => x.Id == id)
             .FirstOrDefaultAsync();
+
+        return updated == null ? Ok() : Ok(updated);
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("all/{id:int}/tracking")]
+    public async Task<ActionResult<OrderDto>> UpdateTrackingNumber(int id, [FromBody] UpdateTrackingNumberDto dto, CancellationToken ct)
+    {
+        var tracking = (dto?.TrackingNumber ?? string.Empty).Trim();
+        if (tracking.Length < 6) return BadRequest("Número de tracking inválido");
+        if (tracking.Length > 64) return BadRequest("Número de tracking demasiado longo");
+
+        var order = await context.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null) return NotFound();
+
+        if (order.OrderStatus != OrderStatus.Shipped)
+            return BadRequest("Só pode adicionar tracking quando a encomenda está 'Enviado'.");
+
+        order.TrackingNumber = tracking;
+        order.TrackingAddedAt = DateTime.UtcNow;
+
+        var saved = await context.SaveChangesAsync(ct) > 0;
+        if (!saved) return BadRequest("Problem saving tracking number");
+
+        var cttUrl = $"https://www.ctt.pt/feapl_2/app/open/objectSearch/objectSearch.jspx?objects={WebUtility.UrlEncode(tracking)}";
+
+        await notificationService.TryCreateForEmailAsync(
+            order.BuyerEmail,
+            "Encomenda enviada",
+            $"A encomenda #{order.Id} foi enviada. Tracking CTT: {tracking}.",
+            $"/orders/{order.Id}",
+            ct);
+
+        try
+        {
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{order.Id}";
+            var subject = $"Tracking CTT - Encomenda #{order.Id}";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>A sua encomenda <strong>#{order.Id}</strong> foi enviada.</p>
+                  <p><strong>Tracking CTT:</strong> {WebUtility.HtmlEncode(tracking)}</p>
+                  <p>Acompanhar: <a href=\"{cttUrl}\">{cttUrl}</a></p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(order.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send tracking email for order {OrderId}", order.Id);
+        }
+
+        var updated = await context.Orders
+            .ProjectToDto()
+            .Where(o => o.Id == id)
+            .FirstOrDefaultAsync(ct);
 
         return updated == null ? Ok() : Ok(updated);
     }
@@ -926,9 +986,10 @@ public class OrdersController(
         foreach (var bItem in basket.Items)
         {
             var product = bItem.Product;
+            var basePrice = bItem.ProductVariant?.PriceOverride ?? product.Price;
 
-            decimal originalUnit = product.Price;
-            decimal finalUnit = product.PromotionalPrice ?? product.Price;
+            decimal originalUnit = basePrice;
+            decimal finalUnit = product.PromotionalPrice ?? basePrice;
 
             if (product.DiscountPercentage.HasValue && product.PromotionalPrice == null)
             {
@@ -936,7 +997,7 @@ public class OrdersController(
                 finalUnit = finalUnit * (1 - (d / 100M));
             }
 
-            bool priceLikelyInCents = (product.PromotionalPrice ?? product.Price) > 1000M;
+            bool priceLikelyInCents = (product.PromotionalPrice ?? basePrice) > 1000M;
             long originalCents = priceLikelyInCents ? (long)Math.Round(originalUnit) : (long)Math.Round(originalUnit * 100M);
             long finalCents = priceLikelyInCents ? (long)Math.Round(finalUnit) : (long)Math.Round(finalUnit * 100M);
 
@@ -1147,11 +1208,19 @@ public class OrdersController(
 
         foreach (var item in items)
         {
-            if (item.Product.QuantityInStock < item.Quantity)
-                return null;
+            if (item.ProductVariantId.HasValue)
+            {
+                if (item.ProductVariant == null) return null;
+                if (item.ProductVariant.QuantityInStock < item.Quantity) return null;
+            }
+            else
+            {
+                if (item.Product.QuantityInStock < item.Quantity) return null;
+            }
 
             // Determine the unit price taking promotional price or product-level discount into account.
-            decimal unitPrice = item.Product.PromotionalPrice ?? item.Product.Price;
+            var basePrice = item.ProductVariant?.PriceOverride ?? item.Product.Price;
+            decimal unitPrice = item.Product.PromotionalPrice ?? basePrice;
 
             if (item.Product.DiscountPercentage.HasValue && item.Product.PromotionalPrice == null)
             {
@@ -1168,7 +1237,9 @@ public class OrdersController(
                 ItemOrdered = new ProductItemOrdered
                 {
                     ProductId = item.ProductId,
-                    PictureUrl = item.Product.PictureUrl ?? string.Empty,
+                    ProductVariantId = item.ProductVariantId,
+                    VariantColor = item.ProductVariant?.Color,
+                    PictureUrl = item.ProductVariant?.PictureUrl ?? item.Product.PictureUrl ?? string.Empty,
                     Name = item.Product.Name
                 },
                 // store price in cents for orders (long)
@@ -1177,6 +1248,12 @@ public class OrdersController(
             };
             orderItems.Add(orderItem);
 
+            if (item.ProductVariant != null)
+            {
+                item.ProductVariant.QuantityInStock -= item.Quantity;
+            }
+
+            // Keep the product-level QuantityInStock consistent for existing UIs (total stock).
             item.Product.QuantityInStock -= item.Quantity;
         }
 

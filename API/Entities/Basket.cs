@@ -11,19 +11,21 @@ public class Basket
     public string? PaymentIntentId { get; set; }
     public AppCoupon? Coupon { get; set; }
 
-    public void AddItem(Product product, int quantity)
+    public void AddItem(Product product, int quantity, ProductVariant? variant = null)
     {
         if (product == null) ArgumentNullException.ThrowIfNull(product);
         if (quantity <= 0) throw new ArgumentException("Quantity should be greater than zero", 
             nameof(quantity));
 
-        var existingItem = FindItem(product.Id);
+        var existingItem = FindItem(product.Id, variant?.Id);
 
         if (existingItem == null)
         {
             Items.Add(new BasketItem
             {
                 Product = product,
+                ProductVariantId = variant?.Id,
+                ProductVariant = variant,
                 Quantity = quantity
             });
         }
@@ -33,20 +35,20 @@ public class Basket
         }
     }
 
-    public void RemoveItem(int productId, int quantity)
+    public void RemoveItem(int productId, int quantity, int? variantId = null)
     {
         if (quantity <= 0) throw new ArgumentException("Quantity should be greater than zero", 
             nameof(quantity));
 
-        var item = FindItem(productId);
+        var item = FindItem(productId, variantId);
         if (item == null) return;
 
         item.Quantity -= quantity;
         if (item.Quantity <= 0) Items.Remove(item);
     }
 
-    private BasketItem? FindItem(int productId)
+    private BasketItem? FindItem(int productId, int? variantId)
     {
-        return Items.FirstOrDefault(item => item.ProductId == productId);
+        return Items.FirstOrDefault(item => item.ProductId == productId && item.ProductVariantId == variantId);
     }
 }

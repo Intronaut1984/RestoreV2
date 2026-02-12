@@ -18,11 +18,13 @@ public static class BasketExtensions
             Items = basket.Items.Select(x => new BasketItemDto
             {
                 ProductId = x.ProductId,
+                ProductVariantId = x.ProductVariantId,
+                VariantColor = x.ProductVariant?.Color,
                 Name = x.Product?.Name ?? string.Empty,
                 // expose price as euros (decimal) to the client
-                Price = x.Product?.Price ?? 0m,
+                Price = x.ProductVariant?.PriceOverride ?? x.Product?.Price ?? 0m,
                 Genero = x.Product?.Genero,
-                PictureUrl = x.Product?.PictureUrl ?? string.Empty,
+                PictureUrl = x.ProductVariant?.PictureUrl ?? x.Product?.PictureUrl ?? string.Empty,
                 Quantity = x.Quantity,
                 DiscountPercentage = x.Product?.DiscountPercentage
             }).ToList()
@@ -35,6 +37,8 @@ public static class BasketExtensions
         return await query
             .Include(x => x.Items)
             .ThenInclude(x => x.Product)
+            .Include(x => x.Items)
+            .ThenInclude(x => x.ProductVariant)
             .FirstOrDefaultAsync(x => x.BasketId == basketId)
                 ?? throw new Exception("Cannot get basket");
     }

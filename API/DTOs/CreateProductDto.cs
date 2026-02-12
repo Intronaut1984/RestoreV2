@@ -118,4 +118,12 @@ public class CreateProductDto
 
     [JsonPropertyName("categoryIds")]
     public List<int>? CategoryIds { get; set; }
+
+    // Variants (colors) are submitted as JSON plus optional files in the same multipart request.
+    // - variantsJson: JSON array with { id?, key, color, quantityInStock, priceOverride?, descriptionOverride? }
+    // - variantFiles: image uploads
+    // - variantFileKeys: key per uploaded file, to match a variant entry
+    public string? VariantsJson { get; set; }
+    public List<IFormFile>? VariantFiles { get; set; }
+    public List<string>? VariantFileKeys { get; set; }
 }

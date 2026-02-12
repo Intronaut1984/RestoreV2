@@ -18,36 +18,46 @@ export const basketApi = createApi({
             query: () => 'basket',
             providesTags: ['Basket']
         }),
-        addBasketItem: builder.mutation<Basket, { product: Product | Item, quantity: number }>({
-            query: ({ product, quantity }) => {
+        addBasketItem: builder.mutation<Basket, { product: Product | Item; quantity: number; variantId?: number | null }>({
+            query: ({ product, quantity, variantId }) => {
                 const productId = isBasketItem(product) ? product.productId : product.id;
+                const variantPart = variantId ? `&variantId=${variantId}` : '';
                 return {
-                    url: `basket?productId=${productId}&quantity=${quantity}`,
+                    url: `basket?productId=${productId}&quantity=${quantity}${variantPart}`,
                     method: 'POST'
                 }
             },
-            onQueryStarted: async ({ product, quantity }, { dispatch, queryFulfilled }) => {
+            onQueryStarted: async ({ product, quantity, variantId }, { dispatch, queryFulfilled }) => {
                 let isNewBasket = false;
                 const productName = product.name;
                 const patchResult = dispatch(
                     basketApi.util.updateQueryData('fetchBasket', undefined, (draft) => {
                         const productId = isBasketItem(product) ? product.productId : product.id;
+                        const resolvedVariantId = isBasketItem(product)
+                            ? (product.productVariantId ?? null)
+                            : (variantId ?? null);
 
                         if (!draft?.basketId) isNewBasket = true;
 
                         if (!isNewBasket) {
-                            const existingItem = draft.items.find(item => item.productId === productId);
+                            const existingItem = draft.items.find(item => item.productId === productId && (item.productVariantId ?? null) === resolvedVariantId);
                             if (existingItem) existingItem.quantity += quantity;
                             else {
                                 if (isBasketItem(product)) {
                                     draft.items.push(product);
                                 } else {
+                                    const selectedVariant = (product.variants ?? []).find(v => v.id === resolvedVariantId);
+                                    const resolvedPrice = (selectedVariant?.priceOverride ?? null) ?? product.price;
+                                    const resolvedPictureUrl = (selectedVariant?.pictureUrl ?? null) ?? product.pictureUrl;
+
                                     // Explicitly construct the optimistic Item including discountPercentage
                                     const newItem: Item = {
                                         productId: product.id,
+                                        productVariantId: resolvedVariantId,
+                                        variantColor: selectedVariant?.color ?? product.cor ?? null,
                                         name: product.name,
-                                        price: product.price,
-                                        pictureUrl: product.pictureUrl,
+                                        price: resolvedPrice,
+                                        pictureUrl: resolvedPictureUrl,
                                         genero: product.genero,
                                         anoPublicacao: product.anoPublicacao,
                                         quantity,
@@ -75,15 +85,18 @@ export const basketApi = createApi({
                 }
             }
         }),
-        removeBasketItem: builder.mutation<void, { productId: number, quantity: number }>({
-            query: ({ productId, quantity }) => ({
-                url: `basket?productId=${productId}&quantity=${quantity}`,
-                method: 'DELETE'
-            }),
-            onQueryStarted: async ({ productId, quantity }, { dispatch, queryFulfilled }) => {
+        removeBasketItem: builder.mutation<void, { productId: number; quantity: number; variantId?: number | null }>({
+            query: ({ productId, quantity, variantId }) => {
+                const variantPart = variantId ? `&variantId=${variantId}` : '';
+                return {
+                    url: `basket?productId=${productId}&quantity=${quantity}${variantPart}`,
+                    method: 'DELETE'
+                };
+            },
+            onQueryStarted: async ({ productId, quantity, variantId }, { dispatch, queryFulfilled }) => {
                 const patchResult = dispatch(
                     basketApi.util.updateQueryData('fetchBasket', undefined, (draft) => {
-                        const itemIndex = draft.items.findIndex(item => item.productId === productId);
+                        const itemIndex = draft.items.findIndex(item => item.productId === productId && (item.productVariantId ?? null) === (variantId ?? null));
                         if (itemIndex >= 0) {
                             draft.items[itemIndex].quantity -= quantity;
                             if (draft.items[itemIndex].quantity <= 0) {

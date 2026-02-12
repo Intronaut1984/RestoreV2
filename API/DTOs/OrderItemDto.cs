@@ -5,6 +5,8 @@ namespace API.DTOs;
 public class OrderItemDto
 {
     public int ProductId { get; set; }
+    public int? ProductVariantId { get; set; }
+    public string? VariantColor { get; set; }
     public required string Name { get; set; }
     public required string PictureUrl { get; set; }
     public long Price { get; set; }

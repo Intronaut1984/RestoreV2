@@ -17,10 +17,10 @@ export default function AppTextInput<T extends FieldValues>(props: Props<T>) {
             rows={props.rows}
             type={props.type}
             fullWidth
-            value={field.value || ''}
+            value={field.value ?? ''}
             variant="outlined"
             error={!!fieldState.error}
-            helperText={fieldState.error?.message}
+            helperText={fieldState.error?.message ?? props.helperText}
         />
     )
 }

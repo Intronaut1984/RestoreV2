@@ -18,6 +18,9 @@ public class OrderDto
     public required string OrderStatus { get; set; }
     public required PaymentSummary PaymentSummary { get; set; }
 
+    public string? TrackingNumber { get; set; }
+    public DateTime? TrackingAddedAt { get; set; }
+
     public string? CustomerComment { get; set; }
     public DateTime? CustomerCommentedAt { get; set; }
 

@@ -1,6 +1,7 @@
 import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, Grid } from "@mui/material";
+import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/store/store"
-import { useFetchProductsQuery, useFetchFiltersQuery } from "../catalog/catalogApi";
+import { useFetchProductsQuery, useFetchFiltersQuery, useFetchProductDetailsQuery } from "../catalog/catalogApi";
 import Filters from "../catalog/Filters";
 import Search from "../catalog/Search";
 import { currencyFormat, computeFinalPrice } from "../../lib/util";
@@ -10,7 +11,8 @@ import { setPageNumber } from "../catalog/catalogSlice";
 import { useState } from "react";
 import ProductForm from "./ProductForm";
 import { Product } from "../../app/models/product";
-import { useDeleteProductMutation } from "./adminApi";
+import { useDeleteProductMutation, usePublishProductMutation } from "./adminApi";
+import { skipToken } from "@reduxjs/toolkit/query";
 
 export default function InventoryPage() {
     const productParams = useAppSelector(state => state.catalog);
@@ -18,11 +20,16 @@ export default function InventoryPage() {
     const {data: filtersData, isLoading: filtersLoading} = useFetchFiltersQuery();
     const dispatch = useAppDispatch();
     const [editMode, setEditMode] = useState(false);
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
     const [deleteProduct] = useDeleteProductMutation();
+    const [publishProduct] = usePublishProductMutation();
+
+    const { data: selectedProductDetails, isLoading: isLoadingSelectedProduct } = useFetchProductDetailsQuery(
+        selectedProductId ?? skipToken
+    );
 
     const handleSelectProduct = (product: Product) => {
-        setSelectedProduct(product);
+        setSelectedProductId(product.id);
         setEditMode(true);
     }
 
@@ -35,11 +42,22 @@ export default function InventoryPage() {
         }
     }
 
+    const handlePublishProduct = async (id: number) => {
+        try {
+            await publishProduct(id).unwrap();
+            refetch();
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    if (editMode && selectedProductId && (isLoadingSelectedProduct || !selectedProductDetails)) return <div>Loading...</div>
+
     if (editMode) return <ProductForm 
         setEditMode={setEditMode} 
-        product={selectedProduct} 
+        product={selectedProductId ? (selectedProductDetails ?? null) : null} 
         refetch={refetch}
-        setSelectedProduct={setSelectedProduct}
+        setSelectedProduct={(value) => setSelectedProductId(value ? value.id : null)}
     />
     if (!filtersData && !filtersLoading && !data) return <div>Loading...</div>
 
@@ -105,6 +123,11 @@ export default function InventoryPage() {
                                                     <Typography sx={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
                                                         {product.name}
                                                     </Typography>
+                                                    {product.isPublished === false && (
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            Rascunho (por aprovar)
+                                                        </Typography>
+                                                    )}
                                                 </Box>
                                             </Box>
                                         </Box>
@@ -144,6 +167,28 @@ export default function InventoryPage() {
                                     </TableCell>
 
                                     <TableCell align="right">
+                                        <Button
+                                            component={Link}
+                                            to={`/catalog/${product.id}?preview=1`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            variant='outlined'
+                                            size='small'
+                                            sx={{ mr: 1 }}
+                                        >
+                                            Pré-visualizar
+                                        </Button>
+                                        {product.isPublished === false && (
+                                            <Button
+                                                onClick={() => handlePublishProduct(product.id)}
+                                                variant='contained'
+                                                color='success'
+                                                size='small'
+                                                sx={{ mr: 1 }}
+                                            >
+                                                Aprovar
+                                            </Button>
+                                        )}
                                         <Button onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary' size='small' />
                                         <Button onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />} color="error" size='small' sx={{ ml: 1 }} />
                                     </TableCell>
@@ -182,6 +227,11 @@ export default function InventoryPage() {
                                                     >
                                                         {product.name}
                                                     </Typography>
+                                                    {product.isPublished === false && (
+                                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 0.5 }}>
+                                                            Rascunho (por aprovar)
+                                                        </Typography>
+                                                    )}
                                                 </Box>
 
                                                 <Typography variant='caption' color='text.secondary' sx={{ display: 'block', textAlign: 'center', mt: 0.75 }}>
@@ -203,6 +253,26 @@ export default function InventoryPage() {
                                                     <Typography variant='caption' color='text.secondary'>Stock: {product.quantityInStock}</Typography>
                                                 </Box>
                                                 <Box sx={{display: 'flex', gap:1, mt:1, justifyContent: 'center', flexWrap: 'wrap'}}>
+                                                    <Button
+                                                        size='small'
+                                                        component={Link}
+                                                        to={`/catalog/${product.id}?preview=1`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        variant='outlined'
+                                                    >
+                                                        Pré-visualizar
+                                                    </Button>
+                                                    {product.isPublished === false && (
+                                                        <Button
+                                                            size='small'
+                                                            color='success'
+                                                            variant='contained'
+                                                            onClick={() => handlePublishProduct(product.id)}
+                                                        >
+                                                            Aprovar
+                                                        </Button>
+                                                    )}
                                                     <Button size='small' onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary'>Editar</Button>
                                                     <Button size='small' color='error' onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />}>Excluir</Button>
                                                 </Box>

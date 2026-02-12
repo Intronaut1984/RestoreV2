@@ -1,5 +1,5 @@
-import { Link, useParams } from "react-router-dom"
-import { Button, Divider, Grid2, Rating, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton, useTheme } from "@mui/material";
+import { Link, useLocation, useParams } from "react-router-dom"
+import { Button, Divider, Grid2, Rating, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton, useTheme, Tooltip } from "@mui/material";
 import { ArrowBackIosNew, ArrowForwardIos } from '@mui/icons-material'
 import { currencyFormat, computeFinalPrice, emailToUsername } from "../../lib/util";
 import { useCreateProductReviewMutation, useFetchProductDetailsQuery, useFetchProductReviewsQuery, useFetchProductsQuery, useRecordProductClickMutation, useReplyProductReviewMutation } from "./catalogApi";
@@ -41,6 +41,7 @@ function shuffle<T>(arr: T[]): T[] {
 
 export default function ProductDetails() {
   const { id } = useParams();
+  const location = useLocation();
   const theme = useTheme();
   const { data: user } = useUserInfoQuery();
   const [recordClick] = useRecordProductClickMutation();
@@ -49,8 +50,12 @@ export default function ProductDetails() {
   const [addBasketItem] = useAddBasketItemMutation();
   const {data: basket} = useFetchBasketQuery();
   const productId = id ? +id : 0;
-  const item = basket?.items.find(x => x.productId === productId);
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+
+  const item = useMemo(() => {
+    return basket?.items.find(x => x.productId === productId && (x.productVariantId ?? null) === (selectedVariantId ?? null));
+  }, [basket?.items, productId, selectedVariantId]);
 
   useEffect(() => {
     setQuantity(item?.quantity ?? 1);
@@ -66,7 +71,13 @@ export default function ProductDetails() {
   const [reviewSaved, setReviewSaved] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
+  const isPreview = useMemo(() => {
+    const sp = new URLSearchParams(location.search);
+    return sp.get('preview') === '1';
+  }, [location.search]);
+
   const isAdmin = user?.roles?.includes('Admin') ?? false;
+  const isAdminView = isAdmin && !isPreview;
   const [replyingReviewId, setReplyingReviewId] = useState<number | null>(null);
   const [adminReplyText, setAdminReplyText] = useState('');
   const [adminReplyError, setAdminReplyError] = useState<string | null>(null);
@@ -117,7 +128,6 @@ export default function ProductDetails() {
   }, [similarProducts, similarPage]);
 
   // carousel state: images array and current index
-  const images = product ? [product.pictureUrl, ...(product.secondaryImages ?? [])].filter(Boolean) : [];
   const [current, setCurrent] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomOrigin, setZoomOrigin] = useState('50% 50%');
@@ -126,7 +136,7 @@ export default function ProductDetails() {
   useEffect(() => {
     // reset to first image when product changes
     setCurrent(0);
-  }, [product?.id]);
+  }, [product?.id, selectedVariantId]);
 
   useEffect(() => {
     if (!analyticsAllowed) return;
@@ -145,7 +155,45 @@ export default function ProductDetails() {
     recordClick({ productId, sessionId }).catch(() => undefined);
   }, [productId, recordClick, analyticsAllowed]);
 
+  const variants = useMemo(() => {
+    return (product?.variants ?? []).filter(v => !!v && typeof v.color === 'string' && v.color.trim().length > 0);
+  }, [product?.variants]);
+  const hasVariants = variants.length > 0;
+
+  useEffect(() => {
+    if (!product) return;
+
+    if (!hasVariants) {
+      setSelectedVariantId(null);
+      return;
+    }
+
+    setSelectedVariantId((current) => {
+      if (current && variants.some(v => v.id === current)) return current;
+      // If the product has a base color, default to the base (no variant) view.
+      if (product.cor && product.cor.trim().length > 0) return null;
+      return variants[0].id;
+    });
+  }, [product?.id, product, hasVariants, variants]);
+
+  const selectedVariant = useMemo(() => {
+    if (!hasVariants) return null;
+    if (selectedVariantId == null) return null;
+    return variants.find(v => v.id === selectedVariantId) ?? null;
+  }, [hasVariants, variants, selectedVariantId]);
+
   if (!product || isLoading) return <div>Loading...</div>
+
+  const effectivePrice = (selectedVariant?.priceOverride ?? null) ?? product.price;
+  const effectivePictureUrl = (selectedVariant?.pictureUrl ?? null) ?? product.pictureUrl;
+  const effectiveDescription = (selectedVariant?.descriptionOverride ?? null) ?? (product.description ?? product.synopsis);
+  const effectiveStock = selectedVariant ? selectedVariant.quantityInStock : product.quantityInStock;
+
+  // Promotional price is a product-level value; if a variant overrides the price, we ignore promotionalPrice
+  // so the selected color's priceOverride can be discounted correctly.
+  const effectivePromotionalPrice = selectedVariant?.priceOverride != null ? null : (product.promotionalPrice ?? null);
+
+  const images = [effectivePictureUrl, ...(product.secondaryImages ?? [])].filter(Boolean);
 
   const ratingValue = typeof product.averageRating === 'number' ? product.averageRating : 0;
   const ratingsCount = typeof product.ratingsCount === 'number' ? product.ratingsCount : 0;
@@ -153,6 +201,27 @@ export default function ProductDetails() {
 
   const isLight = theme.palette.mode === 'light';
   const accentColor: 'warning' | 'secondary' = isLight ? 'warning' : 'secondary';
+
+  const resolveDotBg = (colorName: string | null | undefined) => {
+    const n = (colorName ?? '').trim().toLowerCase();
+    if (!n) return theme.palette.grey[400];
+
+    // allow hex/rgb/hsl input (admin might type it)
+    if (n.startsWith('#') || n.startsWith('rgb') || n.startsWith('hsl')) return colorName as string;
+
+    if (n === 'branco' || n === 'white') return theme.palette.common.white;
+    if (n === 'preto' || n === 'black') return theme.palette.common.black;
+    if (n === 'cinzento' || n === 'cinza' || n === 'gray' || n === 'grey') return theme.palette.grey[600];
+    if (n === 'vermelho' || n === 'red') return theme.palette.error.main;
+    if (n === 'azul' || n === 'blue') return theme.palette.primary.main;
+    if (n === 'verde' || n === 'green') return theme.palette.success.main;
+    if (n === 'amarelo' || n === 'yellow') return theme.palette.warning.main;
+    if (n === 'laranja' || n === 'orange') return theme.palette.warning.dark;
+    if (n === 'rosa' || n === 'pink') return theme.palette.secondary.main;
+    if (n === 'roxo' || n === 'purple') return theme.palette.secondary.dark;
+
+    return theme.palette.grey[400];
+  };
 
   const actionButtonSx = {
     height: { xs: '48px', md: '55px' },
@@ -164,22 +233,24 @@ export default function ProductDetails() {
   const handleAddToBasket = () => {
     const qtyToAdd = item ? 1 : quantity;
     if (qtyToAdd <= 0) return;
-    addBasketItem({ product, quantity: qtyToAdd });
+    addBasketItem({ product, quantity: qtyToAdd, variantId: selectedVariantId ?? null });
   };
 
   const handleUpdateBasket = () => {
     const updatedQuantity = item ? Math.abs(quantity - item.quantity) : quantity;
     if (!item || quantity > item.quantity) {
-      addBasketItem({product, quantity: updatedQuantity})
+      addBasketItem({product, quantity: updatedQuantity, variantId: selectedVariantId ?? null})
     } else {
-      removeBasketItem({productId: product.id, quantity: updatedQuantity})
+      removeBasketItem({productId: product.id, variantId: selectedVariantId ?? null, quantity: updatedQuantity})
     }
   }
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const value = +event.currentTarget.value;
 
-    if (value >= 0) setQuantity(value)
+    if (value < 0) return;
+    const max = typeof effectiveStock === 'number' ? effectiveStock : value;
+    setQuantity(Math.min(value, max));
   }
 
   const productDetails: Array<{ label: string; value: string }> = [];
@@ -199,13 +270,13 @@ export default function ProductDetails() {
 
   // Base fields (always relevant)
   pushIfValue('Nome', product.name);
-  pushIfValue('Descrição', product.description ?? product.synopsis);
+  pushIfValue('Descrição', effectiveDescription);
   pushIfValue('Subtítulo', product.subtitle);
-  pushIfValue('Preço', currencyFormat(product.price));
+  pushIfValue('Preço', currencyFormat(effectivePrice));
   if (product.promotionalPrice) pushIfValue('Preço Promocional', currencyFormat(product.promotionalPrice));
   if (product.discountPercentage != null) pushIfValue('Desconto (%)', product.discountPercentage);
 
-  const isLowStock = typeof product.quantityInStock === 'number' && product.quantityInStock > 0 && product.quantityInStock < 5;
+  const isLowStock = typeof effectiveStock === 'number' && effectiveStock > 0 && effectiveStock < 5;
 
   const isBook = (p: typeof product) => {
     return (p.categories ?? []).some(c => (c?.name ?? '').toLowerCase().includes('livro'))
@@ -429,12 +500,12 @@ export default function ProductDetails() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           {product.discountPercentage && product.discountPercentage > 0 ? (
             <>
-              <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>{currencyFormat(product.price)}</Typography>
-              <Typography variant="h6" color='error' sx={{ fontSize: { xs: '1rem', md: '1.5rem' }, fontWeight: 700 }}>{currencyFormat(computeFinalPrice(product.price, product.discountPercentage))}</Typography>
+              <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>{currencyFormat(effectivePrice)}</Typography>
+              <Typography variant="h6" color='error' sx={{ fontSize: { xs: '1rem', md: '1.5rem' }, fontWeight: 700 }}>{currencyFormat(computeFinalPrice(effectivePrice, product.discountPercentage, effectivePromotionalPrice))}</Typography>
               <Typography variant="caption" sx={{ bgcolor: 'error.main', color: 'common.white', px: 0.5, borderRadius: 0.5, ml: 1 }}>{`-${product.discountPercentage}%`}</Typography>
             </>
           ) : (
-            <Typography variant="h6" color='secondary' sx={{ fontSize: { xs: '1rem', md: '1.5rem' } }}>{currencyFormat(product.price)}</Typography>
+            <Typography variant="h6" color='secondary' sx={{ fontSize: { xs: '1rem', md: '1.5rem' } }}>{currencyFormat(computeFinalPrice(effectivePrice, null, effectivePromotionalPrice))}</Typography>
           )}
 
           {isLowStock && (
@@ -463,6 +534,67 @@ export default function ProductDetails() {
           </Table>
         </TableContainer>
         <Grid2 container spacing={2} marginTop={3}>
+          {hasVariants && (
+            <Grid2 size={{ xs: 12 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.75 }}>
+                Cor
+              </Typography>
+
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                {(product.cor ?? '').trim().length > 0 && (
+                  <Tooltip title={product.cor} arrow>
+                    <Box
+                      role="button"
+                      aria-label={`Cor ${product.cor}`}
+                      onClick={() => setSelectedVariantId(null)}
+                      sx={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        bgcolor: resolveDotBg(product.cor),
+                        borderStyle: 'solid',
+                        borderWidth: selectedVariantId == null ? 2 : 1,
+                        borderColor: selectedVariantId == null ? `${accentColor}.main` : 'divider',
+                        cursor: product.quantityInStock <= 0 ? 'not-allowed' : 'pointer',
+                        opacity: product.quantityInStock <= 0 ? 0.5 : 1,
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </Tooltip>
+                )}
+
+                {variants.map((v) => (
+                  <Tooltip key={v.id} title={v.color} arrow>
+                    <Box
+                      role="button"
+                      aria-label={`Cor ${v.color}`}
+                      onClick={() => {
+                        if (v.quantityInStock <= 0) return;
+                        setSelectedVariantId(v.id);
+                      }}
+                      sx={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        bgcolor: resolveDotBg(v.color),
+                        borderStyle: 'solid',
+                        borderWidth: selectedVariantId === v.id ? 2 : 1,
+                        borderColor: selectedVariantId === v.id ? `${accentColor}.main` : 'divider',
+                        cursor: v.quantityInStock <= 0 ? 'not-allowed' : 'pointer',
+                        opacity: v.quantityInStock <= 0 ? 0.5 : 1,
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </Tooltip>
+                ))}
+              </Box>
+
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                Selecionado: {selectedVariant ? selectedVariant.color : (product.cor ?? '—')}
+              </Typography>
+            </Grid2>
+          )}
+
             <Grid2 size={{ xs: 12, md: 4 }} sx={{ width: { xs: '100%', md: '33.333%' } }}>
             <TextField
               variant="outlined"
@@ -471,12 +603,13 @@ export default function ProductDetails() {
               fullWidth
               value={quantity}
               onChange={handleInputChange}
+              disabled={typeof effectiveStock === 'number' && effectiveStock <= 0}
             />
           </Grid2>
             <Grid2 size={{ xs: 12, md: 4 }} sx={{ width: { xs: '100%', md: '33.333%' } }}>
             <Button
                 onClick={handleAddToBasket}
-                disabled={!item && quantity <= 0}
+                disabled={!item && (quantity <= 0 || (typeof effectiveStock === 'number' && effectiveStock <= 0))}
                 sx={actionButtonSx}
               color={accentColor}
               size="large"
@@ -554,7 +687,7 @@ export default function ProductDetails() {
                       </Box>
                     )}
 
-                    {isAdmin && (
+                    {isAdminView && (
                       <Box sx={{ mt: 1 }}>
                         {replyingReviewId !== r.id ? (
                           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>

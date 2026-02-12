@@ -123,4 +123,8 @@ public class UpdateProductDto
 
     [JsonPropertyName("categoryIds")]
     public List<int>? CategoryIds { get; set; }
+
+    public string? VariantsJson { get; set; }
+    public List<IFormFile>? VariantFiles { get; set; }
+    public List<string>? VariantFileKeys { get; set; }
 }

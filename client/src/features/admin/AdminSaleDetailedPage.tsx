@@ -5,6 +5,8 @@ import {
   useResolveOrderIncidentMutation,
   useReplyOrderIncidentMutation,
   useReplyOrderCommentMutation,
+  useUpdateAnyOrderStatusMutation,
+  useUpdateAnyOrderTrackingMutation,
 } from "../orders/orderApi";
 import {
   Box,
@@ -39,11 +41,10 @@ import {
   getOrderStatusSx,
 } from "../../lib/orderStatus";
 import { useEffect, useState } from "react";
-import { useUpdateAnyOrderStatusMutation } from "../orders/orderApi";
 import { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import { getIncidentStatusLabel } from "../../lib/incidentStatus";
 
-function getApiErrorMessage(error: unknown) {
+function getApiErrorMessage(error: unknown, fallback: string) {
   if (!error) return null;
 
   const maybeFetchError = error as FetchBaseQueryError;
@@ -52,7 +53,7 @@ function getApiErrorMessage(error: unknown) {
     if (typeof data === "string") return data;
   }
 
-  return "Não foi possível atualizar o estado";
+  return fallback;
 }
 
 export default function AdminSaleDetailedPage() {
@@ -62,6 +63,9 @@ export default function AdminSaleDetailedPage() {
   const [updateStatus, { isLoading: isUpdating, error: updateError }] =
     useUpdateAnyOrderStatusMutation();
 
+  const [updateTracking, { isLoading: isUpdatingTracking, error: trackingError }] =
+    useUpdateAnyOrderTrackingMutation();
+
   const { data: order, isLoading } = useFetchAnyOrderDetailedQuery(+id!);
   const { data: incident, isLoading: isIncidentLoading, refetch: refetchIncident } = useFetchOrderIncidentQuery(+id!);
   const [resolveIncident, { isLoading: isResolvingIncident, error: resolveIncidentError }] = useResolveOrderIncidentMutation();
@@ -69,6 +73,8 @@ export default function AdminSaleDetailedPage() {
   const [replyComment, { isLoading: isReplyingComment, error: replyCommentError }] = useReplyOrderCommentMutation();
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [saved, setSaved] = useState(false);
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [trackingSaved, setTrackingSaved] = useState(false);
   const [incidentReplyText, setIncidentReplyText] = useState('');
   const [commentReplyText, setCommentReplyText] = useState('');
   const [replySaved, setReplySaved] = useState(false);
@@ -76,6 +82,10 @@ export default function AdminSaleDetailedPage() {
   useEffect(() => {
     if (order?.orderStatus) setSelectedStatus(order.orderStatus);
   }, [order?.orderStatus]);
+
+  useEffect(() => {
+    setTrackingNumber(order?.trackingNumber ?? '');
+  }, [order?.trackingNumber]);
 
   useEffect(() => {
     setIncidentReplyText(incident?.adminReply ?? '');
@@ -93,6 +103,9 @@ export default function AdminSaleDetailedPage() {
   const apiBaseUrl = ((import.meta.env.VITE_API_URL as string | undefined) ?? '/api/').replace(/\/?$/, '/');
   const receiptUrl = `${apiBaseUrl}orders/all/${order.id}/invoice`;
   const incidentAttachmentUrl = (attachmentId: number) => `${apiBaseUrl}orders/${order.id}/incident/attachments/${attachmentId}`;
+  const cttUrl = trackingNumber.trim().length
+    ? `https://www.ctt.pt/feapl_2/app/open/objectSearch/objectSearch.jspx?objects=${encodeURIComponent(trackingNumber.trim())}`
+    : '';
 
   const selectOptions = (() => {
     const base = adminOrderStatusOptions;
@@ -247,7 +260,7 @@ export default function AdminSaleDetailedPage() {
 
           {updateError && (
             <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-              {getApiErrorMessage(updateError)}
+              {getApiErrorMessage(updateError, 'Não foi possível atualizar o estado')}
             </Typography>
           )}
           {saved && (
@@ -274,6 +287,76 @@ export default function AdminSaleDetailedPage() {
             </Button>
           </Box>
         </Box>
+
+        {order.orderStatus === 'Shipped' && (
+          <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
+            <Typography variant="subtitle1" fontWeight="500">Tracking CTT</Typography>
+
+            {!!order.trackingNumber && (
+              <Typography variant="body2" fontWeight="300" sx={{ mt: 0.5 }}>
+                Atual: {order.trackingNumber}
+              </Typography>
+            )}
+
+            <TextField
+              fullWidth
+              sx={{ mt: 1 }}
+              value={trackingNumber}
+              onChange={(e) => {
+                setTrackingSaved(false);
+                setTrackingNumber(e.target.value);
+              }}
+              label="Número de tracking"
+              placeholder="Ex: XX123456789PT"
+            />
+
+            {!!cttUrl && (
+              <Button
+                component="a"
+                href={cttUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="text"
+                sx={{ mt: 0.5, px: 0 }}
+              >
+                Abrir tracking CTT
+              </Button>
+            )}
+
+            {trackingError && (
+              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                {getApiErrorMessage(trackingError, 'Não foi possível guardar o tracking')}
+              </Typography>
+            )}
+            {trackingSaved && (
+              <Typography variant="body2" sx={{ mt: 1, color: 'green' }}>
+                Tracking guardado.
+              </Typography>
+            )}
+
+            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                disabled={
+                  isUpdatingTracking ||
+                  trackingNumber.trim().length < 6 ||
+                  trackingNumber.trim() === (order.trackingNumber ?? '')
+                }
+                onClick={async () => {
+                  setTrackingSaved(false);
+                  try {
+                    await updateTracking({ id: order.id, trackingNumber: trackingNumber.trim() }).unwrap();
+                    setTrackingSaved(true);
+                  } catch {
+                    // handled via trackingError
+                  }
+                }}
+              >
+                Guardar tracking
+              </Button>
+            </Box>
+          </Box>
+        )}
 
         <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
           <Typography variant="subtitle1" fontWeight="500">
@@ -331,7 +414,7 @@ export default function AdminSaleDetailedPage() {
 
             {replyIncidentError && (
               <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-                {getApiErrorMessage(replyIncidentError)}
+                {getApiErrorMessage(replyIncidentError, 'Não foi possível enviar a resposta')}
               </Typography>
             )}
 
@@ -379,7 +462,7 @@ export default function AdminSaleDetailedPage() {
 
         {resolveIncidentError && (
           <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-            {getApiErrorMessage(resolveIncidentError)}
+            {getApiErrorMessage(resolveIncidentError, 'Não foi possível resolver o incidente')}
           </Typography>
         )}
 
@@ -442,7 +525,7 @@ export default function AdminSaleDetailedPage() {
 
               {replyCommentError && (
                 <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-                  {getApiErrorMessage(replyCommentError)}
+                  {getApiErrorMessage(replyCommentError, 'Não foi possível enviar a resposta')}
                 </Typography>
               )}
 
@@ -481,7 +564,7 @@ export default function AdminSaleDetailedPage() {
           <TableBody>
             {order.orderItems.map((item) => (
               <TableRow
-                key={item.productId}
+                key={`${item.productId}-${item.productVariantId ?? 'base'}`}
                 sx={{ borderBottom: "1px solid rgba(224, 224, 224, 1)" }}
               >
                 <TableCell sx={{ py: 4 }}>
@@ -493,6 +576,11 @@ export default function AdminSaleDetailedPage() {
                     />
                     <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1 }}>
                       <Typography>{item.name}</Typography>
+                      {!!item.variantColor && (
+                        <Typography variant="body2" color="text.secondary">
+                          Cor: {item.variantColor}
+                        </Typography>
+                      )}
                     </Box>
                   </Box>
                 </TableCell>

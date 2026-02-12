@@ -50,6 +50,9 @@ export default function OrderDetailedPage() {
     const apiBaseUrl = ((import.meta.env.VITE_API_URL as string | undefined) ?? '/api/').replace(/\/?$/, '/');
     const receiptUrl = `${apiBaseUrl}orders/${order.id}/invoice`;
     const incidentAttachmentUrl = (attachmentId: number) => `${apiBaseUrl}orders/${order.id}/incident/attachments/${attachmentId}`;
+    const cttUrl = order.trackingNumber
+        ? `https://www.ctt.pt/feapl_2/app/open/objectSearch/objectSearch.jspx?objects=${encodeURIComponent(order.trackingNumber)}`
+        : '';
 
     return (
         <Box sx={{ maxWidth: 'md', mx: 'auto', px: 1 }}>
@@ -102,6 +105,25 @@ export default function OrderDetailedPage() {
                     <Typography variant='subtitle1' fontWeight='500'>Estado da encomenda</Typography>
                     <Typography variant='body2' fontWeight='300' sx={{ ...getOrderStatusSx(order.orderStatus) }}>{getOrderStatusLabel(order.orderStatus)}</Typography>
                 </Box>
+
+                {!!order.trackingNumber && (
+                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
+                        <Typography variant='subtitle1' fontWeight='500'>Tracking CTT</Typography>
+                        <Typography variant='body2' fontWeight='300'>{order.trackingNumber}</Typography>
+                        {!!cttUrl && (
+                            <Button
+                                component="a"
+                                href={cttUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                variant='text'
+                                sx={{ px: 0, mt: 0.5 }}
+                            >
+                                Acompanhar no site dos CTT
+                            </Button>
+                        )}
+                    </Box>
+                )}
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
                     <Typography variant='subtitle1' fontWeight='500'>Data da encomenda</Typography>
                     <Typography variant='body2' fontWeight='300'>{format(order.orderDate, 'dd MMM yyyy')}</Typography>
@@ -347,12 +369,17 @@ export default function OrderDetailedPage() {
                 <Table>
                     <TableBody>
                         {order.orderItems.map((item) => (
-                            <TableRow key={item.productId} sx={{ borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
+                            <TableRow key={`${item.productId}-${item.productVariantId ?? 'base'}`} sx={{ borderBottom: '1px solid rgba(224, 224, 224, 1)' }}>
                                 <TableCell sx={{ py: 4 }}>
                                     <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
                                         <img src={item.pictureUrl} alt={item.name} style={{ width: 40, height: 40 }} />
                                         <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1 }}>
                                             <Typography>{item.name}</Typography>
+                                            {!!item.variantColor && (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Cor: {item.variantColor}
+                                                </Typography>
+                                            )}
                                         </Box>
                                     </Box>
                                 </TableCell>

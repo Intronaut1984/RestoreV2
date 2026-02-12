@@ -157,7 +157,9 @@ public static class ProductExtensions
 
         if (corList.Count > 0)
         {
-            query = query.Where(x => x.Cor != null && corList.Contains(x.Cor.ToLower()));
+            query = query.Where(x =>
+                (x.Cor != null && corList.Contains(x.Cor.ToLower()))
+                || x.Variants.Any(v => corList.Contains(v.Color.ToLower())));
         }
 
         if (materialList.Count > 0)
