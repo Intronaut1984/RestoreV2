@@ -27,10 +27,21 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<ProductReview> ProductReviews { get; set; }
     public required DbSet<OrderIncident> OrderIncidents { get; set; }
     public required DbSet<OrderIncidentAttachment> OrderIncidentAttachments { get; set; }
+    public required DbSet<UserNotification> UserNotifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<UserNotification>(b =>
+        {
+            b.HasIndex(x => x.UserId);
+            b.HasIndex(x => new { x.UserId, x.IsRead });
+            b.Property(x => x.UserId).IsRequired().HasMaxLength(450);
+            b.Property(x => x.Title).IsRequired().HasMaxLength(200);
+            b.Property(x => x.Message).IsRequired().HasMaxLength(2000);
+            b.Property(x => x.Url).HasMaxLength(500);
+        });
 
         builder.Entity<OrderIncident>(b =>
         {

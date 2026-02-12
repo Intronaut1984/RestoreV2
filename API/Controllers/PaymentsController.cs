@@ -10,6 +10,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Stripe;
+using Microsoft.AspNetCore.Identity;
+using API.Entities;
+using System.Linq;
 
 namespace API.Controllers;
 
@@ -20,7 +23,9 @@ public class PaymentsController(
     ILogger<PaymentsController> logger,
     IEmailService emailService,
     IInvoicePdfService invoicePdfService,
-    IOptions<EmailSettings> emailOptions)
+    IOptions<EmailSettings> emailOptions,
+    INotificationService notificationService,
+    UserManager<User> userManager)
         : BaseApiController
 {
     [Authorize]
@@ -142,10 +147,63 @@ public class PaymentsController(
         if (transitionedToPaymentReceived)
         {
             await TrySendProcessingConfirmationEmail(order);
+
+            await notificationService.TryCreateForEmailAsync(
+                order.BuyerEmail,
+                "Pagamento confirmado",
+                $"Pagamento confirmado. A encomenda #{order.Id} está a ser processada.",
+                $"/orders/{order.Id}");
+
+            await TryNotifyAdminsPaymentReceivedAsync(order);
         }
 
         // Send receipt PDF once after payment is received
         await TrySendReceiptEmailIfNeeded(order);
+    }
+
+    private async Task TryNotifyAdminsPaymentReceivedAsync(Order order)
+    {
+        try
+        {
+            var admins = await userManager.GetUsersInRoleAsync("Admin");
+            var adminEmails = admins
+                .Select(a => (a.Email ?? string.Empty).Trim())
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (adminEmails.Count == 0) return;
+
+            foreach (var to in adminEmails)
+            {
+                await notificationService.TryCreateForEmailAsync(
+                    to,
+                    "Pagamento recebido",
+                    $"Pagamento recebido para a encomenda #{order.Id}.",
+                    $"/admin/sales/{order.Id}");
+            }
+
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var url = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/admin/sales/{order.Id}";
+            var subject = $"[Venda] Pagamento recebido (Encomenda #{order.Id})";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Pagamento confirmado para a encomenda <strong>#{order.Id}</strong>.</p>
+                  <p><strong>Cliente:</strong> {System.Net.WebUtility.HtmlEncode(order.BuyerEmail)}</p>
+                  {(string.IsNullOrWhiteSpace(url) ? string.Empty : $"<p>Ver venda: <a href=\"{url}\">{url}</a></p>")}
+                </div>
+                """;
+
+            foreach (var to in adminEmails)
+            {
+                await emailService.SendEmailAsync(to, subject, html, replyToEmail: order.BuyerEmail);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to notify admins about payment received for order {OrderId}", order.Id);
+        }
     }
 
     private async Task TrySendProcessingConfirmationEmail(Order order)

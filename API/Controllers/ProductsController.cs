@@ -26,7 +26,8 @@ namespace API.Controllers
         UserManager<User> userManager,
         IEmailService emailService,
         IOptions<EmailSettings> emailOptions,
-        ILogger<ProductsController> logger) : BaseApiController
+        ILogger<ProductsController> logger,
+        INotificationService notificationService) : BaseApiController
     {
         [HttpGet]
         public async Task<ActionResult<List<Product>>> GetProducts(
@@ -295,6 +296,13 @@ namespace API.Controllers
             var saved = await context.SaveChangesAsync(ct) > 0;
             if (!saved) return BadRequest("Problem saving reply");
 
+            await notificationService.TryCreateForEmailAsync(
+                review.BuyerEmail,
+                "Resposta à sua avaliação",
+                $"Respondemos à sua avaliação do produto #{review.ProductId}.",
+                $"/catalog/{review.ProductId}",
+                ct);
+
             await TrySendProductReviewReplyEmailAsync(review, reply);
 
             return Ok(new ProductReviewDto
@@ -350,6 +358,16 @@ namespace API.Controllers
                     .ToList();
 
                 if (adminEmails.Count == 0) return;
+
+                foreach (var to in adminEmails)
+                {
+                    await notificationService.TryCreateForEmailAsync(
+                        to,
+                        "Nova avaliação",
+                        $"Nova avaliação no produto #{product.Id}.",
+                        $"/catalog/{product.Id}",
+                        ct);
+                }
 
                 var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
                 var productUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/catalog/{product.Id}";

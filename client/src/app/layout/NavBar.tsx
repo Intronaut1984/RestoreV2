@@ -1,5 +1,5 @@
 import { AppBar, Badge, Box, IconButton, LinearProgress, List, ListItem, Toolbar, Typography, Menu, MenuItem, useTheme, useMediaQuery, Drawer, Select, SelectChangeEvent } from "@mui/material";
-import { DarkMode, LightMode, ShoppingCart, AccountCircle, FilterList as FilterListIcon, Search as SearchIcon, FavoriteBorder } from '@mui/icons-material';
+import { DarkMode, LightMode, ShoppingCart, AccountCircle, FilterList as FilterListIcon, Search as SearchIcon, FavoriteBorder, NotificationsNone } from '@mui/icons-material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import { useFetchFavoritesQuery, useRemoveFavoriteMutation } from '../../features/catalog/favoritesApi';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -16,6 +16,7 @@ import Search from '../../features/catalog/Search';
 import { useGetLogoQuery } from '../../features/admin/logoApi';
 import { computeFinalPrice, currencyFormat } from "../../lib/util";
 import { setHasDiscount, setOrderBy } from "../../features/catalog/catalogSlice";
+import { useGetNotificationsQuery, useGetUnreadCountQuery, useMarkAllReadMutation, useMarkReadMutation } from "../../features/notifications/notificationsApi";
 
 const midLinks: { title: string; path: string }[] = [
     // Removed navigation links (Loja, Sobre, Promoções, etc.)
@@ -37,6 +38,22 @@ const navStyles = {
 
 export default function NavBar() {
     const {data: user} = useUserInfoQuery();
+    const { data: unreadCount } = useGetUnreadCountQuery(undefined, {
+        skip: !user,
+        pollingInterval: user ? 10000 : 0,
+        refetchOnFocus: true,
+        refetchOnReconnect: true
+    });
+    const [markAllRead] = useMarkAllReadMutation();
+    const [markRead] = useMarkReadMutation();
+    const [anchorNotificationsEl, setAnchorNotificationsEl] = useState<null | HTMLElement>(null);
+    const notificationsOpen = Boolean(anchorNotificationsEl);
+    const { data: notifications } = useGetNotificationsQuery(20, {
+        skip: !user || !notificationsOpen,
+        refetchOnFocus: true,
+        refetchOnReconnect: true,
+        refetchOnMountOrArgChange: true
+    });
     const { isLoading, darkMode } = useAppSelector(state => state.ui);
     const dispatch = useAppDispatch();
     const { data: basket } = useFetchBasketQuery();
@@ -210,6 +227,80 @@ export default function NavBar() {
                             <FavoriteBorder />
                         </Badge>
                     </IconButton>
+
+                    {user && (
+                        <IconButton
+                            size="large"
+                            sx={{ color: 'inherit' }}
+                            onClick={(e) => setAnchorNotificationsEl(e.currentTarget)}
+                            aria-label="notifications"
+                        >
+                            <Badge badgeContent={unreadCount ?? 0} color={theme.palette.mode === 'light' ? 'warning' : 'secondary'}>
+                                <NotificationsNone />
+                            </Badge>
+                        </IconButton>
+                    )}
+
+                    <Menu
+                        anchorEl={anchorNotificationsEl}
+                        open={notificationsOpen}
+                        onClose={() => setAnchorNotificationsEl(null)}
+                        sx={{ zIndex: (theme) => theme.zIndex.appBar + 30 }}
+                    >
+                        <MenuItem
+                            onClick={async () => {
+                                try {
+                                    await markAllRead().unwrap();
+                                } catch {
+                                    // handled by baseApi
+                                } finally {
+                                    setAnchorNotificationsEl(null);
+                                }
+                            }}
+                            disabled={!user || (unreadCount ?? 0) === 0}
+                        >
+                            Marcar todas como lidas
+                        </MenuItem>
+
+                        {(!notifications || notifications.length === 0) ? (
+                            <MenuItem disabled>
+                                Sem notificações
+                            </MenuItem>
+                        ) : (
+                            notifications.map(n => (
+                                <MenuItem
+                                    key={n.id}
+                                    onClick={async () => {
+                                        try {
+                                            if (!n.isRead) await markRead(n.id).unwrap();
+                                        } catch {
+                                            // handled by baseApi
+                                        } finally {
+                                            setAnchorNotificationsEl(null);
+                                            if (n.url) navigate(n.url);
+                                        }
+                                    }}
+                                    sx={{
+                                        maxWidth: 360,
+                                        whiteSpace: 'normal',
+                                        alignItems: 'flex-start'
+                                    }}
+                                >
+                                    <Box>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: n.isRead ? 400 : 700 }}>
+                                            {n.title}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {n.message}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {new Date(n.createdAt).toLocaleString()}
+                                        </Typography>
+                                    </Box>
+                                </MenuItem>
+                            ))
+                        )}
+                    </Menu>
 
                     <IconButton component={Link} to='/basket' size="large" sx={{ color: 'inherit' }}>
                         <Badge badgeContent={itemCount} color={theme.palette.mode === 'light' ? 'warning' : 'secondary'}>

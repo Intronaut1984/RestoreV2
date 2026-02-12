@@ -31,7 +31,8 @@ public class OrdersController(
     IOptions<EmailSettings> emailOptions,
     IInvoicePdfService invoicePdfService,
     IWebHostEnvironment env,
-    UserManager<User> userManager) : BaseApiController
+    UserManager<User> userManager,
+    INotificationService notificationService) : BaseApiController
 {
     private const decimal DefaultRate = 5m;
     private const decimal DefaultFreeShippingThreshold = 100m;
@@ -201,6 +202,12 @@ public class OrdersController(
         var saved = await context.SaveChangesAsync() > 0;
         if (!saved) return BadRequest("Problem updating order status");
 
+        await notificationService.TryCreateForEmailAsync(
+            order.BuyerEmail,
+            "Atualização da encomenda",
+            $"A encomenda #{order.Id} foi atualizada para: {newStatus}.",
+            $"/orders/{order.Id}");
+
         if (newStatus == OrderStatus.PaymentReceived)
         {
             await TrySendReceiptEmailIfNeeded(order, CancellationToken.None);
@@ -315,6 +322,13 @@ public class OrdersController(
         var saved = await context.SaveChangesAsync(ct) > 0;
         if (!saved) return BadRequest("Problem saving reply");
 
+        await notificationService.TryCreateForEmailAsync(
+            order.BuyerEmail,
+            "Resposta da loja",
+            $"Respondemos ao seu comentário na encomenda #{order.Id}.",
+            $"/orders/{order.Id}",
+            ct);
+
         await TrySendOrderCommentReplyEmail(order, reply);
 
         var updated = await context.Orders
@@ -367,9 +381,18 @@ public class OrdersController(
                 </div>
                 """;
 
-            foreach (var to in adminEmails)
+            foreach (var adminEmail in adminEmails)
             {
-                await emailService.SendEmailAsync(to, subject, html, replyToEmail: order.BuyerEmail);
+                await notificationService.TryCreateForEmailAsync(
+                    adminEmail,
+                    "Novo comentário do cliente",
+                    $"Novo comentário na encomenda #{order.Id}.",
+                    $"/admin/sales/{order.Id}");
+            }
+
+            foreach (var adminEmail in adminEmails)
+            {
+                await emailService.SendEmailAsync(adminEmail, subject, html, replyToEmail: order.BuyerEmail);
             }
         }
         catch (Exception ex)
@@ -453,6 +476,13 @@ public class OrdersController(
         var saved = await context.SaveChangesAsync(ct) > 0;
         if (!saved) return BadRequest("Problem saving reply");
 
+        await notificationService.TryCreateForEmailAsync(
+            incident.BuyerEmail,
+            "Resposta do suporte",
+            $"Respondemos ao seu incidente da encomenda #{incident.OrderId}.",
+            $"/orders/{incident.OrderId}",
+            ct);
+
         await TrySendIncidentReplyEmail(incident, reply);
         return Ok();
     }
@@ -501,6 +531,13 @@ public class OrdersController(
 
         context.OrderIncidents.Add(incident);
         await context.SaveChangesAsync(ct);
+
+        await notificationService.TryCreateForEmailAsync(
+            order.BuyerEmail,
+            "Incidente aberto",
+            $"O seu incidente para a encomenda #{order.Id} foi registado.",
+            $"/orders/{order.Id}",
+            ct);
 
         var writtenFiles = new List<string>();
         try
@@ -578,7 +615,37 @@ public class OrdersController(
 
         await TrySendIncidentOpenedEmail(order, incident);
 
+        await TrySendIncidentOpenedBuyerConfirmationEmail(order, incident);
+
         return NoContent();
+    }
+
+    private async Task TrySendIncidentOpenedBuyerConfirmationEmail(Order order, OrderIncident incident)
+    {
+        try
+        {
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{order.Id}";
+
+            var subject = $"Incidente registado (Encomenda #{order.Id})";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>O seu incidente para a encomenda <strong>#{order.Id}</strong> foi registado com sucesso.</p>
+                  <p><strong>Descrição:</strong></p>
+                  <div style='white-space: pre-wrap; border: 1px solid #ddd; padding: 8px; border-radius: 6px'>
+                    {System.Net.WebUtility.HtmlEncode(incident.Description)}
+                  </div>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(order.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send incident opened confirmation to buyer for order {OrderId}", order.Id);
+        }
     }
 
     [Authorize(Roles = "Admin")]
@@ -597,6 +664,13 @@ public class OrdersController(
 
         var saved = await context.SaveChangesAsync(ct) > 0;
         if (!saved) return BadRequest("Problem resolving incident");
+
+        await notificationService.TryCreateForEmailAsync(
+            incident.BuyerEmail,
+            "Incidente resolvido",
+            $"O incidente da encomenda #{incident.OrderId} foi marcado como resolvido.",
+            $"/orders/{incident.OrderId}",
+            ct);
 
         // Notify buyer
         await TrySendIncidentResolvedEmail(incident);
@@ -642,6 +716,15 @@ public class OrdersController(
                 if (string.IsNullOrWhiteSpace(fallback)) fallback = (emailOptions.Value.FromEmail ?? string.Empty).Trim();
                 if (!string.IsNullOrWhiteSpace(fallback)) adminEmails.Add(fallback);
             }
+
+                foreach (var to in adminEmails)
+                {
+                    await notificationService.TryCreateForEmailAsync(
+                        to,
+                        "Incidente aberto",
+                        $"Incidente aberto na encomenda #{order.Id}.",
+                        $"/admin/sales/{order.Id}");
+                }
 
             if (adminEmails.Count == 0)
             {
@@ -884,6 +967,8 @@ public class OrdersController(
         }
         catch { /* swallow logging errors to avoid impacting order creation */ }
 
+        var isNewOrder = false;
+
         var order = await context.Orders
             .Include(x => x.OrderItems)
             .FirstOrDefaultAsync(x => x.PaymentIntentId == basket.PaymentIntentId);
@@ -904,6 +989,7 @@ public class OrdersController(
                 };
 
             context.Orders.Add(order);
+            isNewOrder = true;
         }
         else 
         {
@@ -952,13 +1038,65 @@ public class OrdersController(
 
         if (!result) return BadRequest("Problem creating order");
 
+        if (isNewOrder)
+        {
+            await TryNotifyAdminsOrderCreated(order);
+        }
+
         if (order.OrderStatus == OrderStatus.PaymentReceived)
         {
             await TrySendStatusEmail(order, OrderStatus.PaymentReceived);
             await TrySendReceiptEmailIfNeeded(order, CancellationToken.None);
+
+            await notificationService.TryCreateForEmailAsync(
+                order.BuyerEmail,
+                "Pagamento confirmado",
+                $"Pagamento confirmado. A encomenda #{order.Id} está a ser processada.",
+                $"/orders/{order.Id}");
         }
 
         return CreatedAtAction(nameof(GetOrderDetails), new { id = order.Id }, order.ToDto());
+    }
+
+    private async Task TryNotifyAdminsOrderCreated(Order order)
+    {
+        try
+        {
+            var adminEmails = await GetAdminEmailsAsync();
+            if (adminEmails.Count == 0) return;
+
+            foreach (var to in adminEmails)
+            {
+                await notificationService.TryCreateForEmailAsync(
+                    to,
+                    "Nova encomenda",
+                    $"Nova encomenda #{order.Id} criada ({order.OrderStatus}).",
+                    $"/admin/sales/{order.Id}");
+            }
+
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/admin/sales/{order.Id}";
+
+            var subject = $"[Venda] Nova encomenda #{order.Id}";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Foi criada uma nova encomenda <strong>#{order.Id}</strong>.</p>
+                  <p><strong>Estado:</strong> {order.OrderStatus}</p>
+                  <p><strong>Cliente:</strong> {System.Net.WebUtility.HtmlEncode(order.BuyerEmail)}</p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver venda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            foreach (var to in adminEmails)
+            {
+                await emailService.SendEmailAsync(to, subject, html, replyToEmail: order.BuyerEmail);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to notify admins about new order {OrderId}", order.Id);
+        }
     }
 
     private async Task IncrementProductSalesCountsAsync(Order order)
