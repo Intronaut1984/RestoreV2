@@ -107,6 +107,8 @@ export default function AdminSaleDetailedPage() {
     ? `https://www.ctt.pt/feapl_2/app/open/objectSearch/objectSearch.jspx?objects=${encodeURIComponent(trackingNumber.trim())}`
     : '';
 
+  const showTrackingEditor = selectedStatus === 'Shipped' || order.orderStatus === 'Shipped';
+
   const selectOptions = (() => {
     const base = adminOrderStatusOptions;
     if (!order.orderStatus) return base;
@@ -276,7 +278,12 @@ export default function AdminSaleDetailedPage() {
               onClick={async () => {
                 setSaved(false);
                 try {
-                  await updateStatus({ id: order.id, status: selectedStatus }).unwrap();
+                  const trimmedTracking = trackingNumber.trim();
+                  const payload = selectedStatus === 'Shipped' && trimmedTracking.length >= 6
+                    ? { id: order.id, status: selectedStatus, trackingNumber: trimmedTracking }
+                    : { id: order.id, status: selectedStatus };
+
+                  await updateStatus(payload).unwrap();
                   setSaved(true);
                 } catch {
                   // handled via updateError
@@ -288,7 +295,7 @@ export default function AdminSaleDetailedPage() {
           </Box>
         </Box>
 
-        {order.orderStatus === 'Shipped' && (
+        {showTrackingEditor && (
           <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
             <Typography variant="subtitle1" fontWeight="500">Tracking CTT</Typography>
 
@@ -309,6 +316,12 @@ export default function AdminSaleDetailedPage() {
               label="Número de tracking"
               placeholder="Ex: XX123456789PT"
             />
+
+            {selectedStatus === 'Shipped' && order.orderStatus !== 'Shipped' && (
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                Se preencher, será guardado ao guardar o estado como “Enviado”.
+              </Typography>
+            )}
 
             {!!cttUrl && (
               <Button

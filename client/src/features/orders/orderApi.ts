@@ -58,11 +58,11 @@ export const orderApi = createApi({
             }),
             providesTags: (_result, _error, id): OrderTag[] => [{ type: 'Orders', id }]
         }),
-        updateAnyOrderStatus: builder.mutation<Order, { id: number; status: string }>({
-            query: ({ id, status }) => ({
+        updateAnyOrderStatus: builder.mutation<Order, { id: number; status: string; trackingNumber?: string }>({
+            query: ({ id, status, trackingNumber }) => ({
                 url: `orders/all/${id}/status`,
                 method: 'PUT',
-                body: { status }
+                body: trackingNumber ? { status, trackingNumber } : { status }
             }),
             invalidatesTags: (_result, _error, { id }): OrderTag[] => [
                 { type: 'Orders', id },

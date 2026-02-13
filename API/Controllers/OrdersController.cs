@@ -198,6 +198,24 @@ public class OrdersController(
         var order = await context.Orders.FirstOrDefaultAsync(o => o.Id == id);
         if (order == null) return NotFound();
 
+        var trackingToSet = (dto.TrackingNumber ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(trackingToSet) && newStatus != OrderStatus.Shipped)
+            return BadRequest("Tracking só pode ser definido quando o estado é 'Enviado'.");
+
+        if (newStatus == OrderStatus.Shipped && !string.IsNullOrWhiteSpace(trackingToSet))
+        {
+            if (trackingToSet.Length < 6) return BadRequest("Número de tracking inválido");
+            if (trackingToSet.Length > 64) return BadRequest("Número de tracking demasiado longo");
+
+            // Avoid changing timestamps / re-sending notifications if it's the same tracking
+            var isSame = string.Equals(order.TrackingNumber ?? string.Empty, trackingToSet, StringComparison.Ordinal);
+            if (!isSame)
+            {
+                order.TrackingNumber = trackingToSet;
+                order.TrackingAddedAt = DateTime.UtcNow;
+            }
+        }
+
         order.OrderStatus = newStatus;
 
         var saved = await context.SaveChangesAsync() > 0;
@@ -216,12 +234,55 @@ public class OrdersController(
 
         await TrySendStatusEmail(order, newStatus);
 
+        if (newStatus == OrderStatus.Shipped && !string.IsNullOrWhiteSpace(trackingToSet))
+        {
+            await TrySendTrackingNotificationEmail(order, trackingToSet, CancellationToken.None);
+        }
+
         var updated = await context.Orders
             .ProjectToDto()
             .Where(x => x.Id == id)
             .FirstOrDefaultAsync();
 
         return updated == null ? Ok() : Ok(updated);
+    }
+
+    private async Task TrySendTrackingNotificationEmail(Order order, string tracking, CancellationToken ct)
+    {
+        // Avoid duplicate notifications if already saved (e.g., status update saved first then tracking endpoint called)
+        var shouldNotify = string.Equals(order.TrackingNumber ?? string.Empty, tracking, StringComparison.Ordinal);
+        if (!shouldNotify) return;
+
+        var cttUrl = $"https://www.ctt.pt/feapl_2/app/open/objectSearch/objectSearch.jspx?objects={WebUtility.UrlEncode(tracking)}";
+
+        await notificationService.TryCreateForEmailAsync(
+            order.BuyerEmail,
+            "Encomenda enviada",
+            $"A encomenda #{order.Id} foi enviada. Tracking CTT: {tracking}.",
+            $"/orders/{order.Id}",
+            ct);
+
+        try
+        {
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{order.Id}";
+            var subject = $"Tracking CTT - Encomenda #{order.Id}";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>A sua encomenda <strong>#{order.Id}</strong> foi enviada.</p>
+                  <p><strong>Tracking CTT:</strong> {WebUtility.HtmlEncode(tracking)}</p>
+                  <p>Acompanhar: <a href=\"{cttUrl}\">{cttUrl}</a></p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(order.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send tracking email for order {OrderId}", order.Id);
+        }
     }
 
     [Authorize(Roles = "Admin")]

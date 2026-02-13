@@ -41,6 +41,8 @@ export default function OrderDetailedPage() {
     const [incidentFiles, setIncidentFiles] = useState<File[]>([]);
     const [incidentSaved, setIncidentSaved] = useState(false);
 
+    const [trackingCopied, setTrackingCopied] = useState(false);
+
     if (isLoading) return <Typography variant="h5">A carregar encomenda...</Typography>
 
     if (!order) return <Typography variant="h5">Encomenda não encontrada</Typography>
@@ -53,6 +55,18 @@ export default function OrderDetailedPage() {
     const cttUrl = order.trackingNumber
         ? `https://www.ctt.pt/feapl_2/app/open/objectSearch/objectSearch.jspx?objects=${encodeURIComponent(order.trackingNumber)}`
         : '';
+
+    const handleCopyTracking = async () => {
+        const tracking = order.trackingNumber?.trim();
+        if (!tracking) return;
+        try {
+            await navigator.clipboard.writeText(tracking);
+            setTrackingCopied(true);
+            window.setTimeout(() => setTrackingCopied(false), 1500);
+        } catch {
+            // Ignore if clipboard is not available
+        }
+    };
 
     return (
         <Box sx={{ maxWidth: 'md', mx: 'auto', px: 1 }}>
@@ -110,18 +124,23 @@ export default function OrderDetailedPage() {
                     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
                         <Typography variant='subtitle1' fontWeight='500'>Tracking CTT</Typography>
                         <Typography variant='body2' fontWeight='300'>{order.trackingNumber}</Typography>
-                        {!!cttUrl && (
-                            <Button
-                                component="a"
-                                href={cttUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                variant='text'
-                                sx={{ px: 0, mt: 0.5 }}
-                            >
-                                Acompanhar no site dos CTT
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
+                            <Button variant='text' sx={{ px: 0 }} onClick={handleCopyTracking}>
+                                {trackingCopied ? 'Copiado' : 'Copiar'}
                             </Button>
-                        )}
+                            {!!cttUrl && (
+                                <Button
+                                    component="a"
+                                    href={cttUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    variant='text'
+                                    sx={{ px: 0 }}
+                                >
+                                    Acompanhar no site dos CTT
+                                </Button>
+                            )}
+                        </Box>
                     </Box>
                 )}
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
