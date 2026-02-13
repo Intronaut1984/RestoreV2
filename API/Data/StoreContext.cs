@@ -93,8 +93,12 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
         {
             b.HasIndex(x => x.ProductId);
             b.HasIndex(x => new { x.ProductId, x.BuyerEmail, x.OrderId }).IsUnique();
-            b.Property(x => x.BuyerEmail).IsRequired();
-            b.Property(x => x.Comment).IsRequired();
+            b.HasQueryFilter(x => !x.IsDeleted);
+            b.Property(x => x.BuyerEmail).IsRequired().HasMaxLength(320);
+            b.Property(x => x.Comment).IsRequired().HasMaxLength(1000);
+            b.Property(x => x.AdminReply).HasMaxLength(2000);
+            b.Property(x => x.DeletedByEmail).HasMaxLength(320);
+            b.Property(x => x.DeletedReason).HasMaxLength(500);
             b.HasCheckConstraint("CK_ProductReviews_Rating", "[Rating] >= 1 AND [Rating] <= 5");
             b.HasOne<Product>()
                 .WithMany()

@@ -21,5 +21,10 @@ public class ProductReview
     public string? AdminReply { get; set; }
     public DateTime? AdminRepliedAt { get; set; }
 
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletedByEmail { get; set; }
+    public string? DeletedReason { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

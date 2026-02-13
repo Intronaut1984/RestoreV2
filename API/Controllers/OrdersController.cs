@@ -221,18 +221,36 @@ public class OrdersController(
         var saved = await context.SaveChangesAsync() > 0;
         if (!saved) return BadRequest("Problem updating order status");
 
-        await notificationService.TryCreateForEmailAsync(
-            order.BuyerEmail,
-            "Atualização da encomenda",
-            $"A encomenda #{order.Id} foi atualizada para: {newStatus}.",
-            $"/orders/{order.Id}");
+        if (newStatus == OrderStatus.ReviewRequested)
+        {
+            await notificationService.TryCreateForEmailAsync(
+                order.BuyerEmail,
+                "Pedido de avaliação",
+                $"A sua encomenda #{order.Id} está pronta para avaliação (serviço e produtos).",
+                $"/orders/{order.Id}?feedback=1");
+        }
+        else
+        {
+            await notificationService.TryCreateForEmailAsync(
+                order.BuyerEmail,
+                "Atualização da encomenda",
+                $"A encomenda #{order.Id} foi atualizada para: {newStatus}.",
+                $"/orders/{order.Id}");
+        }
 
         if (newStatus == OrderStatus.PaymentReceived)
         {
             await TrySendReceiptEmailIfNeeded(order, CancellationToken.None);
         }
 
-        await TrySendStatusEmail(order, newStatus);
+        if (newStatus == OrderStatus.ReviewRequested)
+        {
+            await TrySendReviewRequestEmail(order.Id, CancellationToken.None);
+        }
+        else
+        {
+            await TrySendStatusEmail(order, newStatus);
+        }
 
         if (newStatus == OrderStatus.Shipped && !string.IsNullOrWhiteSpace(trackingToSet))
         {
@@ -245,6 +263,61 @@ public class OrdersController(
             .FirstOrDefaultAsync();
 
         return updated == null ? Ok() : Ok(updated);
+    }
+
+    private async Task TrySendReviewRequestEmail(int orderId, CancellationToken ct)
+    {
+        try
+        {
+            var fullOrder = await context.Orders
+                .AsNoTracking()
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+
+            if (fullOrder == null) return;
+
+            var frontend = emailOptions.Value.FrontendUrl?.TrimEnd('/') ?? string.Empty;
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{fullOrder.Id}?feedback=1";
+
+            var productLinks = fullOrder.OrderItems
+                .Select(oi => new { oi.ItemOrdered.ProductId, oi.ItemOrdered.Name })
+                .GroupBy(x => x.ProductId)
+                .Select(g => g.First())
+                .Select(x => new
+                {
+                    x.ProductId,
+                    x.Name,
+                    Url = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/catalog/{x.ProductId}?review=1"
+                })
+                .Where(x => !string.IsNullOrWhiteSpace(x.Url))
+                .ToList();
+
+            var productsHtml = productLinks.Count == 0
+                ? ""
+                : "<ul>" + string.Join("", productLinks.Select(p => $"<li><a href=\"{p.Url}\">{System.Net.WebUtility.HtmlEncode(p.Name)}</a></li>")) + "</ul>";
+
+            var subject = $"Encomenda #{fullOrder.Id}: Avalie o serviço e os produtos";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>A sua encomenda <strong>#{fullOrder.Id}</strong> está pronta para avaliação.</p>
+
+                  <h3>Feedback do serviço (encomenda)</h3>
+                  <p>Este comentário é sobre a experiência/serviço da encomenda (não é a avaliação do produto).</p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Deixar feedback aqui: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+
+                  <h3>Avaliação dos produtos</h3>
+                  <p>Para avaliar um produto, use a secção <strong>Avaliações</strong> na página do produto:</p>
+                  {productsHtml}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(fullOrder.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send review request email for order {OrderId}", orderId);
+        }
     }
 
     private async Task TrySendTrackingNotificationEmail(Order order, string tracking, CancellationToken ct)
@@ -420,7 +493,64 @@ public class OrdersController(
 
         await TryNotifyAdminsOrderComment(order);
 
+        await notificationService.TryCreateForEmailAsync(
+            order.BuyerEmail,
+            "Obrigado pelo feedback",
+            $"Recebemos o seu feedback da encomenda #{order.Id}. Se quiser, pode também avaliar os produtos.",
+            $"/orders/{order.Id}");
+
+        await TrySendThankYouAfterServiceFeedbackEmail(order.Id, CancellationToken.None);
+
         return NoContent();
+    }
+
+    private async Task TrySendThankYouAfterServiceFeedbackEmail(int orderId, CancellationToken ct)
+    {
+        try
+        {
+            var fullOrder = await context.Orders
+                .AsNoTracking()
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+
+            if (fullOrder == null) return;
+
+            var frontend = emailOptions.Value.FrontendUrl?.TrimEnd('/') ?? string.Empty;
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{fullOrder.Id}";
+
+            var productLinks = fullOrder.OrderItems
+                .Select(oi => new { oi.ItemOrdered.ProductId, oi.ItemOrdered.Name })
+                .GroupBy(x => x.ProductId)
+                .Select(g => g.First())
+                .Select(x => new
+                {
+                    x.ProductId,
+                    x.Name,
+                    Url = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/catalog/{x.ProductId}?review=1"
+                })
+                .Where(x => !string.IsNullOrWhiteSpace(x.Url))
+                .ToList();
+
+            var productsHtml = productLinks.Count == 0
+                ? ""
+                : "<ul>" + string.Join("", productLinks.Select(p => $"<li><a href=\"{p.Url}\">{System.Net.WebUtility.HtmlEncode(p.Name)}</a></li>")) + "</ul>";
+
+            var subject = $"Encomenda #{fullOrder.Id}: Obrigado pelo seu feedback";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Obrigado pelo seu feedback na encomenda <strong>#{fullOrder.Id}</strong>.</p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                  {(string.IsNullOrWhiteSpace(productsHtml) ? string.Empty : $"<p>Se ainda não o fez, pode avaliar os produtos:</p>{productsHtml}")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(fullOrder.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send thank-you email after service feedback for order {OrderId}", orderId);
+        }
     }
 
     [Authorize(Roles = "Admin")]

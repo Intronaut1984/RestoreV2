@@ -2,7 +2,7 @@ import { Link, useLocation, useParams } from "react-router-dom"
 import { Button, Divider, Grid2, Rating, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography, Box, IconButton, useTheme, Tooltip } from "@mui/material";
 import { ArrowBackIosNew, ArrowForwardIos } from '@mui/icons-material'
 import { currencyFormat, computeFinalPrice, emailToUsername } from "../../lib/util";
-import { useCreateProductReviewMutation, useFetchProductDetailsQuery, useFetchProductReviewsQuery, useFetchProductsQuery, useRecordProductClickMutation, useReplyProductReviewMutation } from "./catalogApi";
+import { useCreateProductReviewMutation, useDeleteProductReviewMutation, useFetchProductDetailsQuery, useFetchProductReviewsQuery, useFetchProductsQuery, useRecordProductClickMutation, useReplyProductReviewMutation } from "./catalogApi";
 import { useAddBasketItemMutation, useFetchBasketQuery, useRemoveBasketItemMutation } from "../basket/basketApi";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useCookieConsent } from "../../app/layout/cookieConsent";
@@ -74,15 +74,29 @@ export default function ProductDetails() {
   const { data: reviews = [], isLoading: reviewsLoading } = useFetchProductReviewsQuery(productId);
   const [createReview, { isLoading: isSubmittingReview }] = useCreateProductReviewMutation();
   const [replyReview, { isLoading: isReplyingReview }] = useReplyProductReviewMutation();
+  const [deleteReview, { isLoading: isDeletingReview }] = useDeleteProductReviewMutation();
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [reviewRating, setReviewRating] = useState<number | null>(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaved, setReviewSaved] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
+  const reviewCommentRef = useRef<HTMLInputElement | null>(null);
+  const reviewsBlockRef = useRef<HTMLDivElement | null>(null);
+
   const isPreview = useMemo(() => {
     const sp = new URLSearchParams(location.search);
     return sp.get('preview') === '1';
+  }, [location.search]);
+
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    if (sp.get('review') === '1') {
+      window.setTimeout(() => {
+        reviewsBlockRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        reviewCommentRef.current?.focus();
+      }, 150);
+    }
   }, [location.search]);
 
   const isAdmin = user?.roles?.includes('Admin') ?? false;
@@ -91,6 +105,9 @@ export default function ProductDetails() {
   const [adminReplyText, setAdminReplyText] = useState('');
   const [adminReplyError, setAdminReplyError] = useState<string | null>(null);
   const [adminReplySaved, setAdminReplySaved] = useState(false);
+
+  const [adminDeleteError, setAdminDeleteError] = useState<string | null>(null);
+  const [adminDeleteErrorReviewId, setAdminDeleteErrorReviewId] = useState<number | null>(null);
 
   const primaryCategoryId = product?.categories?.[0]?.id ?? null;
 
@@ -656,7 +673,7 @@ export default function ProductDetails() {
       </Grid2>
 
       <Grid2 size={12}>
-        <Box sx={{ mt: 3 }}>
+        <Box ref={reviewsBlockRef} sx={{ mt: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 900, mb: 1 }}>
             Avaliações
           </Typography>
@@ -703,19 +720,48 @@ export default function ProductDetails() {
                     {isAdminView && (
                       <Box sx={{ mt: 1 }}>
                         {replyingReviewId !== r.id ? (
-                          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <Button
-                              variant="outlined"
-                              onClick={() => {
-                                setAdminReplySaved(false);
-                                setAdminReplyError(null);
-                                setReplyingReviewId(r.id);
-                                setAdminReplyText(r.adminReply ?? '');
-                              }}
-                            >
-                              {r.adminReply ? 'Editar resposta' : 'Responder'}
-                            </Button>
-                          </Box>
+                          <>
+                            {adminDeleteError && adminDeleteErrorReviewId === r.id && (
+                              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                                {adminDeleteError}
+                              </Typography>
+                            )}
+
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
+                              <Button
+                                variant="outlined"
+                                color="error"
+                                disabled={isDeletingReview}
+                                onClick={async () => {
+                                  setAdminDeleteError(null);
+                                  setAdminDeleteErrorReviewId(null);
+
+                                  const ok = window.confirm('Apagar esta avaliação?');
+                                  if (!ok) return;
+
+                                  try {
+                                    await deleteReview({ productId: product.id, reviewId: r.id }).unwrap();
+                                  } catch {
+                                    setAdminDeleteError('Não foi possível apagar a avaliação');
+                                    setAdminDeleteErrorReviewId(r.id);
+                                  }
+                                }}
+                              >
+                                Apagar
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                onClick={() => {
+                                  setAdminReplySaved(false);
+                                  setAdminReplyError(null);
+                                  setReplyingReviewId(r.id);
+                                  setAdminReplyText(r.adminReply ?? '');
+                                }}
+                              >
+                                {r.adminReply ? 'Editar resposta' : 'Responder'}
+                              </Button>
+                            </Box>
+                          </>
                         ) : (
                           <>
                             <TextField
@@ -814,6 +860,7 @@ export default function ProductDetails() {
               </Box>
 
               <TextField
+                inputRef={reviewCommentRef}
                 value={reviewComment}
                 onChange={(e) => {
                   setReviewSaved(false);

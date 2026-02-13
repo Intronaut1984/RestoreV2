@@ -119,6 +119,16 @@ export const catalogApi = createApi({
                 { type: 'Products', id: productId }
             ]
         }),
+        deleteProductReview: builder.mutation<void, { productId: number; reviewId: number }>({
+            query: ({ productId, reviewId }) => ({
+                url: `products/${productId}/reviews/${reviewId}`,
+                method: 'DELETE'
+            }),
+            invalidatesTags: (_result, _error, { productId }) => [
+                { type: 'ProductReviews', id: productId },
+                { type: 'Products', id: productId }
+            ]
+        }),
         recordProductClick: builder.mutation<void, { productId: number; sessionId: string }>({
             query: ({ productId, sessionId }) => ({
                 url: `products/${productId}/click`,
@@ -153,6 +163,7 @@ export const {
     useRecordProductClickMutation,
     useFetchProductReviewsQuery,
     useCreateProductReviewMutation,
-    useReplyProductReviewMutation
+    useReplyProductReviewMutation,
+    useDeleteProductReviewMutation
 } 
     = catalogApi;

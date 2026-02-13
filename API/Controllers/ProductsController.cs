@@ -225,6 +225,40 @@ namespace API.Controllers
             return reviews;
         }
 
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("{id:int}/reviews/{reviewId:int}")]
+        public async Task<ActionResult> DeleteProductReview(int id, int reviewId, CancellationToken ct)
+        {
+            var product = await context.Products.FirstOrDefaultAsync(p => p.Id == id, ct);
+            if (product == null) return NotFound();
+
+            var review = await context.ProductReviews
+                .FirstOrDefaultAsync(r => r.Id == reviewId && r.ProductId == id, ct);
+
+            if (review == null) return NotFound();
+
+            review.IsDeleted = true;
+            review.DeletedAt = DateTime.UtcNow;
+            review.DeletedByEmail = User.GetEmail();
+            review.DeletedReason = "Moderated";
+
+            var saved = await context.SaveChangesAsync(ct) > 0;
+            if (!saved) return BadRequest("Problem deleting review");
+
+            var stats = await context.ProductReviews
+                .AsNoTracking()
+                .Where(r => r.ProductId == id)
+                .GroupBy(_ => 1)
+                .Select(g => new { Avg = g.Average(x => x.Rating), Count = g.Count() })
+                .FirstOrDefaultAsync(ct);
+
+            product.AverageRating = stats == null ? null : Math.Round(stats.Avg, 2);
+            product.RatingsCount = stats?.Count ?? 0;
+            await context.SaveChangesAsync(ct);
+
+            return NoContent();
+        }
+
         [HttpPost("{id:int}/reviews")]
         [Authorize]
         public async Task<ActionResult<ProductReviewDto>> CreateProductReview(int id, [FromBody] CreateProductReviewDto dto, CancellationToken ct)
