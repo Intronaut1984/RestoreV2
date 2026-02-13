@@ -1,9 +1,10 @@
 import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, Paper, useTheme } from "@mui/material";
-import { useGetUsersQuery, useUpdateUserRoleMutation } from "./adminApi";
+import { useDeleteUserMutation, useGetUsersQuery, useUpdateUserRoleMutation } from "./adminApi";
 
 export default function AdminPanel() {
     const { data: users, isLoading, refetch } = useGetUsersQuery();
     const [updateRole] = useUpdateUserRoleMutation();
+    const [deleteUser, { isLoading: deletingUser }] = useDeleteUserMutation();
 
     const theme = useTheme();
     const isLight = theme.palette.mode === 'light';
@@ -11,6 +12,19 @@ export default function AdminPanel() {
     const handleToggleAdmin = async (email: string, isAdmin: boolean) => {
         try {
             await updateRole({ email, role: isAdmin ? 'Member' : 'Admin' }).unwrap();
+            await refetch();
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    const handleDeleteUser = async (email: string) => {
+        try {
+            const ok = window.confirm(`Tem a certeza que quer apagar o utilizador ${email}?`);
+            if (!ok) return;
+
+            const deleteStoredData = window.confirm('Quer apagar também os dados guardados deste utilizador (encomendas, incidentes e avaliações)?');
+            await deleteUser({ email, deleteStoredData }).unwrap();
             await refetch();
         } catch (error) {
             console.error(error);
@@ -39,9 +53,19 @@ export default function AdminPanel() {
                                 <TableCell>{u.userName ?? '—'}</TableCell>
                                 <TableCell>{u.roles?.join(', ')}</TableCell>
                                 <TableCell>
-                                    <Button variant="contained" onClick={() => handleToggleAdmin(u.email, u.roles?.includes('Admin') ?? false)}>
-                                        {u.roles?.includes('Admin') ? 'Remover Admin' : 'Tornar Admin'}
-                                    </Button>
+                                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                        <Button variant="contained" onClick={() => handleToggleAdmin(u.email, u.roles?.includes('Admin') ?? false)}>
+                                            {u.roles?.includes('Admin') ? 'Remover Admin' : 'Tornar Admin'}
+                                        </Button>
+                                        <Button
+                                            variant="contained"
+                                            color="error"
+                                            onClick={() => handleDeleteUser(u.email)}
+                                            disabled={deletingUser}
+                                        >
+                                            Apagar
+                                        </Button>
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         ))}

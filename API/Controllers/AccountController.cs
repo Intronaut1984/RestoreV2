@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Hosting;
 using Google.Apis.Auth;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.Extensions.Logging;
+using API.Services;
 
 namespace API.Controllers;
 
@@ -199,6 +200,31 @@ public class AccountController(
         }
 
         return Ok();
+    }
+
+    [Authorize]
+    [HttpPost("delete-account")]
+    public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountDto dto, [FromServices] AccountDeletionService deletionService, CancellationToken ct)
+    {
+        var user = await signInManager.UserManager.GetUserAsync(User);
+        if (user == null) return Unauthorized();
+
+        // Prevent deleting the last admin account.
+        var roles = await signInManager.UserManager.GetRolesAsync(user);
+        if (roles.Contains("Admin"))
+        {
+            var admins = await signInManager.UserManager.GetUsersInRoleAsync("Admin");
+            if (admins.Count <= 1)
+            {
+                return BadRequest("Não é possível apagar o último admin");
+            }
+        }
+
+        var (ok, error) = await deletionService.DeleteUserAsync(user, dto?.DeleteStoredData ?? false, ct);
+        if (!ok) return BadRequest(error ?? "Problem deleting account");
+
+        await signInManager.SignOutAsync();
+        return NoContent();
     }
 
     [HttpPost("login")]
