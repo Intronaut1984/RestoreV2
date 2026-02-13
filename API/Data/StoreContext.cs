@@ -89,6 +89,16 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
             .HasForeignKey<OrderIncident>(i => i.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.Entity<Order>(b =>
+        {
+            b.Property(x => x.RefundId).HasMaxLength(100);
+            b.HasIndex(x => x.RefundId);
+
+            b.HasIndex(x => x.RefundRequestStatus);
+            b.Property(x => x.RefundRequestReason).HasMaxLength(1000);
+            b.Property(x => x.RefundReviewNote).HasMaxLength(2000);
+        });
+
         builder.Entity<ProductReview>(b =>
         {
             b.HasIndex(x => x.ProductId);

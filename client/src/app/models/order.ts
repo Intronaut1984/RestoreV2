@@ -10,6 +10,12 @@ export interface Order {
     discount: number
     total: number
     orderStatus: string
+    refundRequestStatus: string
+    refundRequestedAt?: string | null
+    refundReviewedAt?: string | null
+    refundReturnMethod?: string | null
+    refundRequestReason?: string | null
+    refundReviewNote?: string | null
     trackingNumber?: string | null
     trackingAddedAt?: string | null
     paymentSummary: PaymentSummary

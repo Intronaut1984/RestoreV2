@@ -1,8 +1,8 @@
 import { Link, useLocation, useParams } from "react-router-dom"
-import { useAddOrderCommentMutation, useFetchOrderDetailedQuery, useFetchOrderIncidentQuery, useOpenOrderIncidentMutation } from "./orderApi";
+import { useAddOrderCommentMutation, useFetchOrderDetailedQuery, useFetchOrderIncidentQuery, useOpenOrderIncidentMutation, useRequestRefundMutation } from "./orderApi";
 import { Box, Button, Divider, FormControl, InputLabel, MenuItem, Rating, Select, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { formatAddressString, formatPaymentString, formatOrderAmount } from "../../lib/util";
 import { secondaryActionSx } from "../../app/shared/styles/actionButtons";
 import { FetchBaseQueryError } from "@reduxjs/toolkit/query";
@@ -32,12 +32,14 @@ export default function OrderDetailedPage() {
     const { data: order, isLoading, refetch } = useFetchOrderDetailedQuery(+id!)
     const [addComment, { isLoading: isSubmitting, error: commentError }] = useAddOrderCommentMutation();
     const [createProductReview, { isLoading: isSubmittingProductReview }] = useCreateProductReviewMutation();
+    const [requestRefund, { isLoading: isRequestingRefund, error: refundError }] = useRequestRefundMutation();
 
     const { data: incident, isLoading: isIncidentLoading, refetch: refetchIncident } = useFetchOrderIncidentQuery(+id!);
     const [openIncident, { isLoading: isOpeningIncident, error: incidentError }] = useOpenOrderIncidentMutation();
 
     const [comment, setComment] = useState("");
     const [commentSaved, setCommentSaved] = useState(false);
+    const [refundSaved, setRefundSaved] = useState(false);
 
     const [productReviewState, setProductReviewState] = useState<Record<number, { rating: number; comment: string; saved: boolean; error: string | null }>>({});
 
@@ -73,6 +75,29 @@ export default function OrderDetailedPage() {
             order.orderItems.map((oi) => [oi.productId, { productId: oi.productId, name: oi.name }])
         ).values()
     );
+
+    const orderDate = new Date(order.orderDate);
+    const refundDeadline = addDays(orderDate, 30);
+    const isRefundEligible =
+        !Number.isNaN(orderDate.getTime()) &&
+        Date.now() <= refundDeadline.getTime() &&
+        order.orderStatus !== 'Pending' &&
+        order.orderStatus !== 'PaymentFailed' &&
+        order.orderStatus !== 'Cancelled' &&
+        order.refundRequestStatus === 'None';
+
+    const refundStatusLabel = (() => {
+        switch (order.refundRequestStatus) {
+            case 'PendingReview':
+                return 'Pedido de devolução em avaliação';
+            case 'Approved':
+                return 'Pedido de devolução aceite';
+            case 'Rejected':
+                return 'Pedido de devolução recusado';
+            default:
+                return null;
+        }
+    })();
 
     const apiBaseUrl = ((import.meta.env.VITE_API_URL as string | undefined) ?? '/api/').replace(/\/?$/, '/');
     const receiptUrl = `${apiBaseUrl}orders/${order.id}/invoice`;
@@ -114,11 +139,52 @@ export default function OrderDetailedPage() {
                     >
                         Recibo (PDF)
                     </Button>
+                    {isRefundEligible && (
+                        <Button
+                            variant='outlined'
+                            sx={secondaryActionSx(theme)}
+                            disabled={isRequestingRefund}
+                            onClick={async () => {
+                                if (!window.confirm('Pretende pedir a devolução desta encomenda? O pedido ficará em avaliação até ser aceite pela loja.')) return;
+
+                                const reason = (window.prompt('Explique o porquê da devolução/troca (mínimo 20 caracteres):') ?? '').trim();
+                                if (!reason || reason.length < 20) {
+                                    window.alert('O comentário deve ter pelo menos 20 caracteres.');
+                                    return;
+                                }
+
+                                const inStore = window.confirm('A devolução será feita fisicamente na loja?\nOK = Loja\nCancelar = Correio');
+                                const returnMethod = (inStore ? 'InStore' : 'ByMail') as ('InStore' | 'ByMail');
+
+                                setRefundSaved(false);
+                                try {
+                                    await requestRefund({ id: order.id, reason, returnMethod }).unwrap();
+                                    setRefundSaved(true);
+                                    refetch();
+                                } catch {
+                                    // handled via refundError
+                                }
+                            }}
+                        >
+                            Pedir devolução
+                        </Button>
+                    )}
                     <Button component={Link} to='/orders' variant='outlined' sx={secondaryActionSx(theme)}>
                         Voltar às Encomendas
                     </Button>
                 </Box>
             </Box>
+
+            {refundError && (
+                <Typography variant='body2' color='error' sx={{ mt: 1 }}>
+                    {getApiErrorMessage(refundError, 'Não foi possível pedir a devolução')}
+                </Typography>
+            )}
+            {refundSaved && (
+                <Typography variant='body2' sx={{ mt: 1, color: 'green' }}>
+                    Pedido de devolução enviado. Está em avaliação.
+                </Typography>
+            )}
 
             <Divider sx={{ my: 2 }} />
 
@@ -148,6 +214,34 @@ export default function OrderDetailedPage() {
                     <Typography variant='subtitle1' fontWeight='500'>Estado da encomenda</Typography>
                     <Typography variant='body2' fontWeight='300' sx={{ ...getOrderStatusSx(order.orderStatus) }}>{getOrderStatusLabel(order.orderStatus)}</Typography>
                 </Box>
+
+                {refundStatusLabel && (
+                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>
+                        <Typography variant='subtitle1' fontWeight='500'>Devolução</Typography>
+                        <Typography
+                            variant='body2'
+                            fontWeight='300'
+                            sx={order.refundRequestStatus === 'Approved' ? { color: 'success.main' } : undefined}
+                        >
+                            {refundStatusLabel}
+                        </Typography>
+                        {order.refundReturnMethod && order.refundReturnMethod !== 'None' && (
+                            <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
+                                Método: {order.refundReturnMethod === 'InStore' ? 'Loja' : (order.refundReturnMethod === 'ByMail' ? 'Correio' : order.refundReturnMethod)}
+                            </Typography>
+                        )}
+                        {order.refundRequestReason && (
+                            <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                                O seu comentário: {order.refundRequestReason}
+                            </Typography>
+                        )}
+                        {order.refundReviewNote && (
+                            <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                                Comentário da Loja: {order.refundReviewNote}
+                            </Typography>
+                        )}
+                    </Box>
+                )}
 
                 {!!order.trackingNumber && (
                     <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1, mt: 1 }}>

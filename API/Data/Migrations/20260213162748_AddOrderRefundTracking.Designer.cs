@@ -4,16 +4,19 @@ using API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace API.Migrations
+namespace API.Data.Migrations
 {
     [DbContext(typeof(StoreContext))]
-    partial class StoreContextModelSnapshot : ModelSnapshot
+    [Migration("20260213162748_AddOrderRefundTracking")]
+    partial class AddOrderRefundTracking
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -478,33 +481,7 @@ namespace API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("RefundRequestReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int>("RefundRequestStatus")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("RefundRequestedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("RefundReturnMethod")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RefundReviewNote")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime?>("RefundReviewedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<DateTime?>("RefundedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("RestockedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("SalesCountAdjustedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<long>("Subtotal")
@@ -519,8 +496,6 @@ namespace API.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("RefundId");
-
-                    b.HasIndex("RefundRequestStatus");
 
                     b.ToTable("Orders");
                 });

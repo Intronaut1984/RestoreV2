@@ -30,6 +30,20 @@ public class Order
     public string? TrackingNumber { get; set; }
     public DateTime? TrackingAddedAt { get; set; }
 
+    public DateTime? CancelledAt { get; set; }
+    public string? RefundId { get; set; }
+    public DateTime? RefundedAt { get; set; }
+
+    public RefundRequestStatus RefundRequestStatus { get; set; } = RefundRequestStatus.None;
+    public DateTime? RefundRequestedAt { get; set; }
+    public DateTime? RefundReviewedAt { get; set; }
+    public RefundReturnMethod RefundReturnMethod { get; set; } = RefundReturnMethod.None;
+    public string? RefundRequestReason { get; set; }
+    public string? RefundReviewNote { get; set; }
+
+    public DateTime? RestockedAt { get; set; }
+    public DateTime? SalesCountAdjustedAt { get; set; }
+
     public long GetTotal()
     {
         return Subtotal + DeliveryFee - Discount;

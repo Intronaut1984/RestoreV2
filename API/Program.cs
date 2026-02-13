@@ -42,6 +42,7 @@ builder.Services.AddScoped<DiscountService>();
 builder.Services.AddScoped<IInvoicePdfService, InvoicePdfService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<AccountDeletionService>();
+builder.Services.AddScoped<StripeReversalService>();
 builder.Services.AddIdentityApiEndpoints<User>(opt =>
 {
     opt.User.RequireUniqueEmail = true;

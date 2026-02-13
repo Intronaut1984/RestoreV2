@@ -4,16 +4,19 @@ using API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace API.Migrations
+namespace API.Data.Migrations
 {
     [DbContext(typeof(StoreContext))]
-    partial class StoreContextModelSnapshot : ModelSnapshot
+    [Migration("20260213165047_AddRefundRequestWorkflow")]
+    partial class AddRefundRequestWorkflow
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -487,9 +490,6 @@ namespace API.Migrations
 
                     b.Property<DateTime?>("RefundRequestedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<int>("RefundReturnMethod")
-                        .HasColumnType("int");
 
                     b.Property<string>("RefundReviewNote")
                         .HasMaxLength(2000)

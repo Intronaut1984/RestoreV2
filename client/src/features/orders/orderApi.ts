@@ -91,6 +91,39 @@ export const orderApi = createApi({
                 { type: 'Orders', id: 'LIST' }
             ]
         }),
+        requestRefund: builder.mutation<void, { id: number; reason: string; returnMethod: 'InStore' | 'ByMail' }>({
+            query: ({ id, reason, returnMethod }) => ({
+                url: `orders/${id}/refund`,
+                method: 'POST',
+                body: { reason, returnMethod }
+            }),
+            invalidatesTags: (_result, _error, { id }): OrderTag[] => [
+                { type: 'Orders', id },
+                { type: 'Orders', id: 'LIST' }
+            ]
+        }),
+        approveRefundRequest: builder.mutation<void, { id: number; note?: string }>({
+            query: ({ id, note }) => ({
+                url: `orders/all/${id}/refund/approve`,
+                method: 'PUT',
+                body: note ? { note } : {}
+            }),
+            invalidatesTags: (_result, _error, { id }): OrderTag[] => [
+                { type: 'Orders', id },
+                { type: 'Orders', id: 'LIST' }
+            ]
+        }),
+        rejectRefundRequest: builder.mutation<void, { id: number; note?: string }>({
+            query: ({ id, note }) => ({
+                url: `orders/all/${id}/refund/reject`,
+                method: 'PUT',
+                body: note ? { note } : {}
+            }),
+            invalidatesTags: (_result, _error, { id }): OrderTag[] => [
+                { type: 'Orders', id },
+                { type: 'Orders', id: 'LIST' }
+            ]
+        }),
         fetchOrderIncident: builder.query<OrderIncident, number>({
             query: (id) => ({
                 url: `orders/${id}/incident`
@@ -171,6 +204,9 @@ export const {
     useUpdateAnyOrderStatusMutation,
     useUpdateAnyOrderTrackingMutation,
     useAddOrderCommentMutation,
+    useRequestRefundMutation,
+    useApproveRefundRequestMutation,
+    useRejectRefundRequestMutation,
     useFetchOrderIncidentQuery,
     useOpenOrderIncidentMutation,
     useResolveOrderIncidentMutation,

@@ -16,6 +16,7 @@ namespace API.Services;
 public interface IInvoicePdfService
 {
     Task<byte[]> GenerateReceiptPdfAsync(Order order, CancellationToken ct = default);
+    Task<byte[]> GenerateCancellationPdfAsync(Order order, CancellationToken ct = default);
 }
 
 public class InvoicePdfService(StoreContext context) : IInvoicePdfService
@@ -140,6 +141,86 @@ public class InvoicePdfService(StoreContext context) : IInvoicePdfService
         gfx.DrawLine(XPens.LightGray, page.Width - margin - 200, y, page.Width - margin, y);
         y += 10;
         DrawSummaryLine(gfx, page, new XFont("Verdana", 11, XFontStyle.Bold), "Total", FormatMoney(order.GetTotal()), ref y, margin);
+
+        using var ms = new MemoryStream();
+        doc.Save(ms, closeStream: false);
+        return ms.ToArray();
+    }
+
+    public async Task<byte[]> GenerateCancellationPdfAsync(Order order, CancellationToken ct = default)
+    {
+        var contact = await context.Contacts
+            .AsNoTracking()
+            .OrderByDescending(c => c.UpdatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        var sellerName = string.IsNullOrWhiteSpace(contact?.CompanyName) ? "Restore" : contact!.CompanyName!.Trim();
+        var sellerTaxId = contact?.TaxId?.Trim();
+        var sellerAddress = BuildSellerAddress(contact);
+        var sellerEmail = contact?.Email?.Trim();
+
+        var doc = new PdfDocument();
+        doc.Info.Title = $"Anulação - Encomenda #{order.Id}";
+        doc.Info.Subject = "Confirmação de anulação";
+        doc.Info.CreationDate = DateTime.UtcNow;
+
+        var page = doc.AddPage();
+        page.Size = PdfSharpCore.PageSize.A4;
+        var gfx = XGraphics.FromPdfPage(page);
+
+        const double margin = 40;
+        var y = margin;
+
+        var fontTitle = new XFont("Verdana", 18, XFontStyle.Bold);
+        var fontH = new XFont("Verdana", 11, XFontStyle.Bold);
+        var font = new XFont("Verdana", 10, XFontStyle.Regular);
+
+        // Header
+        gfx.DrawString(sellerName, fontH, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 16), XStringFormats.TopLeft);
+        y += 16;
+        if (!string.IsNullOrWhiteSpace(sellerTaxId))
+        {
+            gfx.DrawString($"NIF: {sellerTaxId}", font, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 14), XStringFormats.TopLeft);
+            y += 14;
+        }
+        if (!string.IsNullOrWhiteSpace(sellerAddress))
+        {
+            gfx.DrawString(sellerAddress, font, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 28), XStringFormats.TopLeft);
+            y += 28;
+        }
+        if (!string.IsNullOrWhiteSpace(sellerEmail))
+        {
+            gfx.DrawString(sellerEmail, font, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 14), XStringFormats.TopLeft);
+            y += 14;
+        }
+
+        y += 10;
+        gfx.DrawLine(XPens.LightGray, margin, y, page.Width - margin, y);
+        y += 16;
+
+        gfx.DrawString("Confirmação de Anulação", fontTitle, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 22), XStringFormats.TopLeft);
+        y += 26;
+
+        gfx.DrawString($"Encomenda: #{order.Id}", font, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 14), XStringFormats.TopLeft);
+        y += 14;
+        gfx.DrawString($"Data da encomenda: {order.OrderDate:yyyy-MM-dd}", font, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 14), XStringFormats.TopLeft);
+        y += 14;
+        gfx.DrawString($"Cliente: {order.BuyerEmail}", font, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 14), XStringFormats.TopLeft);
+        y += 14;
+        var cancelledAt = order.CancelledAt ?? DateTime.UtcNow;
+        gfx.DrawString($"Data de anulação: {cancelledAt:yyyy-MM-dd}", font, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 14), XStringFormats.TopLeft);
+        y += 18;
+
+        gfx.DrawString($"Total: {FormatMoney(order.GetTotal())}", fontH, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 16), XStringFormats.TopLeft);
+        y += 20;
+
+        var refundLine = string.IsNullOrWhiteSpace(order.RefundId)
+            ? "Devolução: iniciada/pendente no Stripe"
+            : $"Devolução (Stripe): {order.RefundId}";
+        gfx.DrawString(refundLine, font, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 14), XStringFormats.TopLeft);
+        y += 18;
+
+        gfx.DrawString("Este documento confirma que a encomenda acima foi anulada.", font, XBrushes.Black, new XRect(margin, y, page.Width - margin * 2, 28), XStringFormats.TopLeft);
 
         using var ms = new MemoryStream();
         doc.Save(ms, closeStream: false);
