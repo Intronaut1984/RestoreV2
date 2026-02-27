@@ -5,6 +5,7 @@ import { Box, Button, Grid, Paper, Typography, Autocomplete, TextField, Chip } f
 import AppTextInput from "../../app/shared/components/AppTextInput";
 import AppSelectInput from "../../app/shared/components/AppSelectInput";
 import AppDropzone from "../../app/shared/components/AppDropzone";
+import PageTitle from "../../app/shared/components/PageTitle";
 import { Product } from "../../app/models/product";
 import { Category } from "../../app/models/category";
 import { Campaign } from "../../app/models/campaign";
@@ -441,9 +442,7 @@ export default function ProductForm({ setEditMode, product, refetch, setSelected
 
     return (
         <Box component={Paper} sx={{ p: 4, maxWidth: 900, width: '100%', mx: "auto" }}>
-            <Typography variant="h4" sx={{ mb: 4 }}>
-                Detalhes do Produto
-            </Typography>
+            <PageTitle title="Detalhes do Produto" variant="h4" />
             <Typography variant="h6" sx={{ mb: 4 }}>
                 {product ? 'Editar Produto' : 'Criar Novo Produto'}
             </Typography>

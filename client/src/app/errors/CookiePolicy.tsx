@@ -1,15 +1,14 @@
 import { Box, Button, Container, Link, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useCookieConsent } from '../layout/cookieConsent';
+import PageTitle from '../shared/components/PageTitle';
 
 export default function CookiePolicy() {
   const { openPreferences } = useCookieConsent();
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
-        Política de Cookies
-      </Typography>
+      <PageTitle title="Política de Cookies" variant="h4" />
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Box>

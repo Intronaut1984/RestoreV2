@@ -1,9 +1,10 @@
 import { IconButton, Menu, Fade, MenuItem, ListItemIcon, ListItemText, Divider } from "@mui/material";
 import { useState } from "react";
 import { User } from "../models/user";
-import { History, Inventory, Logout, Person, AccountCircle } from "@mui/icons-material";
+import { History, Inventory, Logout, Person, AccountCircle, Settings } from "@mui/icons-material";
 import { useLogoutMutation } from "../../features/account/accountApi";
 import { Link, useNavigate } from "react-router-dom";
+import ThemeSettings from "./ThemeSettings";
 
 type Props = {
     user: User
@@ -14,6 +15,7 @@ export default function UserMenu({ user }: Props) {
     const navigate = useNavigate();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
+    const [themeSettingsOpen, setThemeSettingsOpen] = useState(false);
     const handleClick = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
     };
@@ -65,6 +67,20 @@ export default function UserMenu({ user }: Props) {
                     </ListItemIcon>
                     <ListItemText>Minhas Encomendas</ListItemText>
                 </MenuItem>
+
+                {user.roles.includes('Admin') && (
+                    <MenuItem
+                        onClick={() => {
+                            handleClose();
+                            setThemeSettingsOpen(true);
+                        }}
+                    >
+                        <ListItemIcon>
+                            <Settings />
+                        </ListItemIcon>
+                        <ListItemText>Configurações</ListItemText>
+                    </MenuItem>
+                )}
                 {user.roles.includes('Admin') &&
                 <MenuItem component={Link} to='/inventory' onClick={handleClose}>
                     <ListItemIcon>
@@ -79,22 +95,6 @@ export default function UserMenu({ user }: Props) {
                     </ListItemIcon>
                     <ListItemText>Usuários (Admin)</ListItemText>
                 </MenuItem>}
-                {user.roles.includes('Admin') &&
-                <MenuItem component={Link} to='/admin/promo' onClick={handleClose}>
-                    <ListItemIcon>
-                        <Inventory />
-                    </ListItemIcon>
-                    <ListItemText>Promo Bar</ListItemText>
-                </MenuItem>}
-
-                {user.roles.includes('Admin') &&
-                <MenuItem component={Link} to='/admin/logo' onClick={handleClose}>
-                    <ListItemIcon>
-                        <Inventory />
-                    </ListItemIcon>
-                    <ListItemText>Gerir Logo</ListItemText>
-                </MenuItem>}
-
                 {user.roles.includes('Admin') &&
                 <MenuItem component={Link} to='/admin/contact' onClick={handleClose}>
                     <ListItemIcon>
@@ -150,6 +150,8 @@ export default function UserMenu({ user }: Props) {
                     <ListItemText>Logout</ListItemText>
                 </MenuItem>
             </Menu>
+
+            <ThemeSettings open={themeSettingsOpen} onClose={() => setThemeSettingsOpen(false)} />
         </div>
     );
 }

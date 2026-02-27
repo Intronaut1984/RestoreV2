@@ -3,6 +3,7 @@ import { Box, TextField, Typography, Grid } from "@mui/material";
 import { useGetContactQuery, useUpdateContactMutation, ContactDto } from "./contactApi";
 import { toast } from "react-toastify";
 import { LoadingButton } from "@mui/lab";
+import PageTitle from "../../app/shared/components/PageTitle";
 
 export default function AdminContact() {
     const { data, isLoading } = useGetContactQuery();
@@ -51,7 +52,7 @@ export default function AdminContact() {
 
     return (
         <Box sx={{ maxWidth: '800px', mx: 'auto', p: 2 }}>
-            <Typography variant="h5" sx={{ mb: 3 }}>Gerir Contactos</Typography>
+            <PageTitle title="Gerir Contactos" variant="h5" />
 
             <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Grid container spacing={2}>

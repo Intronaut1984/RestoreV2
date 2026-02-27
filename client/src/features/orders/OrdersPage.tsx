@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { formatOrderAmount } from "../../lib/util";
 import { getOrderStatusLabel, getOrderStatusSx } from "../../lib/orderStatus";
+import PageTitle from "../../app/shared/components/PageTitle";
 
 export default function OrdersPage() {
     const {data: orders, isLoading} = useFetchOrdersQuery();
@@ -48,9 +49,7 @@ export default function OrdersPage() {
 
     return (
         <Container maxWidth='md'>
-            <Typography variant="h6" align="center" gutterBottom sx={{ mb: 1 }}>
-                As minhas Encomendas
-            </Typography>
+            <PageTitle title="As minhas Encomendas" variant="h6" sx={{ textAlign: 'center' }} />
             <Box>
                 <Table>
                     <TableHead>

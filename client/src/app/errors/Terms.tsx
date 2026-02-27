@@ -1,11 +1,10 @@
 import { Box, Typography, Container } from "@mui/material";
+import PageTitle from "../shared/components/PageTitle";
 
 export default function Terms() {
     return (
         <Container maxWidth="md" sx={{ py: 4 }}>
-            <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
-                Termos e Condições
-            </Typography>
+            <PageTitle title="Termos e Condições" variant="h4" />
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Box>

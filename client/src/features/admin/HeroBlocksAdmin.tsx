@@ -3,6 +3,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useState } from "react";
 import { useGetHeroBlocksQuery, useCreateHeroBlockMutation, useUpdateHeroBlockMutation, useDeleteHeroBlockMutation, useUploadHeroImageMutation, useDeleteHeroImageMutation } from "./heroBlocksApi";
 import { useCreateCampaignMutation, useGetCampaignsQuery, useDeleteCampaignMutation } from "./adminApi";
+import PageTitle from "../../app/shared/components/PageTitle";
 
 // Local types for hero blocks/images returned by the API
 type HeroImage = { id: number; url: string; publicId?: string; order?: number };
@@ -63,7 +64,7 @@ export default function HeroBlocksAdmin() {
 
     return (
         <Box>
-            <Typography variant="h5">Gerir Campanhas</Typography>
+            <PageTitle title="Gerir Campanhas" variant="h5" />
             <Box sx={{ my: 2, display: 'flex', gap: 1 }}>
                 <TextField label="Título" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
                 <Button variant="contained" onClick={handleCreate}>Criar Campanha</Button>

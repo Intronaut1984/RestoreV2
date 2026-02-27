@@ -13,6 +13,7 @@ import ProductForm from "./ProductForm";
 import { Product } from "../../app/models/product";
 import { useDeleteProductMutation, usePublishProductMutation } from "./adminApi";
 import { skipToken } from "@reduxjs/toolkit/query";
+import PageTitle from "../../app/shared/components/PageTitle";
 
 export default function InventoryPage() {
     const productParams = useAppSelector(state => state.catalog);
@@ -70,9 +71,16 @@ export default function InventoryPage() {
 
     return (
         <>
-            <Box display='flex' justifyContent='space-between' alignItems='center'>
-                <Typography sx={{p: 2}} variant='h4'>Inventário</Typography>
-                <Button onClick={() => setEditMode(true)} sx={{m: 2}} size='large' variant='contained'>Criar Produto</Button>
+            <Box sx={{ px: 2, pt: 2 }}>
+                <PageTitle
+                    title="Inventário"
+                    variant="h4"
+                    actions={(
+                        <Button onClick={() => setEditMode(true)} size='large' variant='contained'>
+                            Criar Produto
+                        </Button>
+                    )}
+                />
             </Box>
 
             <Grid container spacing={4}>
@@ -166,31 +174,54 @@ export default function InventoryPage() {
                                         </Box>
                                     </TableCell>
 
-                                    <TableCell align="right">
-                                        <Button
-                                            component={Link}
-                                            to={`/catalog/${product.id}?preview=1`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            variant='outlined'
-                                            size='small'
-                                            sx={{ mr: 1 }}
-                                        >
-                                            Pré-visualizar
-                                        </Button>
-                                        {product.isPublished === false && (
+                                    <TableCell align="right" sx={{ width: 280 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
                                             <Button
-                                                onClick={() => handlePublishProduct(product.id)}
-                                                variant='contained'
-                                                color='success'
+                                                component={Link}
+                                                to={`/catalog/${product.id}?preview=1`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                variant='outlined'
                                                 size='small'
-                                                sx={{ mr: 1 }}
+                                                sx={{ whiteSpace: 'nowrap' }}
                                             >
-                                                Aprovar
+                                                Pré-visualizar
                                             </Button>
-                                        )}
-                                        <Button onClick={() => handleSelectProduct(product)} startIcon={<Edit />} variant='contained' color='primary' size='small' />
-                                        <Button onClick={() => handleDeleteProduct(product.id)} startIcon={<Delete />} color="error" size='small' sx={{ ml: 1 }} />
+
+                                            {product.isPublished === false && (
+                                                <Button
+                                                    onClick={() => handlePublishProduct(product.id)}
+                                                    variant='contained'
+                                                    color='success'
+                                                    size='small'
+                                                    sx={{ whiteSpace: 'nowrap' }}
+                                                >
+                                                    Aprovar
+                                                </Button>
+                                            )}
+
+                                            <Button
+                                                onClick={() => handleSelectProduct(product)}
+                                                startIcon={<Edit />}
+                                                variant='contained'
+                                                color='primary'
+                                                size='small'
+                                                sx={{ minWidth: 0, px: 1.25, whiteSpace: 'nowrap' }}
+                                            >
+                                                Editar
+                                            </Button>
+
+                                            <Button
+                                                onClick={() => handleDeleteProduct(product.id)}
+                                                startIcon={<Delete />}
+                                                variant='contained'
+                                                color="error"
+                                                size='small'
+                                                sx={{ minWidth: 0, px: 1.25, whiteSpace: 'nowrap' }}
+                                            >
+                                                Remover
+                                            </Button>
+                                        </Box>
                                     </TableCell>
                                 </TableRow>
                             )

@@ -5,6 +5,7 @@ import { useUserInfoQuery, useFetchAddressQuery, useUpdateUserInfoMutation, useU
 import { useChangePasswordMutation } from './accountApi';
 import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'react-toastify';
+import PageTitle from '../../app/shared/components/PageTitle';
 
 export default function ProfilePage() {
   const { data: user, isLoading: userLoading } = useUserInfoQuery();
@@ -215,10 +216,10 @@ export default function ProfilePage() {
       }}
     >
       <Box sx={{ px: 0 }}>
-        <Typography variant="h5" sx={{ mb: 1 }}>
-          {user?.userName && !user.userName.includes('@') ? `Olá, ${user.userName}` : 'Olá, User'}
-        </Typography>
-        <Divider sx={{ my: 1 }} />
+        <PageTitle
+          title={user?.userName && !user.userName.includes('@') ? `Olá, ${user.userName}` : 'Olá, User'}
+          variant="h5"
+        />
 
         {!editing ? (
           <>

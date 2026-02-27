@@ -29,6 +29,7 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<OrderIncident> OrderIncidents { get; set; }
     public required DbSet<OrderIncidentAttachment> OrderIncidentAttachments { get; set; }
     public required DbSet<UserNotification> UserNotifications { get; set; }
+    public required DbSet<UiSettings> UiSettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -62,6 +63,18 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
             b.Property(x => x.Title).IsRequired().HasMaxLength(200);
             b.Property(x => x.Message).IsRequired().HasMaxLength(2000);
             b.Property(x => x.Url).HasMaxLength(500);
+        });
+
+        builder.Entity<UiSettings>(b =>
+        {
+            b.Property(x => x.PrimaryColorLight).IsRequired().HasMaxLength(20);
+            b.Property(x => x.SecondaryColorLight).IsRequired().HasMaxLength(20);
+            b.Property(x => x.PrimaryColorDark).IsRequired().HasMaxLength(20);
+            b.Property(x => x.SecondaryColorDark).IsRequired().HasMaxLength(20);
+            b.Property(x => x.ButtonIconColor).IsRequired().HasMaxLength(50);
+            b.Property(x => x.NotificationsBadgeColorLight).IsRequired().HasMaxLength(50);
+            b.Property(x => x.NotificationsBadgeColorDark).IsRequired().HasMaxLength(50);
+            b.HasIndex(x => x.UpdatedAt);
         });
 
         builder.Entity<OrderIncident>(b =>

@@ -53,6 +53,9 @@ export default function ProductDetails() {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
 
+  // Buttons should follow the configured primary color (UiSettings -> theme.palette.primary)
+  const accentColor: 'primary' = 'primary';
+
   const requestedVariantId = useMemo<number | null | undefined>(() => {
     const sp = new URLSearchParams(location.search);
     const raw = sp.get('variantId');
@@ -229,8 +232,8 @@ export default function ProductDetails() {
   const ratingsCount = typeof product.ratingsCount === 'number' ? product.ratingsCount : 0;
   const visibleReviews = showAllReviews ? reviews : reviews.slice(0, 4);
 
-  const isLight = theme.palette.mode === 'light';
-  const accentColor: 'warning' | 'secondary' = isLight ? 'warning' : 'secondary';
+  
+  // (was warning/secondary to add contrast; now uses the configured primary)
 
   const resolveDotBg = (colorName: string | null | undefined) => {
     const n = (colorName ?? '').trim().toLowerCase();
@@ -655,11 +658,7 @@ export default function ProductDetails() {
                 <Button
                   onClick={handleUpdateBasket}
                   disabled={quantity === item.quantity}
-                  sx={{
-                    ...actionButtonSx,
-                    bgcolor: isLight ? 'warning.dark' : 'secondary.dark',
-                    '&:hover': { bgcolor: isLight ? 'warning.main' : 'secondary.main' }
-                  }}
+                  sx={actionButtonSx}
                   color={accentColor}
                   size="large"
                   variant="contained"

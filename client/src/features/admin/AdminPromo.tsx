@@ -1,6 +1,7 @@
-import { Box, Button, TextField, Typography } from "@mui/material";
+import { Box, Button, TextField } from "@mui/material";
 import { useGetPromoQuery, useUpdatePromoMutation } from "./adminApi";
 import { useState, useEffect } from "react";
+import PageTitle from "../../app/shared/components/PageTitle";
 
 export default function AdminPromo() {
     const { data, isLoading, refetch } = useGetPromoQuery();
@@ -34,7 +35,7 @@ export default function AdminPromo() {
 
     return (
         <Box sx={{p:2}}>
-            <Typography variant="h5" sx={{mb:2}}>Promo Bar</Typography>
+            <PageTitle title="Promo Bar" variant="h4" />
             <Box sx={{display:'flex', flexDirection: 'column', gap:2, maxWidth: 700}}>
                 <TextField label="Mensagem" multiline minRows={2} value={message} onChange={e => setMessage(e.target.value)} />
                 <Box sx={{display:'flex', alignItems:'center', gap:2}}>
