@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Container, Paper, Box, Typography, TextField, Button, InputAdornment, IconButton } from '@mui/material';
+import { Container, Paper, Box, TextField, Button, InputAdornment, IconButton } from '@mui/material';
 import { useResetPasswordMutation } from './accountApi';
 import { toast } from 'react-toastify';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import PageTitle from '../../app/shared/components/PageTitle';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -48,7 +49,7 @@ export default function ResetPassword() {
   return (
     <Container component={Paper} maxWidth='sm' sx={{ borderRadius: 3 }}>
       <Box display='flex' flexDirection='column' alignItems='center' marginTop='8' sx={{ p: 3 }}>
-        <Typography variant="h5">Repor Password</Typography>
+        <PageTitle title="Repor Password" variant="h5" sx={{ textAlign: 'center' }} />
         <Box component='form' onSubmit={onSubmit} width='100%' display='flex' flexDirection='column' gap={2} mt={2}>
           <TextField label='Email' fullWidth value={email} onChange={e => setEmail(e.target.value)} />
           <TextField label='Token' fullWidth value={token} onChange={e => setToken(e.target.value)} />

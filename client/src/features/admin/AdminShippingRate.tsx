@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Box, TextField, Typography, CircularProgress } from '@mui/material';
 import { LoadingButton } from '@mui/lab';
 import { useGetShippingRateQuery, useUpdateShippingRateMutation } from './shippingRateApi';
+import PageTitle from '../../app/shared/components/PageTitle';
 
 export default function AdminShippingRate() {
     const { data: shippingRateData, isLoading } = useGetShippingRateQuery();
@@ -57,9 +58,7 @@ export default function AdminShippingRate() {
 
     return (
         <Box sx={{ maxWidth: 600, mx: 'auto', p: 3 }}>
-            <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
-                Gerir Taxa de Entrega
-            </Typography>
+            <PageTitle title="Gerir Taxa de Entrega" variant="h4" />
 
             <form onSubmit={handleSubmit}>
                 <TextField

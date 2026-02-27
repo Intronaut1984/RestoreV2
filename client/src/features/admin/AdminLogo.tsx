@@ -2,6 +2,7 @@ import { Box, Button, Slider, TextField, Typography } from "@mui/material";
 import { useGetLogoQuery, useUpdateLogoMutation } from "./logoApi";
 import { useState, useEffect } from "react";
 import { LoadingButton } from "@mui/lab";
+import PageTitle from "../../app/shared/components/PageTitle";
 
 type PreviewFile = File & { preview: string };
 
@@ -72,7 +73,7 @@ export default function AdminLogo() {
 
     return (
         <Box sx={{ p: 2 }}>
-            <Typography variant="h5" sx={{ mb: 2 }}>Gerir Logo</Typography>
+            <PageTitle title="Gerir Logo" variant="h4" />
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 700 }}>
                 
                 {/* URL Input Option */}

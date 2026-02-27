@@ -128,6 +128,27 @@ export const accountApi = createApi({
             }
         })
         ,
+        deleteAccount: builder.mutation<void, { deleteStoredData: boolean }>({
+            query: (payload) => ({
+                url: 'account/delete-account',
+                method: 'POST',
+                body: payload
+            }),
+            async onQueryStarted(_, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    dispatch(favoritesApi.util.updateQueryData('fetchFavorites', undefined, () => []));
+                    dispatch(accountApi.util.invalidateTags(['UserInfo']));
+                    dispatch(favoritesApi.util.invalidateTags(['Favorites']));
+                    toast.success('Conta apagada com sucesso');
+                    router.navigate('/');
+                } catch (error) {
+                    console.log(error);
+                    throw error;
+                }
+            }
+        })
+        ,
         forgotPassword: builder.mutation<{ email?: string; token?: string; resetUrl?: string; message?: string }, { email: string }>({
             query: (payload) => ({
                 url: 'account/forgot-password',
@@ -148,4 +169,4 @@ export const accountApi = createApi({
 export const {useLoginMutation, useRegisterMutation, useLogoutMutation, 
     useUserInfoQuery, useLazyUserInfoQuery, useFetchAddressQuery, 
     useUpdateUserAddressMutation, useUpdateUserInfoMutation, useChangePasswordMutation,
-    useForgotPasswordMutation, useResetPasswordMutation} = accountApi;
+    useForgotPasswordMutation, useResetPasswordMutation, useDeleteAccountMutation} = accountApi;

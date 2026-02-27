@@ -17,6 +17,7 @@ import { useGetLogoQuery } from '../../features/admin/logoApi';
 import { computeFinalPrice, currencyFormat } from "../../lib/util";
 import { setHasDiscount, setOrderBy } from "../../features/catalog/catalogSlice";
 import { useGetNotificationsQuery, useGetUnreadCountQuery, useMarkAllReadMutation, useMarkReadMutation } from "../../features/notifications/notificationsApi";
+import { useGetUiSettingsQuery } from "../../features/admin/uiSettingsApi";
 
 const midLinks: { title: string; path: string }[] = [
     // Removed navigation links (Loja, Sobre, Promoções, etc.)
@@ -55,6 +56,7 @@ export default function NavBar() {
         refetchOnMountOrArgChange: true
     });
     const { isLoading, darkMode } = useAppSelector(state => state.ui);
+    const { data: uiSettings } = useGetUiSettingsQuery();
     const dispatch = useAppDispatch();
     const { data: basket } = useFetchBasketQuery();
     const { data: favorites } = useFetchFavoritesQuery();
@@ -80,6 +82,9 @@ export default function NavBar() {
     const [favoritesOpen, setFavoritesOpen] = useState(false);
     const { data: filtersData } = useFetchFiltersQuery();
     const theme = useTheme();
+    const notificationsBadgeColor = (theme.palette.mode === 'light'
+        ? (uiSettings?.notificationsBadgeColorLight ?? 'warning')
+        : (uiSettings?.notificationsBadgeColorDark ?? 'secondary'));
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const location = useLocation();
     const navigate = useNavigate();
@@ -179,7 +184,11 @@ export default function NavBar() {
                 bgcolor: (theme) => theme.palette.mode === 'light' ? 'rgba(250,250,250,0.92)' : 'rgba(0,0,0,0.5)',
                 backdropFilter: 'blur(6px)',
                 boxShadow: 'none',
-                zIndex: (theme) => theme.zIndex.appBar + 10
+                zIndex: (theme) => theme.zIndex.appBar + 10,
+                color: (theme) => theme.palette.mode === 'light' ? theme.palette.text.primary : 'inherit',
+                '& .MuiIconButton-root': {
+                    color: 'inherit'
+                }
             }}
         >
             <Toolbar
@@ -266,7 +275,7 @@ export default function NavBar() {
 
                 <Box display='flex' alignItems='center' gap={1}>
                     <IconButton size="large" sx={{ color: 'inherit' }} onClick={() => setFavoritesOpen(true)}>
-                        <Badge badgeContent={favorites?.length ?? 0} color={theme.palette.mode === 'light' ? 'warning' : 'secondary'}>
+                        <Badge badgeContent={favorites?.length ?? 0} color={notificationsBadgeColor}>
                             <FavoriteBorder />
                         </Badge>
                     </IconButton>
@@ -278,7 +287,7 @@ export default function NavBar() {
                             onClick={(e) => setAnchorNotificationsEl(e.currentTarget)}
                             aria-label="notifications"
                         >
-                            <Badge badgeContent={unreadCount ?? 0} color={theme.palette.mode === 'light' ? 'warning' : 'secondary'}>
+                            <Badge badgeContent={unreadCount ?? 0} color={notificationsBadgeColor}>
                                 <NotificationsNone />
                             </Badge>
                         </IconButton>
@@ -346,7 +355,7 @@ export default function NavBar() {
                     </Menu>
 
                     <IconButton component={Link} to='/basket' size="large" sx={{ color: 'inherit' }}>
-                        <Badge badgeContent={itemCount} color={theme.palette.mode === 'light' ? 'warning' : 'secondary'}>
+                        <Badge badgeContent={itemCount} color={notificationsBadgeColor}>
                             <ShoppingCart />
                         </Badge>
                     </IconButton>

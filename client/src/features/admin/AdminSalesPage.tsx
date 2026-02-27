@@ -21,6 +21,7 @@ import { format, subDays } from "date-fns";
 import { emailToUsername, formatOrderAmount } from "../../lib/util";
 import { useFetchAllSalesQuery } from "../orders/orderApi";
 import AppPagination from "../../app/shared/components/AppPagination";
+import PageTitle from "../../app/shared/components/PageTitle";
 import { useState } from "react";
 import { adminOrderStatusOptions, getOrderStatusLabel, getOrderStatusSx } from "../../lib/orderStatus";
 import { useGetCategoriesQuery } from "./adminApi";
@@ -126,9 +127,7 @@ export default function AdminSalesPage() {
 
   return (
     <Container maxWidth="md">
-      <Typography variant="h6" align="center" gutterBottom sx={{ mb: 1 }}>
-        Todas as Vendas
-      </Typography>
+      <PageTitle title="Todas as Vendas" variant="h6" sx={{ textAlign: 'center' }} />
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mb: 2 }}>
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>

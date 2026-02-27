@@ -10,6 +10,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { GoogleLogin } from '@react-oauth/google';
 import { hasGoogleClientId } from "../../app/config/env";
 import type { CredentialResponse } from "@react-oauth/google";
+import PageTitle from "../../app/shared/components/PageTitle";
 
 export default function RegisterForm() {
     const [registerUser, { isLoading }] = useRegisterMutation();
@@ -97,9 +98,7 @@ export default function RegisterForm() {
         >
             <Box display='flex' flexDirection='column' alignItems='center' mt={3}>
                 <LockOutlined sx={{ mt: 1, color: isLight ? 'text.primary' : 'secondary.main', fontSize: 40 }} />
-                <Typography variant="h5">
-                    Registar
-                </Typography>
+                <PageTitle title="Registar" variant="h5" sx={{ textAlign: 'center' }} />
                 
                 {registerError && (
                     <Alert severity="error" sx={{ width: '100%', mt: 2 }}>

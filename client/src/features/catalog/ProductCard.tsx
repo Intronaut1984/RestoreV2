@@ -22,7 +22,7 @@ export default function ProductCard({ product }: Props) {
     const navigate = useNavigate();
     const theme = useTheme();
     const isLight = theme.palette.mode === 'light';
-    const accentColor: 'warning' | 'secondary' = isLight ? 'warning' : 'secondary';
+    const accentColor: 'primary' = 'primary';
     const images = [product.pictureUrl, ...(product.secondaryImages ?? [])].filter((x): x is string => !!x);
     const [index, setIndex] = useState(0);
     const [isFav, setIsFav] = useState<boolean>(product.isFavorite ?? false);

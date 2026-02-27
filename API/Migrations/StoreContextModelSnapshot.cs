@@ -443,6 +443,9 @@ namespace API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("CustomerComment")
                         .HasColumnType("nvarchar(max)");
 
@@ -471,6 +474,39 @@ namespace API.Migrations
                     b.Property<DateTime?>("ReceiptEmailedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("RefundId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RefundRequestReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("RefundRequestStatus")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("RefundRequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RefundReturnMethod")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RefundReviewNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("RefundReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RefundedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RestockedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("SalesCountAdjustedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<long>("Subtotal")
                         .HasColumnType("bigint");
 
@@ -481,6 +517,10 @@ namespace API.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RefundId");
+
+                    b.HasIndex("RefundRequestStatus");
 
                     b.ToTable("Orders");
                 });
@@ -783,18 +823,35 @@ namespace API.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("AdminReply")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("BuyerEmail")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
 
                     b.Property<string>("Comment")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedByEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<string>("DeletedReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
@@ -908,6 +965,59 @@ namespace API.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ShippingRates");
+                });
+
+            modelBuilder.Entity("API.Entities.UiSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ButtonIconColor")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("NotificationsBadgeColorDark")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("NotificationsBadgeColorLight")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PrimaryColorDark")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("PrimaryColorLight")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SecondaryColorDark")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SecondaryColorLight")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedAt");
+
+                    b.ToTable("UiSettings");
                 });
 
             modelBuilder.Entity("API.Entities.User", b =>

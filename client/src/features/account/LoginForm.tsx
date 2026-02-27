@@ -10,6 +10,7 @@ import { useLazyUserInfoQuery, useLoginMutation } from "./accountApi";
 import { GoogleLogin } from '@react-oauth/google';
 import { hasGoogleClientId } from "../../app/config/env";
 import type { CredentialResponse } from "@react-oauth/google";
+import PageTitle from "../../app/shared/components/PageTitle";
 
 export default function LoginForm() {
     const [login, {isLoading}] = useLoginMutation();
@@ -103,9 +104,7 @@ export default function LoginForm() {
         >
             <Box display='flex' flexDirection='column' alignItems='center' mt={3}>
                 <LockOutlined sx={{ mt: 1, color: isLight ? 'text.primary' : 'secondary.main', fontSize: 40 }} />
-                <Typography variant="h5">
-                    Inicio de Sessão
-                </Typography>
+                <PageTitle title="Inicio de Sessão" variant="h5" sx={{ textAlign: 'center' }} />
                 
                 {loginError && (
                     <Alert severity="error" sx={{ width: '100%', mt: 2 }}>

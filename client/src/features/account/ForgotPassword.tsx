@@ -3,6 +3,7 @@ import { Container, Paper, Box, Typography, TextField, Button } from '@mui/mater
 import { useForgotPasswordMutation } from './accountApi';
 import { toast } from 'react-toastify';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import PageTitle from '../../app/shared/components/PageTitle';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -26,7 +27,7 @@ export default function ForgotPassword() {
   return (
     <Container component={Paper} maxWidth='sm' sx={{ borderRadius: 3 }}>
       <Box display='flex' flexDirection='column' alignItems='center' marginTop='8' sx={{ p: 3 }}>
-        <Typography variant="h5">Esqueci-me da Password</Typography>
+        <PageTitle title="Esqueci-me da Password" variant="h5" sx={{ textAlign: 'center' }} />
         {!submitted ? (
           <Box component='form' onSubmit={onSubmit} width='100%' display='flex' flexDirection='column' gap={2} mt={2}>
             <TextField label='Email' fullWidth value={email} onChange={e => setEmail(e.target.value)} />

@@ -26,4 +26,11 @@ public class OrderDto
 
     public string? AdminCommentReply { get; set; }
     public DateTime? AdminCommentRepliedAt { get; set; }
+
+    public required string RefundRequestStatus { get; set; }
+    public DateTime? RefundRequestedAt { get; set; }
+    public DateTime? RefundReviewedAt { get; set; }
+    public required string RefundReturnMethod { get; set; }
+    public string? RefundRequestReason { get; set; }
+    public string? RefundReviewNote { get; set; }
 }

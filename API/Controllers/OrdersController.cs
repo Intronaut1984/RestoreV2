@@ -19,6 +19,7 @@ using System.IO;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Identity;
 using System.Net;
+using API.Services;
 
 namespace API.Controllers;
 
@@ -33,7 +34,8 @@ public class OrdersController(
     IInvoicePdfService invoicePdfService,
     IWebHostEnvironment env,
     UserManager<User> userManager,
-    INotificationService notificationService) : BaseApiController
+    INotificationService notificationService,
+    StripeReversalService stripeReversalService) : BaseApiController
 {
     private const decimal DefaultRate = 5m;
     private const decimal DefaultFreeShippingThreshold = 100m;
@@ -60,6 +62,419 @@ public class OrdersController(
         if (order == null) return NotFound();
 
         return order;
+    }
+
+    [HttpPost("{id:int}/refund")]
+    public async Task<IActionResult> RequestRefund(int id, [FromBody] RequestRefundDto? dto, CancellationToken ct)
+    {
+        var email = User.GetEmail();
+        if (string.IsNullOrWhiteSpace(email)) return Unauthorized();
+
+        var order = await context.Orders
+            .FirstOrDefaultAsync(o => o.Id == id && o.BuyerEmail == email, ct);
+
+        if (order == null) return NotFound();
+
+        if (order.OrderStatus == OrderStatus.Pending || order.OrderStatus == OrderStatus.PaymentFailed)
+            return BadRequest("Não é possível pedir devolução para esta encomenda");
+
+        // 30-day window
+        var deadline = order.OrderDate.AddDays(30);
+        if (DateTime.UtcNow > deadline)
+            return BadRequest("O prazo de 30 dias para devolução já terminou");
+
+        if (order.OrderStatus == OrderStatus.Cancelled || order.RefundRequestStatus == RefundRequestStatus.Approved)
+            return NoContent();
+
+        if (order.RefundRequestStatus == RefundRequestStatus.PendingReview)
+            return NoContent();
+
+        if (order.RefundRequestStatus == RefundRequestStatus.Rejected)
+            return BadRequest("O pedido de devolução desta encomenda já foi recusado");
+
+        if (dto == null) return BadRequest("É obrigatório indicar o motivo e o método de devolução");
+
+        var reason = (dto.Reason ?? string.Empty).Trim();
+        if (reason.Length > 1000) reason = reason[..1000];
+
+        if (reason.Length < 20)
+            return BadRequest("O comentário deve ter pelo menos 20 caracteres");
+
+        if (dto.ReturnMethod == RefundReturnMethod.None)
+            return BadRequest("Indique se a devolução é na loja ou por correio");
+
+        order.RefundRequestStatus = RefundRequestStatus.PendingReview;
+        order.RefundRequestedAt ??= DateTime.UtcNow;
+        order.RefundReturnMethod = dto.ReturnMethod;
+        order.RefundRequestReason = string.IsNullOrWhiteSpace(reason) ? null : reason;
+        // Clear any previous review fields
+        order.RefundReviewedAt = null;
+        order.RefundReviewNote = null;
+
+        var saved = await context.SaveChangesAsync(ct) > 0;
+        if (!saved) return BadRequest("Não foi possível criar o pedido de devolução");
+
+        await notificationService.TryCreateForEmailAsync(
+            order.BuyerEmail,
+            "Pedido de devolução em avaliação",
+            $"O pedido de devolução da encomenda #{order.Id} está em avaliação.",
+            $"/orders/{order.Id}",
+            ct);
+
+        await TrySendRefundRequestInstructionsEmail(order);
+        await TryNotifyAdminsRefundRequestedAsync(order);
+
+        return NoContent();
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("all/{id:int}/refund/approve")]
+    public async Task<IActionResult> ApproveRefundRequest(int id, [FromBody] RefundDecisionDto? dto, CancellationToken ct)
+    {
+        var order = await context.Orders
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
+
+        if (order == null) return NotFound();
+
+        if (order.RefundRequestStatus != RefundRequestStatus.PendingReview)
+            return BadRequest("Não existe um pedido de devolução em avaliação para esta encomenda");
+
+        // Validate window (admin can still reject even after deadline, but approval should respect policy)
+        var deadline = order.OrderDate.AddDays(30);
+        if (DateTime.UtcNow > deadline)
+            return BadRequest("O prazo de 30 dias para devolução já terminou");
+
+        var note = (dto?.Note ?? string.Empty).Trim();
+        if (note.Length > 2000) note = note[..2000];
+
+        // Stripe refund/cancel happens ONLY on admin approval
+        var reversal = await stripeReversalService.ReverseAsync(order, ct);
+        if (!reversal.Succeeded)
+            return BadRequest(reversal.Error ?? "Não foi possível criar a devolução no Stripe");
+
+        order.RefundRequestStatus = RefundRequestStatus.Approved;
+        order.RefundReviewedAt ??= DateTime.UtcNow;
+        order.RefundReviewNote = string.IsNullOrWhiteSpace(note) ? null : note;
+
+        order.OrderStatus = OrderStatus.Cancelled;
+        order.CancelledAt ??= DateTime.UtcNow;
+        if (reversal.Kind == StripeReversalKind.Refunded && !string.IsNullOrWhiteSpace(reversal.RefundId))
+        {
+            order.RefundId ??= reversal.RefundId;
+            order.RefundedAt ??= DateTime.UtcNow;
+        }
+
+        await TryRestockAndAdjustStatsAsync(order, ct);
+
+        var saved = await context.SaveChangesAsync(ct) > 0;
+        if (!saved) return BadRequest("Não foi possível aprovar o pedido de devolução");
+
+        await notificationService.TryCreateForEmailAsync(
+            order.BuyerEmail,
+            "Pedido de devolução aceite",
+            $"O pedido de devolução da encomenda #{order.Id} foi aceite e a devolução foi iniciada.",
+            $"/orders/{order.Id}",
+            ct);
+
+        await TrySendStatusEmail(order, OrderStatus.Cancelled);
+
+        await TryNotifyAdminsRefundApprovedAsync(order);
+
+        return NoContent();
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("all/{id:int}/refund/reject")]
+    public async Task<IActionResult> RejectRefundRequest(int id, [FromBody] RefundDecisionDto? dto, CancellationToken ct)
+    {
+        var order = await context.Orders
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
+
+        if (order == null) return NotFound();
+
+        if (order.RefundRequestStatus != RefundRequestStatus.PendingReview)
+            return BadRequest("Não existe um pedido de devolução em avaliação para esta encomenda");
+
+        var note = (dto?.Note ?? string.Empty).Trim();
+        if (note.Length > 2000) note = note[..2000];
+
+        order.RefundRequestStatus = RefundRequestStatus.Rejected;
+        order.RefundReviewedAt ??= DateTime.UtcNow;
+        order.RefundReviewNote = string.IsNullOrWhiteSpace(note) ? null : note;
+
+        var saved = await context.SaveChangesAsync(ct) > 0;
+        if (!saved) return BadRequest("Não foi possível recusar o pedido de devolução");
+
+        await notificationService.TryCreateForEmailAsync(
+            order.BuyerEmail,
+            "Pedido de devolução recusado",
+            $"O pedido de devolução da encomenda #{order.Id} foi recusado.",
+            $"/orders/{order.Id}",
+            ct);
+
+        await TrySendRefundRejectedEmail(order);
+
+        await TryNotifyAdminsRefundRejectedAsync(order);
+
+        return NoContent();
+    }
+
+    private async Task TryRestockAndAdjustStatsAsync(Order order, CancellationToken ct)
+    {
+        // Restock + sales stat adjustments should only happen once.
+        if (order.RestockedAt.HasValue && order.SalesCountAdjustedAt.HasValue) return;
+
+        foreach (var oi in order.OrderItems)
+        {
+            var productId = oi.ItemOrdered.ProductId;
+            var variantId = oi.ItemOrdered.ProductVariantId;
+
+            if (!order.RestockedAt.HasValue)
+            {
+                if (variantId.HasValue)
+                {
+                    var variant = await context.ProductVariants.FirstOrDefaultAsync(v => v.Id == variantId.Value && v.ProductId == productId, ct);
+                    if (variant != null) variant.QuantityInStock += oi.Quantity;
+                }
+
+                var product = await context.Products.FirstOrDefaultAsync(p => p.Id == productId, ct);
+                if (product != null) product.QuantityInStock += oi.Quantity;
+            }
+
+            if (!order.SalesCountAdjustedAt.HasValue)
+            {
+                var product = await context.Products.FirstOrDefaultAsync(p => p.Id == productId, ct);
+                if (product != null)
+                {
+                    var next = product.SalesCount - oi.Quantity;
+                    product.SalesCount = next < 0 ? 0 : next;
+                }
+            }
+        }
+
+        order.RestockedAt ??= DateTime.UtcNow;
+        order.SalesCountAdjustedAt ??= DateTime.UtcNow;
+    }
+
+    private async Task TrySendRefundRequestInstructionsEmail(Order order)
+    {
+        try
+        {
+            var frontendUrl = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontendUrl) ? string.Empty : $"{frontendUrl}/orders/{order.Id}";
+
+            var subject = $"Pedido de devolução em avaliação (Encomenda #{order.Id})";
+
+            var contactEmail = string.IsNullOrWhiteSpace(emailOptions.Value.AdminEmail)
+                ? (emailOptions.Value.FromEmail ?? string.Empty)
+                : emailOptions.Value.AdminEmail;
+
+            var contactLine = string.IsNullOrWhiteSpace(contactEmail)
+                ? ""
+                : $"<p style=\"margin:0 0 12px\">Se precisar de ajuda, contacte: <strong>{WebUtility.HtmlEncode(contactEmail)}</strong></p>";
+
+                        var orderLinkLine = string.IsNullOrWhiteSpace(orderUrl)
+                                ? ""
+                                : $"<p style=\"margin:0\">Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>";
+
+                        var html = $"""
+<div style="font-family:Arial,sans-serif;max-width:640px">
+    <h2 style="margin:0 0 12px">Pedido de devolução em avaliação</h2>
+    <p style="margin:0 0 12px">Recebemos o seu pedido de devolução para a encomenda <strong>#{order.Id}</strong>.</p>
+    <p style="margin:0 0 12px">O pedido está em <strong>avaliação</strong>. A devolução só será processada depois de o produto ser devolvido e confirmado em bom estado pela nossa equipa.</p>
+    <h3 style="margin:16px 0 8px">Instruções</h3>
+    <ol style="margin:0 0 12px">
+        <li>Embale o(s) artigo(s) em segurança e inclua o número da encomenda <strong>#{order.Id}</strong>.</li>
+        <li>Envie-nos mensagem para combinar a devolução (morada/etiqueta), indicando o número da encomenda.</li>
+        <li>Assim que o produto for recebido e verificado, confirmaremos a aceitação (ou recusa) do pedido.</li>
+    </ol>
+    {contactLine}
+    {orderLinkLine}
+</div>
+""";
+
+            await emailService.SendEmailAsync(order.BuyerEmail, subject, html);
+        }
+        catch
+        {
+            // best-effort
+        }
+    }
+
+    private async Task TrySendRefundRejectedEmail(Order order)
+    {
+        try
+        {
+            var frontendUrl = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontendUrl) ? string.Empty : $"{frontendUrl}/orders/{order.Id}";
+
+            var subject = $"Pedido de devolução recusado (Encomenda #{order.Id})";
+            var note = string.IsNullOrWhiteSpace(order.RefundReviewNote) ? "" : $"<p style=\"margin:0 0 12px\"><strong>Comentário da Loja:</strong> {WebUtility.HtmlEncode(order.RefundReviewNote)}</p>";
+
+                        var orderLinkLine = string.IsNullOrWhiteSpace(orderUrl)
+                                ? ""
+                                : $"<p style=\"margin:0\">Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>";
+
+                        var html = $"""
+<div style="font-family:Arial,sans-serif;max-width:640px">
+    <h2 style="margin:0 0 12px">Pedido de devolução recusado</h2>
+    <p style="margin:0 0 12px">O pedido de devolução da encomenda <strong>#{order.Id}</strong> foi recusado.</p>
+    {note}
+    {orderLinkLine}
+</div>
+""";
+
+            await emailService.SendEmailAsync(order.BuyerEmail, subject, html);
+        }
+        catch
+        {
+            // best-effort
+        }
+    }
+
+    private async Task TryNotifyAdminsRefundRequestedAsync(Order order)
+    {
+        try
+        {
+            var adminEmails = await GetAdminEmailsAsync();
+
+            if (adminEmails.Count == 0) return;
+
+            foreach (var adminEmail in adminEmails)
+            {
+                await notificationService.TryCreateForEmailAsync(
+                    adminEmail,
+                    "Pedido de devolução",
+                    $"Novo pedido de devolução na encomenda #{order.Id} (em avaliação).",
+                    $"/admin/sales/{order.Id}");
+            }
+
+            var frontendUrl = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var adminUrl = string.IsNullOrWhiteSpace(frontendUrl) ? string.Empty : $"{frontendUrl}/admin/sales/{order.Id}";
+
+            foreach (var to in adminEmails)
+            {
+                var subject = $"Novo pedido de devolução (Encomenda #{order.Id})";
+                var reason = string.IsNullOrWhiteSpace(order.RefundRequestReason) ? "" : $"<p style=\"margin:0 0 12px\"><strong>Motivo:</strong> {WebUtility.HtmlEncode(order.RefundRequestReason)}</p>";
+                var method = order.RefundReturnMethod switch
+                {
+                    RefundReturnMethod.InStore => "Loja",
+                    RefundReturnMethod.ByMail => "Correio",
+                    _ => "(não indicado)"
+                };
+                var methodLine = $"<p style=\"margin:0 0 12px\"><strong>Método:</strong> {WebUtility.HtmlEncode(method)}</p>";
+
+                                var adminLinkLine = string.IsNullOrWhiteSpace(adminUrl)
+                                        ? ""
+                                        : $"<p style=\"margin:0\">Abrir venda: <a href=\"{adminUrl}\">{adminUrl}</a></p>";
+
+                                var html = $"""
+<div style="font-family:Arial,sans-serif;max-width:640px">
+    <h2 style="margin:0 0 12px">Pedido de devolução em avaliação</h2>
+    <p style="margin:0 0 12px">O cliente <strong>{WebUtility.HtmlEncode(order.BuyerEmail)}</strong> pediu devolução da encomenda <strong>#{order.Id}</strong>.</p>
+    {methodLine}
+    {reason}
+    {adminLinkLine}
+</div>
+""";
+                await emailService.SendEmailAsync(to, subject, html);
+            }
+        }
+        catch
+        {
+            // best-effort
+        }
+    }
+
+    private async Task TryNotifyAdminsRefundApprovedAsync(Order order)
+    {
+        try
+        {
+            var adminEmails = await GetAdminEmailsAsync();
+            if (adminEmails.Count == 0) return;
+
+            foreach (var adminEmail in adminEmails)
+            {
+                await notificationService.TryCreateForEmailAsync(
+                    adminEmail,
+                    "Devolução aceite",
+                    $"A devolução da encomenda #{order.Id} foi aceite.",
+                    $"/admin/sales/{order.Id}");
+            }
+
+            var frontendUrl = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var adminUrl = string.IsNullOrWhiteSpace(frontendUrl) ? string.Empty : $"{frontendUrl}/admin/sales/{order.Id}";
+            var subject = $"[Devolução] Aceite - Encomenda #{order.Id}";
+
+            var storeNote = string.IsNullOrWhiteSpace(order.RefundReviewNote)
+                ? string.Empty
+                : $"<p style=\"margin:0 0 12px\"><strong>Comentário da Loja:</strong> {WebUtility.HtmlEncode(order.RefundReviewNote)}</p>";
+
+            var html = $"""
+<div style="font-family:Arial,sans-serif;max-width:640px">
+  <h2 style="margin:0 0 12px">Devolução aceite</h2>
+  <p style="margin:0 0 12px">A devolução da encomenda <strong>#{order.Id}</strong> foi aceite.</p>
+  <p style="margin:0 0 12px"><strong>Cliente:</strong> {WebUtility.HtmlEncode(order.BuyerEmail)}</p>
+  {storeNote}
+  {(string.IsNullOrWhiteSpace(adminUrl) ? string.Empty : $"<p style=\"margin:0\">Abrir venda: <a href=\"{adminUrl}\">{adminUrl}</a></p>")}
+</div>
+""";
+
+            foreach (var to in adminEmails)
+            {
+                await emailService.SendEmailAsync(to, subject, html);
+            }
+        }
+        catch
+        {
+            // best-effort
+        }
+    }
+
+    private async Task TryNotifyAdminsRefundRejectedAsync(Order order)
+    {
+        try
+        {
+            var adminEmails = await GetAdminEmailsAsync();
+            if (adminEmails.Count == 0) return;
+
+            foreach (var adminEmail in adminEmails)
+            {
+                await notificationService.TryCreateForEmailAsync(
+                    adminEmail,
+                    "Devolução recusada",
+                    $"A devolução da encomenda #{order.Id} foi recusada.",
+                    $"/admin/sales/{order.Id}");
+            }
+
+            var frontendUrl = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var adminUrl = string.IsNullOrWhiteSpace(frontendUrl) ? string.Empty : $"{frontendUrl}/admin/sales/{order.Id}";
+            var subject = $"[Devolução] Recusada - Encomenda #{order.Id}";
+
+            var storeNote = string.IsNullOrWhiteSpace(order.RefundReviewNote)
+                ? string.Empty
+                : $"<p style=\"margin:0 0 12px\"><strong>Comentário da Loja:</strong> {WebUtility.HtmlEncode(order.RefundReviewNote)}</p>";
+
+            var html = $"""
+<div style="font-family:Arial,sans-serif;max-width:640px">
+  <h2 style="margin:0 0 12px">Devolução recusada</h2>
+  <p style="margin:0 0 12px">A devolução da encomenda <strong>#{order.Id}</strong> foi recusada.</p>
+  <p style="margin:0 0 12px"><strong>Cliente:</strong> {WebUtility.HtmlEncode(order.BuyerEmail)}</p>
+  {storeNote}
+  {(string.IsNullOrWhiteSpace(adminUrl) ? string.Empty : $"<p style=\"margin:0\">Abrir venda: <a href=\"{adminUrl}\">{adminUrl}</a></p>")}
+</div>
+""";
+
+            foreach (var to in adminEmails)
+            {
+                await emailService.SendEmailAsync(to, subject, html);
+            }
+        }
+        catch
+        {
+            // best-effort
+        }
     }
 
     [HttpGet("{id:int}/invoice")]
@@ -198,23 +613,81 @@ public class OrdersController(
         var order = await context.Orders.FirstOrDefaultAsync(o => o.Id == id);
         if (order == null) return NotFound();
 
+        var trackingToSet = (dto.TrackingNumber ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(trackingToSet) && newStatus != OrderStatus.Shipped)
+            return BadRequest("Tracking só pode ser definido quando o estado é 'Enviado'.");
+
+        if (newStatus == OrderStatus.Shipped && !string.IsNullOrWhiteSpace(trackingToSet))
+        {
+            if (trackingToSet.Length < 6) return BadRequest("Número de tracking inválido");
+            if (trackingToSet.Length > 64) return BadRequest("Número de tracking demasiado longo");
+
+            // Avoid changing timestamps / re-sending notifications if it's the same tracking
+            var isSame = string.Equals(order.TrackingNumber ?? string.Empty, trackingToSet, StringComparison.Ordinal);
+            if (!isSame)
+            {
+                order.TrackingNumber = trackingToSet;
+                order.TrackingAddedAt = DateTime.UtcNow;
+            }
+        }
+
+        // If cancelling, reverse payment in Stripe first (refund or cancel PaymentIntent).
+        if (newStatus == OrderStatus.Cancelled)
+        {
+            var reversal = await stripeReversalService.ReverseAsync(order, CancellationToken.None);
+            if (!reversal.Succeeded)
+            {
+                return BadRequest(reversal.Error ?? "Não foi possível reverter o pagamento no Stripe");
+            }
+
+            order.CancelledAt ??= DateTime.UtcNow;
+            if (reversal.Kind == StripeReversalKind.Refunded && !string.IsNullOrWhiteSpace(reversal.RefundId))
+            {
+                order.RefundId ??= reversal.RefundId;
+                order.RefundedAt ??= DateTime.UtcNow;
+            }
+        }
+
         order.OrderStatus = newStatus;
 
         var saved = await context.SaveChangesAsync() > 0;
         if (!saved) return BadRequest("Problem updating order status");
 
-        await notificationService.TryCreateForEmailAsync(
-            order.BuyerEmail,
-            "Atualização da encomenda",
-            $"A encomenda #{order.Id} foi atualizada para: {newStatus}.",
-            $"/orders/{order.Id}");
+        if (newStatus == OrderStatus.ReviewRequested)
+        {
+            await notificationService.TryCreateForEmailAsync(
+                order.BuyerEmail,
+                "Pedido de avaliação",
+                $"A sua encomenda #{order.Id} está pronta para avaliação (serviço e produtos).",
+                $"/orders/{order.Id}?feedback=1");
+        }
+        else
+        {
+            await notificationService.TryCreateForEmailAsync(
+                order.BuyerEmail,
+                "Atualização da encomenda",
+                $"A encomenda #{order.Id} foi atualizada para: {newStatus}.",
+                $"/orders/{order.Id}");
+        }
 
         if (newStatus == OrderStatus.PaymentReceived)
         {
             await TrySendReceiptEmailIfNeeded(order, CancellationToken.None);
         }
 
-        await TrySendStatusEmail(order, newStatus);
+        if (newStatus == OrderStatus.ReviewRequested)
+        {
+            await TrySendReviewRequestEmail(order.Id, CancellationToken.None);
+        }
+        else
+        {
+            await TrySendStatusEmail(order, newStatus);
+        }
+
+        if (newStatus == OrderStatus.Shipped && !string.IsNullOrWhiteSpace(trackingToSet))
+        {
+            await TrySendTrackingNotificationEmail(order, trackingToSet, CancellationToken.None);
+        }
 
         var updated = await context.Orders
             .ProjectToDto()
@@ -222,6 +695,99 @@ public class OrdersController(
             .FirstOrDefaultAsync();
 
         return updated == null ? Ok() : Ok(updated);
+    }
+
+    private async Task TrySendReviewRequestEmail(int orderId, CancellationToken ct)
+    {
+        try
+        {
+            var fullOrder = await context.Orders
+                .AsNoTracking()
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+
+            if (fullOrder == null) return;
+
+            var frontend = emailOptions.Value.FrontendUrl?.TrimEnd('/') ?? string.Empty;
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{fullOrder.Id}?feedback=1";
+
+            var productLinks = fullOrder.OrderItems
+                .Select(oi => new { oi.ItemOrdered.ProductId, oi.ItemOrdered.Name })
+                .GroupBy(x => x.ProductId)
+                .Select(g => g.First())
+                .Select(x => new
+                {
+                    x.ProductId,
+                    x.Name,
+                    Url = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/catalog/{x.ProductId}?review=1"
+                })
+                .Where(x => !string.IsNullOrWhiteSpace(x.Url))
+                .ToList();
+
+            var productsHtml = productLinks.Count == 0
+                ? ""
+                : "<ul>" + string.Join("", productLinks.Select(p => $"<li><a href=\"{p.Url}\">{System.Net.WebUtility.HtmlEncode(p.Name)}</a></li>")) + "</ul>";
+
+            var subject = $"Encomenda #{fullOrder.Id}: Avalie o serviço e os produtos";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>A sua encomenda <strong>#{fullOrder.Id}</strong> está pronta para avaliação.</p>
+
+                  <h3>Feedback do serviço (encomenda)</h3>
+                  <p>Este comentário é sobre a experiência/serviço da encomenda (não é a avaliação do produto).</p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Deixar feedback aqui: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+
+                  <h3>Avaliação dos produtos</h3>
+                  <p>Para avaliar um produto, use a secção <strong>Avaliações</strong> na página do produto:</p>
+                  {productsHtml}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(fullOrder.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send review request email for order {OrderId}", orderId);
+        }
+    }
+
+    private async Task TrySendTrackingNotificationEmail(Order order, string tracking, CancellationToken ct)
+    {
+        // Avoid duplicate notifications if already saved (e.g., status update saved first then tracking endpoint called)
+        var shouldNotify = string.Equals(order.TrackingNumber ?? string.Empty, tracking, StringComparison.Ordinal);
+        if (!shouldNotify) return;
+
+        var cttUrl = $"https://www.ctt.pt/feapl_2/app/open/objectSearch/objectSearch.jspx?objects={WebUtility.UrlEncode(tracking)}";
+
+        await notificationService.TryCreateForEmailAsync(
+            order.BuyerEmail,
+            "Encomenda enviada",
+            $"A encomenda #{order.Id} foi enviada. Tracking CTT: {tracking}.",
+            $"/orders/{order.Id}",
+            ct);
+
+        try
+        {
+            var frontend = (emailOptions.Value.FrontendUrl ?? string.Empty).TrimEnd('/');
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{order.Id}";
+            var subject = $"Tracking CTT - Encomenda #{order.Id}";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>A sua encomenda <strong>#{order.Id}</strong> foi enviada.</p>
+                  <p><strong>Tracking CTT:</strong> {WebUtility.HtmlEncode(tracking)}</p>
+                  <p>Acompanhar: <a href=\"{cttUrl}\">{cttUrl}</a></p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(order.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send tracking email for order {OrderId}", order.Id);
+        }
     }
 
     [Authorize(Roles = "Admin")]
@@ -359,7 +925,64 @@ public class OrdersController(
 
         await TryNotifyAdminsOrderComment(order);
 
+        await notificationService.TryCreateForEmailAsync(
+            order.BuyerEmail,
+            "Obrigado pelo feedback",
+            $"Recebemos o seu feedback da encomenda #{order.Id}. Se quiser, pode também avaliar os produtos.",
+            $"/orders/{order.Id}");
+
+        await TrySendThankYouAfterServiceFeedbackEmail(order.Id, CancellationToken.None);
+
         return NoContent();
+    }
+
+    private async Task TrySendThankYouAfterServiceFeedbackEmail(int orderId, CancellationToken ct)
+    {
+        try
+        {
+            var fullOrder = await context.Orders
+                .AsNoTracking()
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+
+            if (fullOrder == null) return;
+
+            var frontend = emailOptions.Value.FrontendUrl?.TrimEnd('/') ?? string.Empty;
+            var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{fullOrder.Id}";
+
+            var productLinks = fullOrder.OrderItems
+                .Select(oi => new { oi.ItemOrdered.ProductId, oi.ItemOrdered.Name })
+                .GroupBy(x => x.ProductId)
+                .Select(g => g.First())
+                .Select(x => new
+                {
+                    x.ProductId,
+                    x.Name,
+                    Url = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/catalog/{x.ProductId}?review=1"
+                })
+                .Where(x => !string.IsNullOrWhiteSpace(x.Url))
+                .ToList();
+
+            var productsHtml = productLinks.Count == 0
+                ? ""
+                : "<ul>" + string.Join("", productLinks.Select(p => $"<li><a href=\"{p.Url}\">{System.Net.WebUtility.HtmlEncode(p.Name)}</a></li>")) + "</ul>";
+
+            var subject = $"Encomenda #{fullOrder.Id}: Obrigado pelo seu feedback";
+            var html = $"""
+                <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                  <h2>Restore</h2>
+                  <p>Obrigado pelo seu feedback na encomenda <strong>#{fullOrder.Id}</strong>.</p>
+                  {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                  {(string.IsNullOrWhiteSpace(productsHtml) ? string.Empty : $"<p>Se ainda não o fez, pode avaliar os produtos:</p>{productsHtml}")}
+                </div>
+                """;
+
+            await emailService.SendEmailAsync(fullOrder.BuyerEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send thank-you email after service feedback for order {OrderId}", orderId);
+        }
     }
 
     [Authorize(Roles = "Admin")]
@@ -918,6 +1541,39 @@ public class OrdersController(
         {
             var frontend = emailOptions.Value.FrontendUrl?.TrimEnd('/') ?? string.Empty;
             var orderUrl = string.IsNullOrWhiteSpace(frontend) ? string.Empty : $"{frontend}/orders/{order.Id}";
+
+            if (newStatus == OrderStatus.Cancelled)
+            {
+                var pdfBytes = await invoicePdfService.GenerateCancellationPdfAsync(order, CancellationToken.None);
+
+                var subjectCancelled = $"Encomenda #{order.Id}: Anulada";
+                var refundText = order.RefundedAt.HasValue
+                    ? "A devolução foi criada no Stripe."
+                    : "A devolução foi iniciada e poderá demorar alguns dias úteis.";
+
+                var htmlCancelled = $"""
+                    <div style='font-family: Arial, sans-serif; line-height: 1.5'>
+                      <h2>Restore</h2>
+                      <p>A sua encomenda <strong>#{order.Id}</strong> foi anulada.</p>
+                      <p>{refundText}</p>
+                      {(string.IsNullOrWhiteSpace(orderUrl) ? string.Empty : $"<p>Ver encomenda: <a href=\"{orderUrl}\">{orderUrl}</a></p>")}
+                      <p>Segue em anexo o PDF de confirmação de anulação.</p>
+                    </div>
+                    """;
+
+                await emailService.SendEmailWithAttachmentsAsync(order.BuyerEmail, subjectCancelled, htmlCancelled,
+                    new[]
+                    {
+                        new EmailAttachment
+                        {
+                            FileName = $"anulacao-{order.Id}.pdf",
+                            ContentType = "application/pdf",
+                            Content = pdfBytes
+                        }
+                    });
+
+                return;
+            }
 
             var subject = newStatus switch
             {

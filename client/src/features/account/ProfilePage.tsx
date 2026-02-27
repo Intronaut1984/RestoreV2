@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Container, Typography, Grid, Box, Divider, TextField, Button, Stack, IconButton, InputAdornment, Paper, useTheme, FormControlLabel, Switch } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { useUserInfoQuery, useFetchAddressQuery, useUpdateUserInfoMutation, useUpdateUserAddressMutation } from './accountApi';
+import { useUserInfoQuery, useFetchAddressQuery, useUpdateUserInfoMutation, useUpdateUserAddressMutation, useDeleteAccountMutation } from './accountApi';
 import { useChangePasswordMutation } from './accountApi';
 import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'react-toastify';
+import PageTitle from '../../app/shared/components/PageTitle';
 
 export default function ProfilePage() {
   const { data: user, isLoading: userLoading } = useUserInfoQuery();
@@ -12,6 +13,7 @@ export default function ProfilePage() {
   const [updateUserInfo] = useUpdateUserInfoMutation();
   const [updateUserAddress, { isLoading: updatingAddress }] = useUpdateUserAddressMutation();
   const [changePassword, { isLoading: isChanging }] = useChangePasswordMutation();
+  const [deleteAccount, { isLoading: deletingAccount }] = useDeleteAccountMutation();
   const [editing, setEditing] = useState(false);
   const [showUserNameEditor, setShowUserNameEditor] = useState(false);
   const [newUserName, setNewUserName] = useState('');
@@ -23,6 +25,7 @@ export default function ProfilePage() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [deleteStoredData, setDeleteStoredData] = useState(false);
 
   const theme = useTheme();
   const isLight = theme.palette.mode === 'light';
@@ -188,6 +191,18 @@ export default function ProfilePage() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      const ok = window.confirm('Tem a certeza que quer apagar a sua conta? Esta ação não pode ser desfeita.');
+      if (!ok) return;
+
+      await deleteAccount({ deleteStoredData }).unwrap();
+    } catch (err) {
+      toast.error('Problema ao apagar conta');
+      console.error(err);
+    }
+  };
+
   return (
     <Container
       component={Paper}
@@ -201,10 +216,10 @@ export default function ProfilePage() {
       }}
     >
       <Box sx={{ px: 0 }}>
-        <Typography variant="h5" sx={{ mb: 1 }}>
-          {user?.userName && !user.userName.includes('@') ? `Olá, ${user.userName}` : 'Olá, User'}
-        </Typography>
-        <Divider sx={{ my: 1 }} />
+        <PageTitle
+          title={user?.userName && !user.userName.includes('@') ? `Olá, ${user.userName}` : 'Olá, User'}
+          variant="h5"
+        />
 
         {!editing ? (
           <>
@@ -307,6 +322,31 @@ export default function ProfilePage() {
               <Button variant="contained" onClick={() => setEditing(true)}>Editar</Button>
               <Button variant="outlined" onClick={() => setChangingPassword(s => !s)}>Alterar Password</Button>
             </Stack>
+
+            <Divider sx={{ my: 3 }} />
+
+            <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 2 }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>Apagar conta</Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={deleteStoredData}
+                    onChange={(e) => setDeleteStoredData(e.target.checked)}
+                  />
+                }
+                label="Apagar também os dados guardados (ex.: encomendas, incidentes e avaliações)"
+              />
+              <Box sx={{ mt: 1 }}>
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={handleDeleteAccount}
+                  disabled={deletingAccount}
+                >
+                  Apagar conta
+                </Button>
+              </Box>
+            </Box>
           </>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)}>

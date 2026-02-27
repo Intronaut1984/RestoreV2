@@ -29,6 +29,7 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
     public required DbSet<OrderIncident> OrderIncidents { get; set; }
     public required DbSet<OrderIncidentAttachment> OrderIncidentAttachments { get; set; }
     public required DbSet<UserNotification> UserNotifications { get; set; }
+    public required DbSet<UiSettings> UiSettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -64,6 +65,18 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
             b.Property(x => x.Url).HasMaxLength(500);
         });
 
+        builder.Entity<UiSettings>(b =>
+        {
+            b.Property(x => x.PrimaryColorLight).IsRequired().HasMaxLength(20);
+            b.Property(x => x.SecondaryColorLight).IsRequired().HasMaxLength(20);
+            b.Property(x => x.PrimaryColorDark).IsRequired().HasMaxLength(20);
+            b.Property(x => x.SecondaryColorDark).IsRequired().HasMaxLength(20);
+            b.Property(x => x.ButtonIconColor).IsRequired().HasMaxLength(50);
+            b.Property(x => x.NotificationsBadgeColorLight).IsRequired().HasMaxLength(50);
+            b.Property(x => x.NotificationsBadgeColorDark).IsRequired().HasMaxLength(50);
+            b.HasIndex(x => x.UpdatedAt);
+        });
+
         builder.Entity<OrderIncident>(b =>
         {
             b.HasIndex(x => x.OrderId).IsUnique();
@@ -89,12 +102,26 @@ public class StoreContext(DbContextOptions options) : IdentityDbContext<User>(op
             .HasForeignKey<OrderIncident>(i => i.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.Entity<Order>(b =>
+        {
+            b.Property(x => x.RefundId).HasMaxLength(100);
+            b.HasIndex(x => x.RefundId);
+
+            b.HasIndex(x => x.RefundRequestStatus);
+            b.Property(x => x.RefundRequestReason).HasMaxLength(1000);
+            b.Property(x => x.RefundReviewNote).HasMaxLength(2000);
+        });
+
         builder.Entity<ProductReview>(b =>
         {
             b.HasIndex(x => x.ProductId);
             b.HasIndex(x => new { x.ProductId, x.BuyerEmail, x.OrderId }).IsUnique();
-            b.Property(x => x.BuyerEmail).IsRequired();
-            b.Property(x => x.Comment).IsRequired();
+            b.HasQueryFilter(x => !x.IsDeleted);
+            b.Property(x => x.BuyerEmail).IsRequired().HasMaxLength(320);
+            b.Property(x => x.Comment).IsRequired().HasMaxLength(1000);
+            b.Property(x => x.AdminReply).HasMaxLength(2000);
+            b.Property(x => x.DeletedByEmail).HasMaxLength(320);
+            b.Property(x => x.DeletedReason).HasMaxLength(500);
             b.HasCheckConstraint("CK_ProductReviews_Rating", "[Rating] >= 1 AND [Rating] <= 5");
             b.HasOne<Product>()
                 .WithMany()

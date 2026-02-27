@@ -4,6 +4,7 @@ import { Order } from "../../app/models/order";
 import { currencyFormat, formatAddressString, formatPaymentString, formatOrderAmount } from "../../lib/util";
 import { format } from 'date-fns';
 import { primaryActionSx, secondaryActionSx } from "../../app/shared/styles/actionButtons";
+import PageTitle from "../../app/shared/components/PageTitle";
 
 export default function CheckoutSuccess() {
   const theme = useTheme();
@@ -17,9 +18,7 @@ export default function CheckoutSuccess() {
 
   return (
     <Container maxWidth='md'>
-      <Typography variant="h4" gutterBottom fontWeight='bold' sx={{ mb: 1 }}>
-        Obrigado pela sua compra!
-      </Typography>
+      <PageTitle title="Obrigado pela sua compra!" variant="h4" />
 
       <Typography variant="body1" color="textSecondary" gutterBottom sx={{ mb: 2 }}>
         Seu pedido <strong>#{order.id}</strong> nunca será processado, pois esta é uma loja falsa.

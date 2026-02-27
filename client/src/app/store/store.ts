@@ -18,6 +18,7 @@ import { logoApi } from "../../features/admin/logoApi";
 import { contactApi } from "../../features/admin/contactApi";
 import { shippingRateApi } from "../../features/admin/shippingRateApi";
 import { notificationsApi } from "../../features/notifications/notificationsApi";
+import { uiSettingsApi } from "../../features/admin/uiSettingsApi";
 
 export function configureTheStore() {
     return legacy_createStore(counterReducer)
@@ -40,6 +41,7 @@ export const store = configureStore({
         [contactApi.reducerPath]: contactApi.reducer,
         [shippingRateApi.reducerPath]: shippingRateApi.reducer,
         [notificationsApi.reducerPath]: notificationsApi.reducer,
+        [uiSettingsApi.reducerPath]: uiSettingsApi.reducer,
         counter: counterSlice.reducer,
         ui: uiSlice.reducer,
         catalog: catalogSlice.reducer
@@ -60,7 +62,8 @@ export const store = configureStore({
             logoApi.middleware,
             contactApi.middleware,
             shippingRateApi.middleware,
-            notificationsApi.middleware
+            notificationsApi.middleware,
+            uiSettingsApi.middleware
         )
 });
 

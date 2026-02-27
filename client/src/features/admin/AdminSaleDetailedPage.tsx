@@ -2,6 +2,8 @@ import { Link, useParams } from "react-router-dom";
 import {
   useFetchAnyOrderDetailedQuery,
   useFetchOrderIncidentQuery,
+  useApproveRefundRequestMutation,
+  useRejectRefundRequestMutation,
   useResolveOrderIncidentMutation,
   useReplyOrderIncidentMutation,
   useReplyOrderCommentMutation,
@@ -66,6 +68,11 @@ export default function AdminSaleDetailedPage() {
   const [updateTracking, { isLoading: isUpdatingTracking, error: trackingError }] =
     useUpdateAnyOrderTrackingMutation();
 
+  const [approveRefund, { isLoading: isApprovingRefund, error: approveRefundError }] =
+    useApproveRefundRequestMutation();
+  const [rejectRefund, { isLoading: isRejectingRefund, error: rejectRefundError }] =
+    useRejectRefundRequestMutation();
+
   const { data: order, isLoading } = useFetchAnyOrderDetailedQuery(+id!);
   const { data: incident, isLoading: isIncidentLoading, refetch: refetchIncident } = useFetchOrderIncidentQuery(+id!);
   const [resolveIncident, { isLoading: isResolvingIncident, error: resolveIncidentError }] = useResolveOrderIncidentMutation();
@@ -100,12 +107,27 @@ export default function AdminSaleDetailedPage() {
 
   if (!order) return <Typography variant="h5">Encomenda não encontrada</Typography>;
 
+  const refundStatusLabel = (() => {
+    switch (order.refundRequestStatus) {
+      case "PendingReview":
+        return "Pedido de devolução em avaliação";
+      case "Approved":
+        return "Pedido de devolução aceite";
+      case "Rejected":
+        return "Pedido de devolução recusado";
+      default:
+        return null;
+    }
+  })();
+
   const apiBaseUrl = ((import.meta.env.VITE_API_URL as string | undefined) ?? '/api/').replace(/\/?$/, '/');
   const receiptUrl = `${apiBaseUrl}orders/all/${order.id}/invoice`;
   const incidentAttachmentUrl = (attachmentId: number) => `${apiBaseUrl}orders/${order.id}/incident/attachments/${attachmentId}`;
   const cttUrl = trackingNumber.trim().length
     ? `https://www.ctt.pt/feapl_2/app/open/objectSearch/objectSearch.jspx?objects=${encodeURIComponent(trackingNumber.trim())}`
     : '';
+
+  const showTrackingEditor = selectedStatus === 'Shipped' || order.orderStatus === 'Shipped';
 
   const selectOptions = (() => {
     const base = adminOrderStatusOptions;
@@ -215,6 +237,89 @@ export default function AdminSaleDetailedPage() {
           </Typography>
         </Box>
 
+        {refundStatusLabel && (
+          <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
+            <Typography variant="subtitle1" fontWeight="500">
+              Devolução
+            </Typography>
+            <Typography
+              variant="body2"
+              fontWeight="300"
+              sx={order.refundRequestStatus === "Approved" ? { color: "success.main" } : undefined}
+            >
+              {refundStatusLabel}
+            </Typography>
+            {order.refundRequestedAt && (
+              <Typography variant="caption" fontWeight="300">
+                Pedido: {format(order.refundRequestedAt, "dd MMM yyyy")}
+              </Typography>
+            )}
+            {order.refundReviewedAt && (
+              <Typography variant="caption" fontWeight="300" sx={{ display: "block" }}>
+                Decisão: {format(order.refundReviewedAt, "dd MMM yyyy")}
+              </Typography>
+            )}
+            {order.refundRequestReason && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>
+                Motivo: {order.refundRequestReason}
+              </Typography>
+            )}
+            {order.refundReturnMethod && order.refundReturnMethod !== 'None' && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Método: {order.refundReturnMethod === 'InStore' ? 'Loja' : (order.refundReturnMethod === 'ByMail' ? 'Correio' : order.refundReturnMethod)}
+              </Typography>
+            )}
+            {order.refundReviewNote && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>
+                Comentário da Loja: {order.refundReviewNote}
+              </Typography>
+            )}
+
+            {order.refundRequestStatus === "PendingReview" && (
+              <Box sx={{ mt: 1, display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  disabled={isApprovingRefund || isRejectingRefund}
+                  onClick={async () => {
+                    if (!window.confirm("Confirmar aceitação do pedido de devolução? Isto irá criar a devolução no Stripe e anular a encomenda.")) return;
+                    const note = window.prompt("Nota (opcional) para o cliente:") ?? "";
+                    try {
+                      await approveRefund({ id: order.id, note: note.trim() || undefined }).unwrap();
+                    } catch {
+                      // handled via approveRefundError
+                    }
+                  }}
+                >
+                  Aceitar devolução
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  disabled={isApprovingRefund || isRejectingRefund}
+                  onClick={async () => {
+                    if (!window.confirm("Confirmar recusa do pedido de devolução?")) return;
+                    const note = window.prompt("Motivo/nota (opcional) para o cliente:") ?? "";
+                    try {
+                      await rejectRefund({ id: order.id, note: note.trim() || undefined }).unwrap();
+                    } catch {
+                      // handled via rejectRefundError
+                    }
+                  }}
+                >
+                  Recusar devolução
+                </Button>
+              </Box>
+            )}
+
+            {(approveRefundError || rejectRefundError) && (
+              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                {getApiErrorMessage(approveRefundError || rejectRefundError, "Não foi possível atualizar o pedido de devolução")}
+              </Typography>
+            )}
+          </Box>
+        )}
+
         <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
           <Typography variant="subtitle1" fontWeight="500">Atualizar estado</Typography>
 
@@ -276,7 +381,12 @@ export default function AdminSaleDetailedPage() {
               onClick={async () => {
                 setSaved(false);
                 try {
-                  await updateStatus({ id: order.id, status: selectedStatus }).unwrap();
+                  const trimmedTracking = trackingNumber.trim();
+                  const payload = selectedStatus === 'Shipped' && trimmedTracking.length >= 6
+                    ? { id: order.id, status: selectedStatus, trackingNumber: trimmedTracking }
+                    : { id: order.id, status: selectedStatus };
+
+                  await updateStatus(payload).unwrap();
                   setSaved(true);
                 } catch {
                   // handled via updateError
@@ -288,7 +398,7 @@ export default function AdminSaleDetailedPage() {
           </Box>
         </Box>
 
-        {order.orderStatus === 'Shipped' && (
+        {showTrackingEditor && (
           <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 1, mt: 1 }}>
             <Typography variant="subtitle1" fontWeight="500">Tracking CTT</Typography>
 
@@ -309,6 +419,12 @@ export default function AdminSaleDetailedPage() {
               label="Número de tracking"
               placeholder="Ex: XX123456789PT"
             />
+
+            {selectedStatus === 'Shipped' && order.orderStatus !== 'Shipped' && (
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                Se preencher, será guardado ao guardar o estado como “Enviado”.
+              </Typography>
+            )}
 
             {!!cttUrl && (
               <Button

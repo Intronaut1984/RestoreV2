@@ -25,6 +25,7 @@ import {
   type AnalyticsQuery,
 } from './analyticsApi';
 import { currencyFormat } from '../../lib/util';
+import PageTitle from '../../app/shared/components/PageTitle';
 
 const toIso = (d: Date) => d.toISOString();
 
@@ -118,7 +119,7 @@ export default function AdminAnalytics() {
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Typography variant="h4" sx={{ mb: 2 }}>Analytics</Typography>
+      <PageTitle title="Analytics" variant="h4" />
 
       <Paper sx={{ p: 2, mb: 2 }}>
         <Grid container spacing={2} alignItems="center">

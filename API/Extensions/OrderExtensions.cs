@@ -28,6 +28,12 @@ public static class OrderExtensions
             CustomerCommentedAt = order.CustomerCommentedAt,
             AdminCommentReply = order.AdminCommentReply,
             AdminCommentRepliedAt = order.AdminCommentRepliedAt,
+            RefundRequestStatus = order.RefundRequestStatus.ToString(),
+            RefundRequestedAt = order.RefundRequestedAt,
+            RefundReviewedAt = order.RefundReviewedAt,
+            RefundReturnMethod = order.RefundReturnMethod.ToString(),
+            RefundRequestReason = order.RefundRequestReason,
+            RefundReviewNote = order.RefundReviewNote,
             OrderItems = order.OrderItems.Select(item => new OrderItemDto
             {
                 ProductId = item.ItemOrdered.ProductId,
@@ -62,6 +68,12 @@ public static class OrderExtensions
             CustomerCommentedAt = order.CustomerCommentedAt,
             AdminCommentReply = order.AdminCommentReply,
             AdminCommentRepliedAt = order.AdminCommentRepliedAt,
+            RefundRequestStatus = order.RefundRequestStatus.ToString(),
+            RefundRequestedAt = order.RefundRequestedAt,
+            RefundReviewedAt = order.RefundReviewedAt,
+            RefundReturnMethod = order.RefundReturnMethod.ToString(),
+            RefundRequestReason = order.RefundRequestReason,
+            RefundReviewNote = order.RefundReviewNote,
             OrderItems = order.OrderItems.Select(item => new OrderItemDto
             {
                 ProductId = item.ItemOrdered.ProductId,

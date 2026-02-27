@@ -34,6 +34,14 @@ export const adminApi = createApi({
             }),
             invalidatesTags: ['Users']
         }),
+        deleteUser: builder.mutation<void, { email: string; deleteStoredData: boolean }>({
+            query: (payload) => ({
+                url: 'admin/users/delete',
+                method: 'POST',
+                body: payload
+            }),
+            invalidatesTags: ['Users']
+        }),
         createProduct: builder.mutation<Product, FormData>({
             query: (data: FormData) => {
                 return {
@@ -112,5 +120,6 @@ export const {
     useGetUsersQuery,
     useGetPromoQuery,
     useUpdatePromoMutation,
-    useUpdateUserRoleMutation
+    useUpdateUserRoleMutation,
+    useDeleteUserMutation
 } = adminApi;
